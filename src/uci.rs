@@ -1,4 +1,4 @@
-use crate::Position;
+use crate::position::Position;
 
 use std::time::Instant;
 
@@ -10,7 +10,11 @@ pub fn preamble() {
     println!("uciok");
 }
 
-pub fn set_position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
+pub fn isready() {
+    println!("readyok");
+}
+
+pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
     let mut fen = String::new();
     let mut move_list = Vec::new();
     let mut moves = false;
@@ -44,10 +48,10 @@ pub fn set_position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64
     }
 }
 
-pub fn run_perft(commands: &[&str], pos: &Position) {
+pub fn perft(commands: &[&str], pos: &Position) {
     let depth = commands[1].parse().unwrap();
     let now = Instant::now();
-    let count = perft::<true, true>(pos, depth);
+    let count = perft_fn::<true, true>(pos, depth);
     let time = now.elapsed().as_micros();
     println!(
         "perft {depth} time {} nodes {count} ({:.2} Mnps)",
@@ -57,7 +61,7 @@ pub fn run_perft(commands: &[&str], pos: &Position) {
 }
 
 #[must_use]
-fn perft<const ROOT: bool, const BULK: bool>(pos: &Position, depth: u8) -> u64 {
+fn perft_fn<const ROOT: bool, const BULK: bool>(pos: &Position, depth: u8) -> u64 {
     let moves = pos.gen();
 
     if BULK && !ROOT && depth == 1 {
@@ -74,7 +78,7 @@ fn perft<const ROOT: bool, const BULK: bool>(pos: &Position, depth: u8) -> u64 {
         let num = if !BULK && leaf {
             1
         } else {
-            perft::<false, BULK>(&tmp, depth - 1)
+            perft_fn::<false, BULK>(&tmp, depth - 1)
         };
         positions += num;
 

@@ -1,4 +1,4 @@
-use super::{
+use crate::{
     attacks::Attacks,
     consts::{CASTLE_MASK, Flag, IN_BETWEEN, LINE_THROUGH, Path, Piece, ROOK_MOVES, Rank, Right, Side},
 };

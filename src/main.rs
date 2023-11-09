@@ -7,11 +7,9 @@ mod consts;
 mod position;
 mod uci;
 
-use position::Position;
-
 fn main() {
     // initialise engine
-    let mut pos = Position::parse_fen(uci::STARTPOS);
+    let mut pos = position::Position::parse_fen(uci::STARTPOS);
 
     // main uci loop
     loop {
@@ -27,9 +25,9 @@ fn main() {
 
         match *commands.first().unwrap_or(&"oops") {
             "uci" => uci::preamble(),
-            "isready" => println!("readyok"),
-            "position" => uci::set_position(commands, &mut pos, &mut Vec::new()),
-            "perft" => uci::run_perft(&commands, &pos),
+            "isready" => uci::isready(),
+            "position" => uci::position(commands, &mut pos, &mut Vec::new()),
+            "perft" => uci::perft(&commands, &pos),
             "quit" => std::process::exit(0),
             _ => {}
         }

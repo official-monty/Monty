@@ -1,4 +1,4 @@
-use super::init;
+use crate::init;
 
 pub struct Side;
 impl Side {
@@ -81,7 +81,7 @@ impl Rank {
     pub const DBL: [u64; 2] = [0x0000_0000_FF00_0000, 0x0000_00FF_0000_0000];
 }
 
-pub const IN_BETWEEN: [[u64; 64]; 64] = {
+pub static IN_BETWEEN: [[u64; 64]; 64] = {
     let mut arr = [[0; 64]; 64];
     let mut i = 0;
     while i < 64 {
@@ -95,7 +95,7 @@ pub const IN_BETWEEN: [[u64; 64]; 64] = {
     arr
 };
 
-pub const LINE_THROUGH: [[u64; 64]; 64] = {
+pub static LINE_THROUGH: [[u64; 64]; 64] = {
     let mut arr = [[0; 64]; 64];
     let mut i = 0;
     while i < 64 {
