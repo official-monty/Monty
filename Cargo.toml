@@ -1,0 +1,10 @@
+[package]
+name = "monty"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+panic = 'abort'
+lto = true
+codegen-units = 1
+strip = true
