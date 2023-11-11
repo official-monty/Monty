@@ -1,4 +1,4 @@
-const HIDDEN: usize = 256;
+const HIDDEN: usize = 768;
 const SCALE: i32 = 400;
 const QA: i32 = 255;
 const QB: i32 = 64;
@@ -17,7 +17,7 @@ pub struct Network {
     output_bias: i16,
 }
 
-static NNUE: Network = unsafe { std::mem::transmute(*include_bytes!("../net.bin")) };
+static NNUE: Network = unsafe { std::mem::transmute(*include_bytes!("../altair-net.bin")) };
 
 impl Network {
     pub fn out(boys: &Accumulator, opps: &Accumulator) -> i32 {
@@ -36,7 +36,7 @@ impl Network {
 }
 
 #[derive(Clone, Copy)]
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct Accumulator {
     vals: [i16; HIDDEN],
 }
