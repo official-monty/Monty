@@ -71,7 +71,7 @@ impl Searcher {
     }
 
     fn pick_child(&self, node: &Node) -> Move {
-        let c = 1.41;
+        let c = 0.5;
         let fpu = 0.5;
 
         let sqrt_ln_visit = f64::from(node.visits).ln().sqrt();

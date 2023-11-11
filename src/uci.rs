@@ -53,9 +53,9 @@ pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
 
 pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position) {
     let nodes = if let ["go", "nodes", x] = commands {
-        x.parse().unwrap_or(1000)
+        x.parse().unwrap_or(50_000)
     } else {
-        1000
+        50_000
     };
 
     let mut searcher = Searcher::new(*pos, stack, nodes);
