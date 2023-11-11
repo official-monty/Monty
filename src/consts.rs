@@ -56,13 +56,13 @@ impl Path {
 }
 
 // the castling rook move bitboards
-pub const ROOK_MOVES: [[u64; 2]; 2] = [
-    [0x0000_0000_0000_0009, 0x0900_0000_0000_0000],
-    [0x0000_0000_0000_00A0, 0xA000_0000_0000_0000],
+pub const ROOK_MOVES: [[(u8, u8); 2]; 2] = [
+    [(0, 3), (56, 59)],
+    [(7, 5), (63, 61)],
 ];
 
 // mask off castling rights by square
-pub const CASTLE_MASK: [u8; 64] = init! {idx,
+pub const CASTLE_MASK: [u8; 64] = init!(|idx, 64|
     match idx {
          0 =>  7,
          4 =>  3,
@@ -72,7 +72,7 @@ pub const CASTLE_MASK: [u8; 64] = init! {idx,
         63 => 14,
          _ => 15
     }
-};
+);
 
 // for promotions / double pushes
 pub struct Rank;
@@ -124,3 +124,54 @@ const fn in_between(sq1: usize, sq2: usize) -> u64 {
     line = line.wrapping_mul(btwn & btwn.wrapping_neg());
     line & btwn
 }
+
+const fn rand(mut seed: u64) -> u64 {
+    seed ^= seed << 13;
+    seed ^= seed >> 7;
+    seed ^= seed << 17;
+    seed
+}
+
+pub struct ZobristVals {
+    pub pcs: [[[u64; 64]; 8]; 2],
+    pub cr: [u64; 16],
+    pub enp: [u64; 8],
+    pub c: [u64; 2],
+}
+
+pub static ZVALS: ZobristVals = {
+    let mut seed = 180_620_142;
+    seed = rand(seed);
+
+    let c = [0, seed];
+
+    let pcs = init!(|side, 2| init!(|pc, 8| init!(|sq, 64| {
+        if pc < 2 {
+            0
+        } else {
+            seed = rand(seed);
+            seed
+        }
+    })));
+
+    let cf = init!(|i, 4| {
+        seed = rand(seed);
+        seed
+    });
+
+    let cr = init!(|i, 16| {
+        ((i & 1 > 0) as u64 * cf[0])
+            ^ ((i & 2 > 0) as u64 * cf[1])
+            ^ ((i & 4 > 0) as u64 * cf[2])
+            ^ ((i & 8 > 0) as u64 * cf[3])
+    });
+
+    let enp = init!(|i, 8| {
+        seed = rand(seed);
+        seed
+    });
+
+    ZobristVals { pcs, cr, enp, c }
+};
+
+pub const PHASE_VALS: [i32; 8] = [0, 0, 0, 1, 1, 2, 4, 0];

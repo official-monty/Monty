@@ -1,10 +1,10 @@
 // Macro for calculating tables (until const fn pointers are stable).
 #[macro_export]
 macro_rules! init {
-    ($sq:ident, $($rest:tt)+) => {{
+    (|$sq:ident, $size:literal | $($rest:tt)+) => {{
         let mut $sq = 0;
-        let mut res = [{$($rest)+}; 64];
-        while $sq < 64 {
+        let mut res = [{$($rest)+}; $size];
+        while $sq < $size {
             res[$sq] = {$($rest)+};
             $sq += 1;
         }
@@ -83,6 +83,14 @@ impl Attacks {
         let attacks = Self::bishop(sq, occ);
         attacks ^ Self::bishop(sq, occ ^ (attacks & blockers))
     }
+
+    pub const fn white_pawn_setwise(pawns: u64) -> u64 {
+        ((pawns & !File::A) << 7) | ((pawns & !File::H) << 9)
+    }
+
+    pub const fn black_pawn_setwise(pawns: u64) -> u64 {
+        ((pawns & !File::A) >> 9) | ((pawns & !File::H) >> 7)
+    }
 }
 
 struct File;
@@ -91,8 +99,8 @@ impl File {
     const H: u64 = Self::A << 7;
 }
 
-const EAST: [u64; 64] = init! {sq, (0xFF << (sq & 56)) ^ (1 << sq) ^ WEST[sq]};
-const WEST: [u64; 64] = init! {sq, (0xFF << (sq & 56)) & ((1 << sq) - 1)};
+const EAST: [u64; 64] = init!(|sq, 64| (0xFF << (sq & 56)) ^ (1 << sq) ^ WEST[sq]);
+const WEST: [u64; 64] = init!(|sq, 64| (0xFF << (sq & 56)) & ((1 << sq) - 1));
 const DIAG: u64 = DIAGS[7];
 const DIAGS: [u64; 15] = [
     0x0100_0000_0000_0000,
@@ -140,25 +148,25 @@ static LOOKUP: Lookup = Lookup {
 };
 
 const PAWN: [[u64; 64]; 2] = [
-    init! {sq, (((1 << sq) & !File::A) << 7) | (((1 << sq) & !File::H) << 9)},
-    init! {sq, (((1 << sq) & !File::A) >> 9) | (((1 << sq) & !File::H) >> 7)},
+    init!(|sq, 64| (((1 << sq) & !File::A) << 7) | (((1 << sq) & !File::H) << 9)),
+    init!(|sq, 64| (((1 << sq) & !File::A) >> 9) | (((1 << sq) & !File::H) >> 7)),
 ];
 
-const KNIGHT: [u64; 64] = init! {sq, {
+const KNIGHT: [u64; 64] = init!(|sq, 64| {
     let n = 1 << sq;
     let h1 = ((n >> 1) & 0x7f7f_7f7f_7f7f_7f7f) | ((n << 1) & 0xfefe_fefe_fefe_fefe);
     let h2 = ((n >> 2) & 0x3f3f_3f3f_3f3f_3f3f) | ((n << 2) & 0xfcfc_fcfc_fcfc_fcfc);
     (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8)
-}};
+});
 
-const KING: [u64; 64] = init! {sq, {
+const KING: [u64; 64] = init!(|sq, 64| {
     let mut k = 1 << sq;
     k |= (k << 8) | (k >> 8);
     k |= ((k & !File::A) >> 1) | ((k & !File::H) << 1);
     k ^ (1 << sq)
-}};
+});
 
-const BISHOP: [Mask; 64] = init! {sq,
+const BISHOP: [Mask; 64] = init!(|sq, 64|
     let bit = 1 << sq;
     let file = sq & 7;
     let rank = sq / 8;
@@ -168,23 +176,23 @@ const BISHOP: [Mask; 64] = init! {sq,
         anti: bit ^ DIAGS[    file + rank].swap_bytes(),
         swap: bit.swap_bytes()
     }
-};
+);
 
-const RANK_SHIFT: [usize; 64] = init! {sq, sq - (sq & 7) + 1};
+const RANK_SHIFT: [usize; 64] = init!(|sq, 64| sq - (sq & 7) + 1);
 
-const RANK: [[u64; 64]; 64] = init! {sq,
-    init! {occ, {
+const RANK: [[u64; 64]; 64] = init!(|sq, 64|
+    init!(|occ, 64| {
         let file = sq & 7;
         let mask = (occ << 1) as u64;
         let east = ((EAST[file] & mask) | (1 << 63)).trailing_zeros() as usize;
         let west = ((WEST[file] & mask) | 1).leading_zeros() as usize ^ 63;
         (EAST[file] ^ EAST[east] | WEST[file] ^ WEST[west]) << (sq - file)
-    }}
-};
+    })
+);
 
-const FILE: [[u64; 64]; 64] = init! {sq,
-    init! {occ, (RANK[7 - sq / 8][occ].wrapping_mul(DIAG) & File::H) >> (7 - (sq & 7))}
-};
+const FILE: [[u64; 64]; 64] = init!(|sq, 64|
+    init!(|occ, 64| (RANK[7 - sq / 8][occ].wrapping_mul(DIAG) & File::H) >> (7 - (sq & 7)))
+);
 
 pub const fn line_through(i: usize, j: usize) -> u64 {
     let sq = 1 << j;
