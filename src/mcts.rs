@@ -27,10 +27,6 @@ impl Node {
     fn is_terminal(&self) -> bool {
         self.state != GameState::Ongoing
     }
-
-    fn num_children(&self) -> usize {
-        self.moves.len()
-    }
 }
 
 pub struct Searcher {
@@ -74,6 +70,37 @@ impl Searcher {
         self.random
     }
 
+    fn pick_child(&self, node: &Node) -> Move {
+        let c = 1.41;
+        let fpu = 0.5;
+
+        let sqrt_ln_visit = f64::from(node.visits).ln().sqrt();
+        let expl = c * sqrt_ln_visit;
+
+        let mut best_move = node.moves[0];
+        let mut best_uct = 0.0;
+
+        for mov in node.moves.iter() {
+            let uct = if mov.ptr == -1 {
+                fpu + expl
+            } else {
+                let child = &self.tree[mov.ptr as usize];
+
+                let w = child.wins / f64::from(child.visits);
+                let u = expl / f64::from(child.visits).sqrt();
+
+                w + u
+            };
+
+            if uct > best_uct {
+                best_uct = uct;
+                best_move = *mov;
+            }
+        }
+
+        best_move
+    }
+
     fn select_leaf(&mut self) {
         self.pos = self.startpos;
         self.stack = self.startstack.clone();
@@ -83,15 +110,13 @@ impl Searcher {
         let mut node_ptr = 0;
 
         loop {
-            let random = self.random() as usize;
             let node = &self.tree[node_ptr as usize];
 
             if node.is_terminal() {
                 break;
             }
 
-            let random_idx = random % node.num_children();
-            let mov = node.moves[random_idx];
+            let mov = self.pick_child(node);
             let next = mov.ptr;
 
             if next == -1 {
@@ -148,18 +173,16 @@ impl Searcher {
         while let Some(node_ptr) = self.selection.pop() {
             let node = &mut self.tree[node_ptr as usize];
             node.visits += 1;
-            node.wins += result;
             result = 1.0 - result;
+            node.wins += result;
         }
-
-        self.tree[0].visits += 1;
     }
 
     fn get_bestmove(&self) -> (Move, f64) {
         let root_node = &self.tree[0];
 
         let mut best_move = root_node.moves[0];
-        let mut worst_score = 1.1;
+        let mut best_score = 0.0;
 
         for mov in root_node.moves.iter() {
             if mov.ptr == -1 {
@@ -169,13 +192,21 @@ impl Searcher {
             let node = &self.tree[mov.ptr as usize];
             let score = node.wins / f64::from(node.visits);
 
-            if score < worst_score {
-                worst_score = score;
+            //println!(
+            //    "info move {} score wdl {:.2}% ({:.2} / {})",
+            //    mov.to_uci(),
+            //    score * 100.0,
+            //    node.wins,
+            //    node.visits,
+            //);
+
+            if score > best_score {
+                best_score = score;
                 best_move = *mov;
             }
         }
 
-        (best_move, 1.0 - worst_score)
+        (best_move, best_score)
     }
 
     pub fn search(&mut self) -> (Move, f64) {
