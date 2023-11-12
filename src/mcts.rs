@@ -1,4 +1,4 @@
-use crate::{moves::{Move, MoveList}, position::{Position, GameState}};
+use crate::{moves::{Move, MoveList}, position::{Position, GameState}, params::TunableParams};
 
 use std::{fmt::Write, time::Instant};
 
@@ -11,10 +11,10 @@ struct Node {
 }
 
 impl Node {
-    fn new(pos: &Position, stack: &[u64]) -> Self {
+    fn new(pos: &Position, stack: &[u64], params: &TunableParams) -> Self {
         let mut moves = pos.gen();
         let state = pos.game_state(&moves, stack);
-        moves.set_policies();
+        moves.set_policies(params);
 
         Self {
             visits: 0,
@@ -39,10 +39,11 @@ pub struct Searcher {
     node_limit: usize,
     selection: Vec<i32>,
     random: u64,
+    params: TunableParams,
 }
 
 impl Searcher {
-    pub fn new(pos: Position, stack: Vec<u64>, node_limit: usize) -> Self {
+    pub fn new(pos: Position, stack: Vec<u64>, node_limit: usize, params: TunableParams) -> Self {
         Self {
             startpos: pos,
             startstack: stack.clone(),
@@ -52,6 +53,7 @@ impl Searcher {
             node_limit,
             selection: Vec::new(),
             random: 21_976_391,
+            params,
         }
     }
 
@@ -72,18 +74,15 @@ impl Searcher {
     }
 
     fn pick_child(&self, node: &Node) -> Move {
-        let cpuct = 1.41;
-        let fpu = 0.5;
-
         // uniform policy
-        let expl = cpuct * f64::from(node.visits).sqrt();
+        let expl = self.params.cpuct() * f64::from(node.visits).sqrt();
 
         let mut best_move = node.moves[0];
         let mut best_uct = 0.0;
 
         for mov in node.moves.iter() {
             let uct = if mov.ptr() == -1 {
-                fpu + expl * mov.policy()
+                self.params.fpu() + expl * mov.policy()
             } else {
                 let child = &self.tree[mov.ptr() as usize];
 
@@ -147,7 +146,7 @@ impl Searcher {
         let mov = node.moves[node.left];
         self.make_move(mov);
 
-        let new_node = Node::new(&self.pos, &self.stack);
+        let new_node = Node::new(&self.pos, &self.stack, &self.params);
         self.tree.push(new_node);
 
         let new_ptr = self.tree.len() as i32 - 1;
@@ -233,7 +232,7 @@ impl Searcher {
         let timer = Instant::now();
         self.tree.clear();
 
-        let root_node = Node::new(&self.startpos, &[]);
+        let root_node = Node::new(&self.startpos, &[], &self.params);
         self.tree.push(root_node);
 
         let mut nodes = 1;

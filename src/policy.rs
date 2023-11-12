@@ -1,9 +1,9 @@
-use crate::{consts::Flag, moves::Move};
+use crate::{consts::Flag, moves::Move, params::TunableParams};
 
-pub fn get_policy(mov: &Move) -> f64 {
+pub fn get_policy(mov: &Move, params: &TunableParams) -> f64 {
     if mov.flag() & Flag::CAP > 0 {
-        2f64
+        params.cap()
     } else {
-        0f64
+        0.0
     }
 }

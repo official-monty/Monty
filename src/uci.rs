@@ -1,4 +1,4 @@
-use crate::{position::{self, Position}, mcts::Searcher};
+use crate::{position::{self, Position}, mcts::Searcher, params::TunableParams};
 
 use std::time::Instant;
 
@@ -8,11 +8,22 @@ const KIWIPETE: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R 
 pub fn preamble() {
     println!("id name monty {}", env!("CARGO_PKG_VERSION"));
     println!("id author Jamie Whiting");
+    TunableParams::uci_info();
     println!("uciok");
 }
 
 pub fn isready() {
     println!("readyok");
+}
+
+pub fn setoption(commands: &[&str], params: &mut TunableParams) {
+    let (name, val) = if let ["setoption", "name", x, "value", y] = commands {
+        (*x, y.parse::<i32>().unwrap())
+    } else {
+        return;
+    };
+
+    params.set(name, f64::from(val) / 100.0);
 }
 
 pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
@@ -51,7 +62,7 @@ pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
     }
 }
 
-pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position) {
+pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position, params: &TunableParams) {
     let mut nodes = 10_000_000;
     let mut max_time = None;
 
@@ -61,7 +72,7 @@ pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position) {
         _ => {}
     }
 
-    let mut searcher = Searcher::new(*pos, stack, nodes);
+    let mut searcher = Searcher::new(*pos, stack, nodes, params.clone());
 
     let (mov, _) = searcher.search(max_time);
 

@@ -1,4 +1,4 @@
-use crate::policy::get_policy;
+use crate::{policy::get_policy, params::TunableParams};
 
 #[macro_export]
 macro_rules! pop_lsb {
@@ -117,11 +117,11 @@ impl MoveList {
         self.list.swap(a, b);
     }
 
-    pub fn set_policies(&mut self) {
+    pub fn set_policies(&mut self, params: &TunableParams) {
         let mut total = 0.0;
 
         for mov in self.list.iter_mut() {
-            let val = get_policy(mov);
+            let val = get_policy(mov, params);
 
             mov.policy = val.exp();
             total += mov.policy;

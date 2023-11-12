@@ -3,6 +3,7 @@ mod consts;
 mod mcts;
 mod moves;
 mod value;
+mod params;
 mod policy;
 mod position;
 mod uci;
@@ -10,6 +11,7 @@ mod uci;
 fn main() {
     // initialise engine
     let mut pos = position::Position::parse_fen(uci::STARTPOS);
+    let mut params = params::TunableParams::default();
     let mut stack = Vec::new();
 
     // main uci loop
@@ -27,8 +29,9 @@ fn main() {
         match *commands.first().unwrap_or(&"oops") {
             "uci" => uci::preamble(),
             "isready" => uci::isready(),
+            "setoption" => uci::setoption(&commands, &mut params),
             "position" => uci::position(commands, &mut pos, &mut stack),
-            "go" => uci::go(&commands, stack.clone(), &pos),
+            "go" => uci::go(&commands, stack.clone(), &pos, &params),
             "perft" => uci::perft(&commands, &pos),
             "eval" => uci::eval(&pos),
             "quit" => std::process::exit(0),
