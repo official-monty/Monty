@@ -52,15 +52,18 @@ pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
 }
 
 pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position) {
-    let nodes = if let ["go", "nodes", x] = commands {
-        x.parse().unwrap_or(50_000)
-    } else {
-        50_000
-    };
+    let mut nodes = 10_000_000;
+    let mut max_time = None;
+
+    match commands {
+        ["go", "nodes", x] => nodes = x.parse().unwrap_or(nodes),
+        ["go", "movetime", x] => max_time = x.parse().ok(),
+        _ => {}
+    }
 
     let mut searcher = Searcher::new(*pos, stack, nodes);
 
-    let (mov, _) = searcher.search();
+    let (mov, _) = searcher.search(max_time);
 
     println!("bestmove {}", mov.to_uci());
 }

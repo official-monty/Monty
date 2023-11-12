@@ -71,12 +71,12 @@ impl Searcher {
     }
 
     fn pick_child(&self, node: &Node) -> Move {
-        let c = 1.41;
+        let cpuct = 1.41;
         let fpu = 0.5;
 
         // uniform policy
         let policy = 1.0 / node.moves.len() as f64;
-        let expl = c * policy * f64::from(node.visits).sqrt();
+        let expl = cpuct * policy * f64::from(node.visits).sqrt();
 
         let mut best_move = node.moves[0];
         let mut best_uct = 0.0;
@@ -229,7 +229,7 @@ impl Searcher {
         (pv, score)
     }
 
-    pub fn search(&mut self) -> (Move, f64) {
+    pub fn search(&mut self, max_time: Option<u128>) -> (Move, f64) {
         let timer = Instant::now();
         self.tree.clear();
 
@@ -257,20 +257,36 @@ impl Searcher {
 
             self.backprop(result);
 
+
+            if let Some(time) = max_time {
+                if nodes % 128 == 0
+                    && timer.elapsed().as_millis() >= time
+                {
+                    break;
+                }
+            }
+
             if avg_depth > depth {
                 depth = avg_depth;
 
                 let (pv_line, score) = self.get_pv();
-                let elapsed = timer.elapsed().as_secs_f32();
-                let nps = nodes as f32 / elapsed;
+                let elapsed = timer.elapsed();
+                let nps = nodes as f32 / elapsed.as_secs_f32();
                 let pv = pv_line.iter().fold(String::new(), |mut pv_str, mov| {
                     write!(&mut pv_str, "{} ", mov.to_uci()).unwrap();
                     pv_str
                 });
 
                 println!(
-                    "info depth {depth} seldepth {seldepth} score cp {:.0} nodes {nodes} nps {nps:.0} pv {pv}",
+                    "info depth {depth} \
+                    seldepth {seldepth} \
+                    score cp {:.0} \
+                    time {} \
+                    nodes {nodes} \
+                    nps {nps:.0} \
+                    pv {pv}",
                     -400.0 * (1.0 / score - 1.0).ln(),
+                    elapsed.as_millis(),
                 );
             }
 
