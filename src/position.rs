@@ -29,6 +29,7 @@ pub struct Move {
     flag: u8,
     moved: u8,
     pub ptr: i32,
+    policy: f64,
 }
 
 #[derive(Default)]
@@ -52,6 +53,7 @@ impl Move {
             flag,
             moved,
             ptr: -1,
+            policy: 0.0,
         }
     }
 
@@ -64,6 +66,10 @@ impl Move {
             ""
         };
         format!("{}{}{}", idx_to_sq(self.from), idx_to_sq(self.to), promo)
+    }
+
+    pub fn policy(&self) -> f64 {
+        self.policy
     }
 }
 
@@ -96,6 +102,25 @@ impl MoveList {
     #[inline]
     pub fn swap(&mut self, a: usize, b: usize) {
         self.list.swap(a, b);
+    }
+
+    pub fn set_policies(&mut self) {
+        let mut total = 0.0;
+
+        for mov in self.list.iter_mut() {
+            let val = if mov.flag & Flag::CAP > 0 {
+                2f64
+            } else {
+                0f64
+            };
+
+            mov.policy = val.exp();
+            total += mov.policy;
+        }
+
+        for mov in self.list.iter_mut() {
+            mov.policy /= total;
+        }
     }
 }
 

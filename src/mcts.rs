@@ -12,8 +12,9 @@ struct Node {
 
 impl Node {
     fn new(pos: &Position, stack: &[u64]) -> Self {
-        let moves = pos.gen();
+        let mut moves = pos.gen();
         let state = pos.game_state(&moves, stack);
+        moves.set_policies();
 
         Self {
             visits: 0,
@@ -75,20 +76,19 @@ impl Searcher {
         let fpu = 0.5;
 
         // uniform policy
-        let policy = 1.0 / node.moves.len() as f64;
-        let expl = cpuct * policy * f64::from(node.visits).sqrt();
+        let expl = cpuct * f64::from(node.visits).sqrt();
 
         let mut best_move = node.moves[0];
         let mut best_uct = 0.0;
 
         for mov in node.moves.iter() {
             let uct = if mov.ptr == -1 {
-                fpu + expl
+                fpu + expl * mov.policy()
             } else {
                 let child = &self.tree[mov.ptr as usize];
 
                 let q = child.wins / f64::from(child.visits);
-                let u = expl / f64::from(1 + child.visits);
+                let u = expl * mov.policy() / f64::from(1 + child.visits);
 
                 q + u
             };
