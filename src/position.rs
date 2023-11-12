@@ -31,9 +31,9 @@ pub struct Move {
     pub ptr: i32,
 }
 
+#[derive(Default)]
 pub struct MoveList {
-    list: [Move; 252],
-    len: usize,
+    list: Vec<Move>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -70,7 +70,7 @@ impl Move {
 impl std::ops::Deref for MoveList {
     type Target = [Move];
     fn deref(&self) -> &Self::Target {
-        &self.list[..self.len]
+        &self.list
     }
 }
 
@@ -90,18 +90,10 @@ impl std::ops::IndexMut<usize> for MoveList {
 impl MoveList {
     #[inline]
     fn push(&mut self, from: u8, to: u8, flag: u8, mpc: usize) {
-        self.list[self.len] = Move::new(from, to, flag, mpc as u8);
-        self.len += 1;
+        self.list.push(Move::new(from, to, flag, mpc as u8));
     }
 
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
-    }
-
+    #[inline]
     pub fn swap(&mut self, a: usize, b: usize) {
         self.list.swap(a, b);
     }
@@ -446,10 +438,7 @@ impl Position {
 
     #[must_use]
     pub fn gen(&self) -> MoveList {
-        let mut moves = MoveList {
-            list: [Move::default(); 252],
-            len: 0,
-        };
+        let mut moves = MoveList::default();
 
         let pinned = self.pinned();
         let king_sq = self.king_index();
@@ -727,8 +716,7 @@ impl Position {
 
             let king = (tmp.piece(Piece::KING) & tmp.opps()).trailing_zeros() as usize;
             if !tmp.is_square_attacked(king, self.stm(), tmp.occ()) {
-                moves.list[moves.len] = mov;
-                moves.len += 1;
+                moves.list.push(mov);
             }
         }
     }
@@ -755,13 +743,13 @@ pub fn perft<const ROOT: bool, const BULK: bool>(pos: &Position, depth: u8) -> u
     let moves = pos.gen();
 
     if BULK && !ROOT && depth == 1 {
-        return moves.len as u64;
+        return moves.len() as u64;
     }
 
     let mut positions = 0;
     let leaf = depth == 1;
 
-    for m_idx in 0..moves.len {
+    for m_idx in 0..moves.len() {
         let mut tmp = *pos;
         tmp.make(moves.list[m_idx]);
 

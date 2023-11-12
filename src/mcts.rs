@@ -1,6 +1,6 @@
 use crate::position::{Position, MoveList, GameState, Move};
 
-use std::time::Instant;
+use std::{fmt::Write, time::Instant};
 
 struct Node {
     visits: i32,
@@ -178,9 +178,7 @@ impl Searcher {
         }
     }
 
-    fn get_bestmove(&self) -> (Move, f64) {
-        let root_node = &self.tree[0];
-
+    fn get_bestmove(&self, root_node: &Node) -> (Move, f64) {
         let mut best_move = root_node.moves[0];
         let mut best_score = 0.0;
 
@@ -209,6 +207,27 @@ impl Searcher {
         (best_move, best_score)
     }
 
+    fn get_pv(&self) -> (Vec<Move>, f64) {
+        let mut node = &self.tree[0];
+
+        let (mut mov, score) = self.get_bestmove(node);
+
+        let mut pv = Vec::new();
+
+        while mov.ptr != -1 {
+            pv.push(mov);
+            node = &self.tree[mov.ptr as usize];
+
+            if node.moves.is_empty() {
+                break;
+            }
+
+            mov = self.get_bestmove(node).0;
+        }
+
+        (pv, score)
+    }
+
     pub fn search(&mut self) -> (Move, f64) {
         let timer = Instant::now();
         self.tree.clear();
@@ -217,9 +236,17 @@ impl Searcher {
         self.tree.push(root_node);
 
         let mut nodes = 1;
+        let mut depth = 0;
+        let mut seldepth = 0;
+        let mut cumulative_depth = 0;
 
         while nodes <= self.node_limit {
             self.select_leaf();
+
+            let this_depth = self.selection.len();
+            cumulative_depth += this_depth;
+            let avg_depth = cumulative_depth / nodes;
+            seldepth = seldepth.max(this_depth);
 
             if !self.tree[self.selected() as usize].is_terminal() {
                 self.expand_node();
@@ -229,21 +256,26 @@ impl Searcher {
 
             self.backprop(result);
 
-            if nodes % 20_000 == 0 {
-                let (bm, score) = self.get_bestmove();
+            if avg_depth > depth {
+                depth = avg_depth;
+
+                let (pv_line, score) = self.get_pv();
                 let elapsed = timer.elapsed().as_secs_f32();
                 let nps = nodes as f32 / elapsed;
+                let pv = pv_line.iter().fold(String::new(), |mut pv_str, mov| {
+                    write!(&mut pv_str, "{} ", mov.to_uci()).unwrap();
+                    pv_str
+                });
+
                 println!(
-                    "info depth {} score cp {:.0} nodes {nodes} nps {nps:.0} pv {}",
-                    nodes / 20_000,
+                    "info depth {depth} seldepth {seldepth} score cp {:.0} nodes {nodes} nps {nps:.0} pv {pv}",
                     -400.0 * (1.0 / score - 1.0).ln(),
-                    bm.to_uci()
                 );
             }
 
             nodes += 1;
         }
 
-        self.get_bestmove()
+        self.get_bestmove(&self.tree[0])
     }
 }
