@@ -71,11 +71,12 @@ impl Searcher {
     }
 
     fn pick_child(&self, node: &Node) -> Move {
-        let c = 0.5;
+        let c = 1.41;
         let fpu = 0.5;
 
-        let sqrt_ln_visit = f64::from(node.visits).ln().sqrt();
-        let expl = c * sqrt_ln_visit;
+        // uniform policy
+        let policy = 1.0 / node.moves.len() as f64;
+        let expl = c * policy * f64::from(node.visits).sqrt();
 
         let mut best_move = node.moves[0];
         let mut best_uct = 0.0;
@@ -86,10 +87,10 @@ impl Searcher {
             } else {
                 let child = &self.tree[mov.ptr as usize];
 
-                let w = child.wins / f64::from(child.visits);
-                let u = expl / f64::from(child.visits).sqrt();
+                let q = child.wins / f64::from(child.visits);
+                let u = expl / f64::from(1 + child.visits);
 
-                w + u
+                q + u
             };
 
             if uct > best_uct {
