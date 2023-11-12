@@ -1,14 +1,16 @@
 use crate::{
     attacks::Attacks,
     consts::*,
-    network::{Accumulator, Network},
+    moves::{Move, MoveList},
+    value::{Accumulator, ValueNetwork},
+    pop_lsb,
 };
 
-macro_rules! pop_lsb {
-    ($idx:ident, $x:expr) => {
-        let $idx = $x.trailing_zeros() as u8;
-        $x &= $x - 1
-    };
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum GameState {
+    Ongoing,
+    Lost,
+    Draw,
 }
 
 #[derive(Copy, Clone, Default)]
@@ -20,117 +22,6 @@ pub struct Position {
     halfm: u8,
     hash: u64,
     phase: i32,
-}
-
-#[derive(Copy, Clone, Default)]
-pub struct Move {
-    from: u8,
-    to: u8,
-    flag: u8,
-    moved: u8,
-    pub ptr: i32,
-    policy: f64,
-}
-
-#[derive(Default)]
-pub struct MoveList {
-    list: Vec<Move>,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum GameState {
-    Ongoing,
-    Lost,
-    Draw,
-}
-
-impl Move {
-    #[must_use]
-    pub fn new(from: u8, to: u8, flag: u8, moved: u8) -> Self {
-        Self {
-            from,
-            to,
-            flag,
-            moved,
-            ptr: -1,
-            policy: 0.0,
-        }
-    }
-
-    #[must_use]
-    pub fn to_uci(self) -> String {
-        let idx_to_sq = |i| format!("{}{}", ((i & 7) + b'a') as char, (i / 8) + 1);
-        let promo = if self.flag & 0b1000 > 0 {
-            ["n", "b", "r", "q"][(self.flag & 0b11) as usize]
-        } else {
-            ""
-        };
-        format!("{}{}{}", idx_to_sq(self.from), idx_to_sq(self.to), promo)
-    }
-
-    pub fn policy(&self) -> f64 {
-        self.policy
-    }
-}
-
-impl std::ops::Deref for MoveList {
-    type Target = [Move];
-    fn deref(&self) -> &Self::Target {
-        &self.list
-    }
-}
-
-impl std::ops::Index<usize> for MoveList {
-    type Output = Move;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.list[index]
-    }
-}
-
-impl std::ops::IndexMut<usize> for MoveList {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.list[index]
-    }
-}
-
-impl MoveList {
-    #[inline]
-    fn push(&mut self, from: u8, to: u8, flag: u8, mpc: usize) {
-        self.list.push(Move::new(from, to, flag, mpc as u8));
-    }
-
-    #[inline]
-    pub fn swap(&mut self, a: usize, b: usize) {
-        self.list.swap(a, b);
-    }
-
-    pub fn set_policies(&mut self) {
-        let mut total = 0.0;
-
-        for mov in self.list.iter_mut() {
-            let val = if mov.flag & Flag::CAP > 0 {
-                2f64
-            } else {
-                0f64
-            };
-
-            mov.policy = val.exp();
-            total += mov.policy;
-        }
-
-        for mov in self.list.iter_mut() {
-            mov.policy /= total;
-        }
-    }
-}
-
-#[inline]
-fn encode<const PC: usize, const FLAG: u8>(moves: &mut MoveList, mut attacks: u64, from: u8) {
-    while attacks > 0 {
-        pop_lsb!(to, attacks);
-
-        moves.push(from, to, FLAG, PC);
-    }
 }
 
 impl Position {
@@ -269,7 +160,7 @@ impl Position {
             }
         }
 
-        Network::out(&accs[self.stm()], &accs[self.stm() ^ 1])
+        ValueNetwork::out(&accs[self.stm()], &accs[self.stm() ^ 1])
     }
 
     pub fn eval(&self) -> f64 {
@@ -361,8 +252,8 @@ impl Position {
     pub fn make(&mut self, mov: Move) {
         // extracting move info
         let side = usize::from(self.stm);
-        let bb_to = 1 << mov.to;
-        let captured = if mov.flag & Flag::CAP == 0 {
+        let bb_to = 1 << mov.to();
+        let captured = if mov.flag() & Flag::CAP == 0 {
             Piece::EMPTY
         } else {
             self.get_pc(bb_to)
@@ -371,37 +262,37 @@ impl Position {
         // updating state
         self.stm = !self.stm;
         self.enp_sq = 0;
-        self.rights &= CASTLE_MASK[usize::from(mov.to)] & CASTLE_MASK[usize::from(mov.from)];
+        self.rights &= CASTLE_MASK[usize::from(mov.to())] & CASTLE_MASK[usize::from(mov.from())];
         self.halfm += 1;
 
-        if mov.moved == Piece::PAWN as u8 || mov.flag & Flag::CAP > 0 {
+        if mov.moved() == Piece::PAWN as u8 || mov.flag() & Flag::CAP > 0 {
             self.halfm = 0;
         }
 
         // move piece
-        self.toggle(side, usize::from(mov.moved), mov.from);
-        self.toggle(side, usize::from(mov.moved), mov.to);
+        self.toggle(side, usize::from(mov.moved()), mov.from());
+        self.toggle(side, usize::from(mov.moved()), mov.to());
 
         // captures
         if captured != Piece::EMPTY {
-            self.toggle(side ^ 1, captured, mov.to);
+            self.toggle(side ^ 1, captured, mov.to());
             self.phase -= PHASE_VALS[captured];
         }
 
         // more complex moves
-        match mov.flag {
-            Flag::DBL => self.enp_sq = mov.to ^ 8,
+        match mov.flag() {
+            Flag::DBL => self.enp_sq = mov.to() ^ 8,
             Flag::KS | Flag::QS => {
-                let (rfr, rto) = ROOK_MOVES[usize::from(mov.flag == Flag::KS)][side];
+                let (rfr, rto) = ROOK_MOVES[usize::from(mov.flag() == Flag::KS)][side];
                 self.toggle(side, Piece::ROOK, rfr);
                 self.toggle(side, Piece::ROOK, rto);
             }
-            Flag::ENP => self.toggle(side ^ 1, Piece::PAWN, mov.to ^ 8),
+            Flag::ENP => self.toggle(side ^ 1, Piece::PAWN, mov.to() ^ 8),
             Flag::NPR.. => {
-                let promo = usize::from((mov.flag & 3) + 3);
+                let promo = usize::from((mov.flag() & 3) + 3);
                 self.phase += PHASE_VALS[promo];
-                self.toggle(side, Piece::PAWN, mov.to);
-                self.toggle(side, promo, mov.to);
+                self.toggle(side, Piece::PAWN, mov.to());
+                self.toggle(side, promo, mov.to());
             }
             _ => {}
         }
@@ -630,8 +521,8 @@ impl Position {
                 attacks &= LINE_THROUGH[king_sq][usize::from(from)];
             }
 
-            encode::<PC, { Flag::CAP }>(moves, attacks & self.opps(), from);
-            encode::<PC, { Flag::QUIET }>(moves, attacks & !occ, from);
+            moves.serialise(attacks & self.opps(), from, Flag::CAP, PC);
+            moves.serialise(attacks & !occ, from, Flag::QUIET, PC);
         }
     }
 
@@ -656,7 +547,7 @@ impl Position {
                 attacks &= LINE_THROUGH[king_sq][usize::from(from)];
             }
 
-            encode::<{ Piece::PAWN }, { Flag::CAP }>(moves, attacks, from);
+            moves.serialise(attacks, from, Flag::CAP, Piece::PAWN);
         }
 
         while promo_attackers > 0 {
@@ -741,7 +632,7 @@ impl Position {
 
             let king = (tmp.piece(Piece::KING) & tmp.opps()).trailing_zeros() as usize;
             if !tmp.is_square_attacked(king, self.stm(), tmp.occ()) {
-                moves.list.push(mov);
+                moves.push_raw(mov);
             }
         }
     }
@@ -776,7 +667,7 @@ pub fn perft<const ROOT: bool, const BULK: bool>(pos: &Position, depth: u8) -> u
 
     for m_idx in 0..moves.len() {
         let mut tmp = *pos;
-        tmp.make(moves.list[m_idx]);
+        tmp.make(moves[m_idx]);
 
         let num = if !BULK && leaf {
             1
@@ -786,7 +677,7 @@ pub fn perft<const ROOT: bool, const BULK: bool>(pos: &Position, depth: u8) -> u
         positions += num;
 
         if ROOT {
-            println!("{}: {num}", moves.list[m_idx].to_uci());
+            println!("{}: {num}", moves[m_idx].to_uci());
         }
     }
 

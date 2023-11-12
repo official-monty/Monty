@@ -1,4 +1,4 @@
-use crate::position::{Position, MoveList, GameState, Move};
+use crate::{moves::{Move, MoveList}, position::{Position, GameState}};
 
 use std::{fmt::Write, time::Instant};
 
@@ -82,10 +82,10 @@ impl Searcher {
         let mut best_uct = 0.0;
 
         for mov in node.moves.iter() {
-            let uct = if mov.ptr == -1 {
+            let uct = if mov.ptr() == -1 {
                 fpu + expl * mov.policy()
             } else {
-                let child = &self.tree[mov.ptr as usize];
+                let child = &self.tree[mov.ptr() as usize];
 
                 let q = child.wins / f64::from(child.visits);
                 let u = expl * mov.policy() / f64::from(1 + child.visits);
@@ -118,7 +118,7 @@ impl Searcher {
             }
 
             let mov = self.pick_child(node);
-            let next = mov.ptr;
+            let next = mov.ptr();
 
             if next == -1 {
                 break;
@@ -153,9 +153,9 @@ impl Searcher {
         let new_ptr = self.tree.len() as i32 - 1;
         let node = &mut self.tree[node_ptr as usize];
         let to_explore = &mut node.moves[node.left];
-        to_explore.ptr = new_ptr;
+        to_explore.set_ptr(new_ptr);
 
-        self.selection.push(to_explore.ptr);
+        self.selection.push(to_explore.ptr());
     }
 
     fn simulate(&self) -> f64 {
@@ -184,11 +184,11 @@ impl Searcher {
         let mut best_score = 0.0;
 
         for mov in root_node.moves.iter() {
-            if mov.ptr == -1 {
+            if mov.ptr() == -1 {
                 continue;
             }
 
-            let node = &self.tree[mov.ptr as usize];
+            let node = &self.tree[mov.ptr() as usize];
             let score = node.wins / f64::from(node.visits);
 
             //println!(
@@ -215,9 +215,9 @@ impl Searcher {
 
         let mut pv = Vec::new();
 
-        while mov.ptr != -1 {
+        while mov.ptr() != -1 {
             pv.push(mov);
-            node = &self.tree[mov.ptr as usize];
+            node = &self.tree[mov.ptr() as usize];
 
             if node.moves.is_empty() {
                 break;

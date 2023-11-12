@@ -1,7 +1,9 @@
 mod attacks;
 mod consts;
 mod mcts;
-mod network;
+mod moves;
+mod value;
+mod policy;
 mod position;
 mod uci;
 

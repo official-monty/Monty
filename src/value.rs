@@ -10,16 +10,16 @@ fn activate(x: i16) -> i32 {
 }
 
 #[repr(C)]
-pub struct Network {
+pub struct ValueNetwork {
     feature_weights: [Accumulator; 768],
     feature_bias: Accumulator,
     output_weights: [Accumulator; 2],
     output_bias: i16,
 }
 
-static NNUE: Network = unsafe { std::mem::transmute(*include_bytes!("../altair-net.bin")) };
+static NNUE: ValueNetwork = unsafe { std::mem::transmute(*include_bytes!("../altair-net.bin")) };
 
-impl Network {
+impl ValueNetwork {
     pub fn out(boys: &Accumulator, opps: &Accumulator) -> i32 {
         let mut sum = i32::from(NNUE.output_bias);
 
