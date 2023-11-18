@@ -6,7 +6,7 @@ const QAB: i32 = QA * QB;
 
 #[inline]
 fn activate(x: i16) -> i32 {
-    i32::from(x.max(0))
+    i32::from(x).clamp(0, QA)
 }
 
 #[repr(C)]
