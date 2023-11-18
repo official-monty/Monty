@@ -3,6 +3,7 @@ pub struct TunableParams {
     cpuct: Param,
     fpu: Param,
     cap: Param,
+    pawn_threat: Param,
 }
 
 #[derive(Clone)]
@@ -38,6 +39,7 @@ impl Default for TunableParams {
             cpuct: Param::new(1.41, 0.1, 5.0),
             fpu: Param::new(0.5, 0.0, 1.0),
             cap: Param::new(2.0, 0.0, 5.0),
+            pawn_threat: Param::new(1.0, 0.0, 5.0),
         }
     }
 }
@@ -53,6 +55,10 @@ impl TunableParams {
 
     pub fn cap(&self) -> f64 {
         self.cap.val
+    }
+
+    pub fn pawn_threat(&self) -> f64 {
+        self.pawn_threat.val
     }
 
     pub fn uci_info() {

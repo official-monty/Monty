@@ -1,4 +1,4 @@
-use crate::{policy::get_policy, params::TunableParams};
+use crate::{attacks::Attacks, policy::get_policy, params::TunableParams, position::Position, consts::{Side, Piece}};
 
 #[macro_export]
 macro_rules! pop_lsb {
@@ -117,11 +117,20 @@ impl MoveList {
         self.list.swap(a, b);
     }
 
-    pub fn set_policies(&mut self, params: &TunableParams) {
+    pub fn set_policies(&mut self, pos: &Position, params: &TunableParams) {
+        let threats = {
+            let pawns = pos.opps() & pos.piece(Piece::PAWN);
+
+            if pos.stm() == Side::BLACK {
+                Attacks::white_pawn_setwise(pawns)
+            } else {
+                Attacks::black_pawn_setwise(pawns)
+            }
+        };
         let mut total = 0.0;
 
         for mov in self.list.iter_mut() {
-            let val = get_policy(mov, params);
+            let val = get_policy(mov, threats, params);
 
             mov.policy = val.exp();
             total += mov.policy;

@@ -14,7 +14,7 @@ impl Node {
     fn new(pos: &Position, stack: &[u64], params: &TunableParams) -> Self {
         let mut moves = pos.gen();
         let state = pos.game_state(&moves, stack);
-        moves.set_policies(params);
+        moves.set_policies(pos, params);
 
         Self {
             visits: 0,
