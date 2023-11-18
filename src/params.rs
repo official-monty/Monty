@@ -67,6 +67,7 @@ impl TunableParams {
         def.cpuct.uci("cpuct");
         def.fpu.uci("fpu");
         def.cap.uci("cap");
+        def.pawn_threat.uci("pawn_threat");
     }
 
     pub fn set(&mut self, name: &str, val: f64) {
