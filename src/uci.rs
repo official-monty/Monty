@@ -66,10 +66,18 @@ pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position, params: &TunablePa
     let mut nodes = 10_000_000;
     let mut max_time = None;
 
-    match commands {
-        ["go", "nodes", x] => nodes = x.parse().unwrap_or(nodes),
-        ["go", "movetime", x] => max_time = x.parse().ok(),
-        _ => {}
+    let mut mode = "";
+
+    for cmd in commands {
+        match *cmd {
+            "nodes" => mode = "nodes",
+            "movetime" => mode = "movetime",
+            _ => match mode {
+                "nodes" => nodes = cmd.parse().unwrap_or(nodes),
+                "movetime" => max_time = cmd.parse().ok(),
+                _ => {}
+            }
+        }
     }
 
     let mut searcher = Searcher::new(*pos, stack, nodes, params.clone());
