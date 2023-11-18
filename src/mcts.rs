@@ -158,7 +158,7 @@ impl Searcher {
         match node.state {
             GameState::Lost => -self.params.mate_bonus(),
             GameState::Draw => 0.5,
-            GameState::Ongoing => self.pos.eval(),
+            GameState::Ongoing => self.pos.eval(&self.params),
         }
     }
 

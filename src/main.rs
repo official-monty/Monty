@@ -33,7 +33,7 @@ fn main() {
             "position" => uci::position(commands, &mut pos, &mut stack),
             "go" => uci::go(&commands, stack.clone(), &pos, &params),
             "perft" => uci::perft(&commands, &pos),
-            "eval" => uci::eval(&pos),
+            "eval" => uci::eval(&pos, &params),
             "quit" => std::process::exit(0),
             _ => {}
         }

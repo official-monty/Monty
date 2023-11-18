@@ -3,7 +3,7 @@ use crate::{
     consts::*,
     moves::{Move, MoveList},
     value::{Accumulator, ValueNetwork},
-    pop_lsb,
+    pop_lsb, params::TunableParams,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -56,16 +56,6 @@ impl Position {
         }
 
         hash ^ ZVALS.cr[usize::from(self.rights)] ^ ZVALS.c[self.stm()]
-    }
-
-    #[must_use]
-    pub fn phase(&self) -> i32 {
-        self.phase
-    }
-
-    #[must_use]
-    pub fn halfm(&self) -> u8 {
-        self.halfm
     }
 
     // POSITION INFO
@@ -163,10 +153,10 @@ impl Position {
         ValueNetwork::out(&accs[self.stm()], &accs[self.stm() ^ 1])
     }
 
-    pub fn eval(&self) -> f64 {
+    pub fn eval(&self, params: &TunableParams) -> f64 {
         let eval = self.eval_cp() as f64;
 
-        1.0 / (1.0 + (-eval / 400.0).exp())
+        1.0 / (1.0 + (-eval / (100.0 * params.scale())).exp())
     }
 
     #[must_use]

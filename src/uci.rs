@@ -87,11 +87,8 @@ pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position, params: &TunablePa
     println!("bestmove {}", mov.to_uci());
 }
 
-pub fn eval(pos: &Position) {
-    println!("info hash {}", pos.hash());
-    println!("info phase {}", pos.phase());
-    println!("info halfm {}", pos.halfm());
-    println!("info eval cp {} wdl {:.2}", pos.eval_cp(), pos.eval() * 100.0);
+pub fn eval(pos: &Position, params: &TunableParams) {
+    println!("info eval cp {} wdl {:.2}", pos.eval_cp(), pos.eval(params) * 100.0);
 }
 
 pub fn perft(commands: &[&str], pos: &Position) {

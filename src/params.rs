@@ -6,6 +6,7 @@ pub struct TunableParams {
     pawn_threat: Param,
     promo: Param,
     mate_bonus: Param,
+    scale: Param,
 }
 
 #[derive(Clone)]
@@ -44,6 +45,7 @@ impl Default for TunableParams {
             pawn_threat: Param::new(1.0, 0.0, 5.0),
             promo: Param::new(2.0, 0.0, 5.0),
             mate_bonus: Param::new(1.0, 0.0, 10.0),
+            scale: Param::new(4.0, 1.0, 8.0),
         }
     }
 }
@@ -73,6 +75,10 @@ impl TunableParams {
         self.mate_bonus.val
     }
 
+    pub fn scale(&self) -> f64 {
+        self.scale.val
+    }
+
     pub fn uci_info() {
         let def = Self::default();
 
@@ -82,6 +88,7 @@ impl TunableParams {
         def.pawn_threat.uci("pawn_threat");
         def.promo.uci("promo");
         def.mate_bonus.uci("mate_bonus");
+        def.scale.uci("scale");
     }
 
     pub fn set(&mut self, name: &str, val: f64) {
@@ -92,6 +99,7 @@ impl TunableParams {
             "pawn_threat" => self.pawn_threat.set(val),
             "promo" => self.promo.set(val),
             "mate_bonus" => self.mate_bonus.set(val),
+            "scale" => self.scale.set(val),
             _ => panic!("unknown option!")
         }
     }
