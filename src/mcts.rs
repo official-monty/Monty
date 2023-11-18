@@ -175,7 +175,7 @@ impl Searcher {
         }
     }
 
-    fn get_bestmove(&self, root_node: &Node) -> (Move, f64) {
+    fn get_bestmove<const OUT: bool>(&self, root_node: &Node) -> (Move, f64) {
         let mut best_move = root_node.moves[0];
         let mut best_score = 0.0;
 
@@ -186,6 +186,16 @@ impl Searcher {
 
             let node = &self.tree[mov.ptr() as usize];
             let score = node.wins / f64::from(node.visits);
+
+            if OUT {
+                println!(
+                    "info move {} score wdl {:.2}% ({:.2} / {})",
+                    mov.to_uci(),
+                    score * 100.0,
+                    node.wins,
+                    node.visits,
+                );
+            }
 
             if score > best_score {
                 best_score = score;
@@ -199,7 +209,7 @@ impl Searcher {
     fn get_pv(&self) -> (Vec<Move>, f64) {
         let mut node = &self.tree[0];
 
-        let (mut mov, score) = self.get_bestmove(node);
+        let (mut mov, score) = self.get_bestmove::<false>(node);
 
         let mut pv = Vec::new();
 
@@ -211,13 +221,13 @@ impl Searcher {
                 break;
             }
 
-            mov = self.get_bestmove(node).0;
+            mov = self.get_bestmove::<false>(node).0;
         }
 
         (pv, score)
     }
 
-    pub fn search(&mut self, max_time: Option<u128>) -> (Move, f64) {
+    pub fn search(&mut self, max_time: Option<u128>, report_moves: bool) -> (Move, f64) {
         let timer = Instant::now();
         self.tree.clear();
 
@@ -278,6 +288,10 @@ impl Searcher {
             nodes += 1;
         }
 
-        self.get_bestmove(&self.tree[0])
+        if report_moves {
+            self.get_bestmove::<true>(&self.tree[0])
+        } else {
+            self.get_bestmove::<false>(&self.tree[0])
+        }
     }
 }
