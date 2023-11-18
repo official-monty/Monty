@@ -38,7 +38,6 @@ pub struct Searcher {
     stack: Vec<u64>,
     node_limit: usize,
     selection: Vec<i32>,
-    random: u64,
     params: TunableParams,
 }
 
@@ -52,7 +51,6 @@ impl Searcher {
             stack,
             node_limit,
             selection: Vec::new(),
-            random: 21_976_391,
             params,
         }
     }
@@ -66,21 +64,14 @@ impl Searcher {
         *self.selection.last().unwrap()
     }
 
-    fn random(&mut self) -> u64 {
-        self.random ^= self.random << 13;
-        self.random ^= self.random >> 7;
-        self.random ^= self.random << 17;
-        self.random
-    }
-
-    fn pick_child(&self, node: &Node) -> Move {
+    fn pick_child(&self, node: &Node) -> usize {
         // uniform policy
         let expl = self.params.cpuct() * f64::from(node.visits).sqrt();
 
-        let mut best_move = node.moves[0];
+        let mut best_idx = 0;
         let mut best_uct = 0.0;
 
-        for mov in node.moves.iter() {
+        for (idx, mov) in node.moves.iter().enumerate() {
             let uct = if mov.ptr() == -1 {
                 self.params.fpu() + expl * mov.policy()
             } else {
@@ -94,11 +85,11 @@ impl Searcher {
 
             if uct > best_uct {
                 best_uct = uct;
-                best_move = *mov;
+                best_idx = idx;
             }
         }
 
-        best_move
+        best_idx
     }
 
     fn select_leaf(&mut self) {
@@ -116,7 +107,8 @@ impl Searcher {
                 break;
             }
 
-            let mov = self.pick_child(node);
+            let mov_idx = self.pick_child(node);
+            let mov = node.moves[mov_idx];
             let next = mov.ptr();
 
             if next == -1 {
@@ -130,17 +122,19 @@ impl Searcher {
     }
 
     fn expand_node(&mut self) {
-        let random = self.random() as usize;
+        //let random = self.random() as usize;
         let node_ptr = self.selected();
-        let node = &mut self.tree[node_ptr as usize];
+        let node = &self.tree[node_ptr as usize];
 
         assert!(node.left > 0);
 
-        let random_idx = random % node.left;
+        let new_idx = self.pick_child(node);
+
+        let node = &mut self.tree[node_ptr as usize];
         node.left -= 1;
 
         if node.left > 0 {
-            node.moves.swap(random_idx, node.left);
+            node.moves.swap(new_idx, node.left);
         }
 
         let mov = node.moves[node.left];
