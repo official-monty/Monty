@@ -122,7 +122,6 @@ impl Searcher {
     }
 
     fn expand_node(&mut self) {
-        //let random = self.random() as usize;
         let node_ptr = self.selected();
         let node = &self.tree[node_ptr as usize];
 
@@ -183,14 +182,6 @@ impl Searcher {
 
             let node = &self.tree[mov.ptr() as usize];
             let score = node.wins / f64::from(node.visits);
-
-            //println!(
-            //    "info move {} score wdl {:.2}% ({:.2} / {})",
-            //    mov.to_uci(),
-            //    score * 100.0,
-            //    node.wins,
-            //    node.visits,
-            //);
 
             if score > best_score {
                 best_score = score;
