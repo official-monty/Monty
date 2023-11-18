@@ -75,6 +75,7 @@ impl TunableParams {
             "cpuct" => self.cpuct.set(val),
             "fpu" => self.fpu.set(val),
             "cap" => self.cap.set(val),
+            "pawn_threat" => self.pawn_threat.set(val),
             _ => panic!("unknown option!")
         }
     }
