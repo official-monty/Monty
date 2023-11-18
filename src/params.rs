@@ -7,6 +7,7 @@ pub struct TunableParams {
     promo: Param,
     mate_bonus: Param,
     scale: Param,
+    mvv_lva: Param,
 }
 
 #[derive(Clone)]
@@ -46,6 +47,7 @@ impl Default for TunableParams {
             promo: Param::new(2.0, 0.0, 5.0),
             mate_bonus: Param::new(1.0, 0.0, 10.0),
             scale: Param::new(4.0, 1.0, 8.0),
+            mvv_lva: Param::new(0.2, 0.0, 5.0),
         }
     }
 }
@@ -79,6 +81,10 @@ impl TunableParams {
         self.scale.val
     }
 
+    pub fn mvv_lva(&self) -> f64 {
+        self.mvv_lva.val
+    }
+
     pub fn uci_info() {
         let def = Self::default();
 
@@ -89,6 +95,7 @@ impl TunableParams {
         def.promo.uci("promo");
         def.mate_bonus.uci("mate_bonus");
         def.scale.uci("scale");
+        def.mvv_lva.uci("mvv_lva");
     }
 
     pub fn set(&mut self, name: &str, val: f64) {
@@ -100,6 +107,7 @@ impl TunableParams {
             "promo" => self.promo.set(val),
             "mate_bonus" => self.mate_bonus.set(val),
             "scale" => self.scale.set(val),
+            "mvv_lva" => self.mvv_lva.set(val),
             _ => panic!("unknown option!")
         }
     }

@@ -130,7 +130,7 @@ impl MoveList {
         let mut total = 0.0;
 
         for mov in self.list.iter_mut() {
-            let val = get_policy(mov, threats, params);
+            let val = get_policy(mov, pos, threats, params);
 
             mov.policy = val.exp();
             total += mov.policy;
