@@ -496,14 +496,7 @@ impl Position {
         while attackers > 0 {
             pop_lsb!(from, attackers);
 
-            let mut attacks = match PC {
-                Piece::KNIGHT => Attacks::knight(usize::from(from)),
-                Piece::BISHOP => Attacks::bishop(usize::from(from), occ),
-                Piece::ROOK => Attacks::rook(usize::from(from), occ),
-                Piece::QUEEN => Attacks::queen(usize::from(from), occ),
-                Piece::KING => Attacks::king(usize::from(from)),
-                _ => unreachable!(),
-            };
+            let mut attacks = Attacks::of_piece::<PC>(usize::from(from), occ);
 
             attacks &= check_mask;
 

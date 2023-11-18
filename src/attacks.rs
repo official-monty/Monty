@@ -1,3 +1,5 @@
+use crate::consts::Piece;
+
 // Macro for calculating tables (until const fn pointers are stable).
 #[macro_export]
 macro_rules! init {
@@ -15,6 +17,17 @@ macro_rules! init {
 pub struct Attacks;
 
 impl Attacks {
+    pub fn of_piece<const PC: usize>(from: usize, occ: u64) -> u64 {
+        match PC {
+            Piece::KNIGHT => Attacks::knight(from),
+            Piece::BISHOP => Attacks::bishop(from, occ),
+            Piece::ROOK => Attacks::rook(from, occ),
+            Piece::QUEEN => Attacks::queen(from, occ),
+            Piece::KING => Attacks::king(from),
+            _ => unreachable!(),
+        }
+    }
+
     #[inline]
     pub fn pawn(sq: usize, side: usize) -> u64 {
         LOOKUP.pawn[side][sq]
