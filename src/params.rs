@@ -4,6 +4,7 @@ pub struct TunableParams {
     fpu: Param,
     cap: Param,
     pawn_threat: Param,
+    promo: Param,
 }
 
 #[derive(Clone)]
@@ -40,6 +41,7 @@ impl Default for TunableParams {
             fpu: Param::new(0.5, 0.0, 1.0),
             cap: Param::new(2.0, 0.0, 5.0),
             pawn_threat: Param::new(1.0, 0.0, 5.0),
+            promo: Param::new(2.0, 0.0, 5.0),
         }
     }
 }
@@ -61,6 +63,10 @@ impl TunableParams {
         self.pawn_threat.val
     }
 
+    pub fn promo(&self) -> f64 {
+        self.promo.val
+    }
+
     pub fn uci_info() {
         let def = Self::default();
 
@@ -68,6 +74,7 @@ impl TunableParams {
         def.fpu.uci("fpu");
         def.cap.uci("cap");
         def.pawn_threat.uci("pawn_threat");
+        def.promo.uci("promo")
     }
 
     pub fn set(&mut self, name: &str, val: f64) {
@@ -76,6 +83,7 @@ impl TunableParams {
             "fpu" => self.fpu.set(val),
             "cap" => self.cap.set(val),
             "pawn_threat" => self.pawn_threat.set(val),
+            "promo" => self.promo.set(val),
             _ => panic!("unknown option!")
         }
     }
