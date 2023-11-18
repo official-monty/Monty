@@ -156,7 +156,7 @@ impl Searcher {
         let node = &self.tree[node_ptr as usize];
 
         match node.state {
-            GameState::Lost => 0.0,
+            GameState::Lost => -self.params.mate_bonus(),
             GameState::Draw => 0.5,
             GameState::Ongoing => self.pos.eval(),
         }
