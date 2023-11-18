@@ -108,7 +108,7 @@ impl TunableParams {
             "mate_bonus" => self.mate_bonus.set(val),
             "scale" => self.scale.set(val),
             "mvv_lva" => self.mvv_lva.set(val),
-            _ => panic!("unknown option!")
+            _ => panic!("unknown option!"),
         }
     }
 }

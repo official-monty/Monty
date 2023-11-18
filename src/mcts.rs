@@ -1,4 +1,8 @@
-use crate::{moves::{Move, MoveList}, position::{Position, GameState}, params::TunableParams};
+use crate::{
+    moves::{Move, MoveList},
+    params::TunableParams,
+    position::{GameState, Position},
+};
 
 use std::{fmt::Write, time::Instant};
 
@@ -241,11 +245,8 @@ impl Searcher {
 
             self.backprop(result);
 
-
             if let Some(time) = max_time {
-                if nodes % 128 == 0
-                    && timer.elapsed().as_millis() >= time
-                {
+                if nodes % 128 == 0 && timer.elapsed().as_millis() >= time {
                     break;
                 }
             }

@@ -1,4 +1,10 @@
-use crate::{attacks::Attacks, policy::get_policy, params::TunableParams, position::Position, consts::{Side, Piece}};
+use crate::{
+    attacks::Attacks,
+    consts::{Piece, Side},
+    params::TunableParams,
+    policy::get_policy,
+    position::Position,
+};
 
 #[macro_export]
 macro_rules! pop_lsb {

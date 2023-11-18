@@ -193,19 +193,18 @@ const BISHOP: [Mask; 64] = init!(|sq, 64|
 
 const RANK_SHIFT: [usize; 64] = init!(|sq, 64| sq - (sq & 7) + 1);
 
-const RANK: [[u64; 64]; 64] = init!(|sq, 64|
-    init!(|occ, 64| {
-        let file = sq & 7;
-        let mask = (occ << 1) as u64;
-        let east = ((EAST[file] & mask) | (1 << 63)).trailing_zeros() as usize;
-        let west = ((WEST[file] & mask) | 1).leading_zeros() as usize ^ 63;
-        (EAST[file] ^ EAST[east] | WEST[file] ^ WEST[west]) << (sq - file)
-    })
-);
+const RANK: [[u64; 64]; 64] = init!(|sq, 64| init!(|occ, 64| {
+    let file = sq & 7;
+    let mask = (occ << 1) as u64;
+    let east = ((EAST[file] & mask) | (1 << 63)).trailing_zeros() as usize;
+    let west = ((WEST[file] & mask) | 1).leading_zeros() as usize ^ 63;
+    (EAST[file] ^ EAST[east] | WEST[file] ^ WEST[west]) << (sq - file)
+}));
 
-const FILE: [[u64; 64]; 64] = init!(|sq, 64|
-    init!(|occ, 64| (RANK[7 - sq / 8][occ].wrapping_mul(DIAG) & File::H) >> (7 - (sq & 7)))
-);
+const FILE: [[u64; 64]; 64] = init!(|sq, 64| init!(|occ, 64| (RANK[7 - sq / 8][occ]
+    .wrapping_mul(DIAG)
+    & File::H)
+    >> (7 - (sq & 7))));
 
 pub const fn line_through(i: usize, j: usize) -> u64 {
     let sq = 1 << j;

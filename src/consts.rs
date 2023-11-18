@@ -56,23 +56,18 @@ impl Path {
 }
 
 // the castling rook move bitboards
-pub const ROOK_MOVES: [[(u8, u8); 2]; 2] = [
-    [(0, 3), (56, 59)],
-    [(7, 5), (63, 61)],
-];
+pub const ROOK_MOVES: [[(u8, u8); 2]; 2] = [[(0, 3), (56, 59)], [(7, 5), (63, 61)]];
 
 // mask off castling rights by square
-pub const CASTLE_MASK: [u8; 64] = init!(|idx, 64|
-    match idx {
-         0 =>  7,
-         4 =>  3,
-         7 => 11,
-        56 => 13,
-        60 => 12,
-        63 => 14,
-         _ => 15
-    }
-);
+pub const CASTLE_MASK: [u8; 64] = init!(|idx, 64| match idx {
+    0 => 7,
+    4 => 3,
+    7 => 11,
+    56 => 13,
+    60 => 12,
+    63 => 14,
+    _ => 15,
+});
 
 // for promotions / double pushes
 pub struct Rank;

@@ -2,8 +2,9 @@ use crate::{
     attacks::Attacks,
     consts::*,
     moves::{Move, MoveList},
+    params::TunableParams,
+    pop_lsb,
     value::{Accumulator, ValueNetwork},
-    pop_lsb, params::TunableParams,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

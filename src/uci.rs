@@ -1,4 +1,8 @@
-use crate::{position::{self, Position}, mcts::Searcher, params::TunableParams};
+use crate::{
+    mcts::Searcher,
+    params::TunableParams,
+    position::{self, Position},
+};
 
 use std::time::Instant;
 
@@ -33,7 +37,7 @@ pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
 
     for cmd in commands {
         match cmd {
-            "position" | "fen" => {},
+            "position" | "fen" => {}
             "startpos" => fen = STARTPOS.to_string(),
             "kiwipete" => fen = KIWIPETE.to_string(),
             "moves" => moves = true,
@@ -76,7 +80,7 @@ pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position, params: &TunablePa
                 "nodes" => nodes = cmd.parse().unwrap_or(nodes),
                 "movetime" => max_time = cmd.parse().ok(),
                 _ => {}
-            }
+            },
         }
     }
 
@@ -88,7 +92,11 @@ pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position, params: &TunablePa
 }
 
 pub fn eval(pos: &Position, params: &TunableParams) {
-    println!("info eval cp {} wdl {:.2}", pos.eval_cp(), pos.eval(params) * 100.0);
+    println!(
+        "info eval cp {} wdl {:.2}",
+        pos.eval_cp(),
+        pos.eval(params) * 100.0
+    );
 }
 
 pub fn perft(commands: &[&str], pos: &Position) {

@@ -2,11 +2,11 @@ mod attacks;
 mod consts;
 mod mcts;
 mod moves;
-mod value;
 mod params;
 mod policy;
 mod position;
 mod uci;
+mod value;
 
 fn main() {
     // initialise engine
