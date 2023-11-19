@@ -1,10 +1,6 @@
 use crate::{consts::Flag, moves::Move, params::TunableParams, position::Position};
 
-pub fn get_policy(
-    mov: &Move,
-    pos: &Position,
-    params: &TunableParams
-) -> f64 {
+pub fn get_policy(mov: &Move, pos: &Position, params: &TunableParams) -> f64 {
     let mut score = 0.0;
 
     if pos.see(mov, -108) {

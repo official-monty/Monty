@@ -69,7 +69,6 @@ impl Searcher {
     }
 
     fn pick_child(&self, node: &Node) -> usize {
-        // uniform policy
         let expl = self.params.cpuct() * f64::from(node.visits).sqrt();
 
         let mut best_idx = 0;
@@ -175,7 +174,7 @@ impl Searcher {
         }
     }
 
-    fn get_bestmove<const OUT: bool>(&self, root_node: &Node) -> (Move, f64) {
+    fn get_bestmove<const REPORT: bool>(&self, root_node: &Node) -> (Move, f64) {
         let mut best_move = root_node.moves[0];
         let mut best_score = 0.0;
 
@@ -187,7 +186,7 @@ impl Searcher {
             let node = &self.tree[mov.ptr() as usize];
             let score = node.wins / f64::from(node.visits);
 
-            if OUT {
+            if REPORT {
                 println!(
                     "info move {} score wdl {:.2}% ({:.2} / {})",
                     mov.to_uci(),
@@ -227,7 +226,14 @@ impl Searcher {
         (pv, score)
     }
 
-    pub fn search(&mut self, max_time: Option<u128>, report_moves: bool) -> (Move, f64) {
+    pub fn search(
+        &mut self,
+        max_time: Option<u128>,
+        max_depth: usize,
+        report_moves: bool,
+        uci_output: bool,
+        total_nodes: &mut usize,
+    ) -> (Move, f64) {
         let timer = Instant::now();
         self.tree.clear();
 
@@ -264,29 +270,37 @@ impl Searcher {
             if avg_depth > depth {
                 depth = avg_depth;
 
-                let (pv_line, score) = self.get_pv();
-                let elapsed = timer.elapsed();
-                let nps = nodes as f32 / elapsed.as_secs_f32();
-                let pv = pv_line.iter().fold(String::new(), |mut pv_str, mov| {
-                    write!(&mut pv_str, "{} ", mov.to_uci()).unwrap();
-                    pv_str
-                });
+                if uci_output {
+                    let (pv_line, score) = self.get_pv();
+                    let elapsed = timer.elapsed();
+                    let nps = nodes as f32 / elapsed.as_secs_f32();
+                    let pv = pv_line.iter().fold(String::new(), |mut pv_str, mov| {
+                        write!(&mut pv_str, "{} ", mov.to_uci()).unwrap();
+                        pv_str
+                    });
 
-                println!(
-                    "info depth {depth} \
-                    seldepth {seldepth} \
-                    score cp {:.0} \
-                    time {} \
-                    nodes {nodes} \
-                    nps {nps:.0} \
-                    pv {pv}",
-                    -400.0 * (1.0 / score - 1.0).ln(),
-                    elapsed.as_millis(),
-                );
+                    println!(
+                        "info depth {depth} \
+                        seldepth {seldepth} \
+                        score cp {:.0} \
+                        time {} \
+                        nodes {nodes} \
+                        nps {nps:.0} \
+                        pv {pv}",
+                        -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln(),
+                        elapsed.as_millis(),
+                    );
+                }
+            }
+
+            if depth >= max_depth {
+                break;
             }
 
             nodes += 1;
         }
+
+        *total_nodes += nodes;
 
         if report_moves {
             self.get_bestmove::<true>(&self.tree[0])

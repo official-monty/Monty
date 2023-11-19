@@ -75,6 +75,7 @@ pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
 pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position, params: &TunableParams, report_moves: bool) {
     let mut nodes = 10_000_000;
     let mut max_time = None;
+    let mut max_depth = 256;
 
     let mut mode = "";
 
@@ -82,9 +83,11 @@ pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position, params: &TunablePa
         match *cmd {
             "nodes" => mode = "nodes",
             "movetime" => mode = "movetime",
+            "depth" => mode = "depth",
             _ => match mode {
                 "nodes" => nodes = cmd.parse().unwrap_or(nodes),
                 "movetime" => max_time = cmd.parse().ok(),
+                "depth" => max_depth = cmd.parse().unwrap_or(max_depth),
                 _ => {}
             },
         }
@@ -92,7 +95,7 @@ pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position, params: &TunablePa
 
     let mut searcher = Searcher::new(*pos, stack, nodes, params.clone());
 
-    let (mov, _) = searcher.search(max_time, report_moves);
+    let (mov, _) = searcher.search(max_time, max_depth, report_moves, true, &mut 0);
 
     println!("bestmove {}", mov.to_uci());
 }

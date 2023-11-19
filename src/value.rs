@@ -17,7 +17,7 @@ pub struct ValueNetwork {
     output_bias: i16,
 }
 
-static NNUE: ValueNetwork = unsafe { std::mem::transmute(*include_bytes!("../altair-net.bin")) };
+static NNUE: ValueNetwork = unsafe { std::mem::transmute(*include_bytes!("../resources/altair-net.bin")) };
 
 impl ValueNetwork {
     pub fn out(boys: &Accumulator, opps: &Accumulator) -> i32 {
