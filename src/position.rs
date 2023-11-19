@@ -7,9 +7,9 @@ use crate::{
     value::{Accumulator, ValueNetwork},
 };
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum GameState {
-    Ongoing,
+    #[default] Ongoing,
     Lost,
     Draw,
 }
