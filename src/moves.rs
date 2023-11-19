@@ -1,6 +1,5 @@
 use crate::{
-    attacks::Attacks,
-    consts::{Flag, Piece, Side},
+    consts::Flag,
     params::TunableParams,
     policy::get_policy,
     position::Position,
@@ -140,19 +139,10 @@ impl MoveList {
     }
 
     pub fn set_policies(&mut self, pos: &Position, params: &TunableParams) {
-        let threats = {
-            let pawns = pos.opps() & pos.piece(Piece::PAWN);
-
-            if pos.stm() == Side::BLACK {
-                Attacks::white_pawn_setwise(pawns)
-            } else {
-                Attacks::black_pawn_setwise(pawns)
-            }
-        };
         let mut total = 0.0;
 
         for mov in self.list.iter_mut() {
-            let val = get_policy(mov, pos, threats, params);
+            let val = get_policy(mov, pos, params);
 
             mov.policy = val.exp();
             total += mov.policy;

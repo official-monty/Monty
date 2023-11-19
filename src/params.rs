@@ -3,7 +3,6 @@ pub struct TunableParams {
     cpuct: Param,
     fpu: Param,
     cap: Param,
-    pawn_threat: Param,
     promo: Param,
     mate_bonus: Param,
     scale: Param,
@@ -44,12 +43,11 @@ impl Default for TunableParams {
             cpuct: Param::new(1.41, 0.1, 5.0),
             fpu: Param::new(0.5, 0.0, 1.0),
             cap: Param::new(2.0, 0.0, 5.0),
-            pawn_threat: Param::new(1.0, 0.0, 5.0),
             promo: Param::new(2.0, 0.0, 5.0),
             mate_bonus: Param::new(1.0, 0.0, 10.0),
             scale: Param::new(4.0, 1.0, 8.0),
             mvv_lva: Param::new(0.2, 0.0, 5.0),
-            good_see: Param::new(1.0, 0.0, 5.0),
+            good_see: Param::new(2.0, 0.0, 5.0),
         }
     }
 }
@@ -65,10 +63,6 @@ impl TunableParams {
 
     pub fn cap(&self) -> f64 {
         self.cap.val
-    }
-
-    pub fn pawn_threat(&self) -> f64 {
-        self.pawn_threat.val
     }
 
     pub fn promo(&self) -> f64 {
@@ -97,7 +91,6 @@ impl TunableParams {
         def.cpuct.uci("cpuct");
         def.fpu.uci("fpu");
         def.cap.uci("cap");
-        def.pawn_threat.uci("pawn_threat");
         def.promo.uci("promo");
         def.mate_bonus.uci("mate_bonus");
         def.scale.uci("scale");
@@ -110,7 +103,6 @@ impl TunableParams {
             "cpuct" => self.cpuct.set(val),
             "fpu" => self.fpu.set(val),
             "cap" => self.cap.set(val),
-            "pawn_threat" => self.pawn_threat.set(val),
             "promo" => self.promo.set(val),
             "mate_bonus" => self.mate_bonus.set(val),
             "scale" => self.scale.set(val),
