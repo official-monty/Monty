@@ -170,3 +170,5 @@ pub static ZVALS: ZobristVals = {
 };
 
 pub const PHASE_VALS: [i32; 8] = [0, 0, 0, 1, 1, 2, 4, 0];
+
+pub const SEE_VALS: [i32; 8] = [0, 0, 100, 450, 450, 650, 1250, 0];

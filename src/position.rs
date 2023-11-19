@@ -231,6 +231,83 @@ impl Position {
         threats
     }
 
+    fn gain(&self, mov: &Move) -> i32 {
+        if mov.is_en_passant() {
+            return SEE_VALS[Piece::PAWN];
+        }
+        let mut score = SEE_VALS[self.get_pc(1 << mov.to())];
+        if mov.is_promo() {
+            score += SEE_VALS[mov.promo_pc()] - SEE_VALS[Piece::PAWN];
+        }
+        score
+    }
+
+    pub fn see(&self, mov: &Move, threshold: i32) -> bool {
+        let sq = usize::from(mov.to());
+        assert!(sq < 64, "wha");
+        let mut next = if mov.is_promo() {
+            mov.promo_pc()
+        } else {
+            usize::from(mov.moved())
+        };
+        let mut score = self.gain(mov) - threshold - SEE_VALS[next];
+
+        if score >= 0 {
+            return true;
+        }
+
+        let mut occ = (self.bb[Side::WHITE] | self.bb[Side::BLACK]) ^ (1 << mov.from()) ^ (1 << sq);
+        if mov.is_en_passant() {
+            occ ^= 1 << (sq ^ 8);
+        }
+
+        let bishops = self.bb[Piece::BISHOP] | self.bb[Piece::QUEEN];
+        let rooks = self.bb[Piece::ROOK] | self.bb[Piece::QUEEN];
+        let mut us = usize::from(!self.stm);
+        let mut attackers = (Attacks::knight(sq) & self.bb[Piece::KNIGHT])
+            | (Attacks::king(sq) & self.bb[Piece::KING])
+            | (Attacks::pawn(sq, Side::WHITE) & self.bb[Piece::PAWN] & self.bb[Side::BLACK])
+            | (Attacks::pawn(sq, Side::BLACK) & self.bb[Piece::PAWN] & self.bb[Side::WHITE])
+            | (Attacks::rook(sq, occ) & rooks)
+            | (Attacks::bishop(sq, occ) & bishops);
+
+        loop {
+            let our_attackers = attackers & self.bb[us];
+            if our_attackers == 0 {
+                break;
+            }
+
+            for pc in Piece::PAWN..=Piece::KING {
+                let board = our_attackers & self.bb[pc];
+                if board > 0 {
+                    occ ^= board & board.wrapping_neg();
+                    next = pc;
+                    break;
+                }
+            }
+
+            if [Piece::PAWN, Piece::BISHOP, Piece::QUEEN].contains(&next) {
+                attackers |= Attacks::bishop(sq, occ) & bishops;
+            }
+            if [Piece::ROOK, Piece::QUEEN].contains(&next) {
+                attackers |= Attacks::rook(sq, occ) & rooks;
+            }
+
+            attackers &= occ;
+            score = -score - 1 - SEE_VALS[next];
+            us ^= 1;
+
+            if score >= 0 {
+                if next == Piece::KING && attackers & self.bb[us] > 0 {
+                    us ^= 1;
+                }
+                break;
+            }
+        }
+
+        self.stm != (us == 1)
+    }
+
     // MODIFY POSITION
 
     pub fn toggle(&mut self, side: usize, piece: usize, sq: u8) {
@@ -244,7 +321,7 @@ impl Position {
         // extracting move info
         let side = usize::from(self.stm);
         let bb_to = 1 << mov.to();
-        let captured = if mov.flag() & Flag::CAP == 0 {
+        let captured = if !mov.is_capture() {
             Piece::EMPTY
         } else {
             self.get_pc(bb_to)
@@ -256,7 +333,7 @@ impl Position {
         self.rights &= CASTLE_MASK[usize::from(mov.to())] & CASTLE_MASK[usize::from(mov.from())];
         self.halfm += 1;
 
-        if mov.moved() == Piece::PAWN as u8 || mov.flag() & Flag::CAP > 0 {
+        if mov.moved() == Piece::PAWN as u8 || mov.is_capture() {
             self.halfm = 0;
         }
 

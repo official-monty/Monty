@@ -1,6 +1,6 @@
 use crate::{
     attacks::Attacks,
-    consts::{Piece, Side},
+    consts::{Flag, Piece, Side},
     params::TunableParams,
     policy::get_policy,
     position::Position,
@@ -61,6 +61,22 @@ impl Move {
 
     pub fn set_ptr(&mut self, ptr: i32) {
         self.ptr = ptr;
+    }
+
+    pub fn is_capture(&self) -> bool {
+        self.flag & Flag::CAP > 0
+    }
+
+    pub fn is_en_passant(&self) -> bool {
+        self.flag == Flag::ENP
+    }
+
+    pub fn is_promo(&self) -> bool {
+        self.flag & Flag::NPR > 0
+    }
+
+    pub fn promo_pc(&self) -> usize {
+        usize::from(self.flag & 3) + 3
     }
 
     #[must_use]

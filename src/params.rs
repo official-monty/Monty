@@ -8,6 +8,7 @@ pub struct TunableParams {
     mate_bonus: Param,
     scale: Param,
     mvv_lva: Param,
+    good_see: Param,
 }
 
 #[derive(Clone)]
@@ -48,6 +49,7 @@ impl Default for TunableParams {
             mate_bonus: Param::new(1.0, 0.0, 10.0),
             scale: Param::new(4.0, 1.0, 8.0),
             mvv_lva: Param::new(0.2, 0.0, 5.0),
+            good_see: Param::new(1.0, 0.0, 5.0),
         }
     }
 }
@@ -85,6 +87,10 @@ impl TunableParams {
         self.mvv_lva.val
     }
 
+    pub fn good_see(&self) -> f64 {
+        self.good_see.val
+    }
+
     pub fn uci_info() {
         let def = Self::default();
 
@@ -96,6 +102,7 @@ impl TunableParams {
         def.mate_bonus.uci("mate_bonus");
         def.scale.uci("scale");
         def.mvv_lva.uci("mvv_lva");
+        def.good_see.uci("good_see")
     }
 
     pub fn set(&mut self, name: &str, val: f64) {
@@ -108,6 +115,7 @@ impl TunableParams {
             "mate_bonus" => self.mate_bonus.set(val),
             "scale" => self.scale.set(val),
             "mvv_lva" => self.mvv_lva.set(val),
+            "good_see" => self.good_see.set(val),
             _ => panic!("unknown option!"),
         }
     }
