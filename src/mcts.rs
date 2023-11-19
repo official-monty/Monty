@@ -16,9 +16,17 @@ struct Node {
 }
 
 impl Node {
-    fn expand(&mut self, pos: &Position, stack: &[u64], params: &TunableParams) {
+    fn new(pos: &Position, stack: &[u64]) -> Self {
+        let moves = pos.gen();
+        let state = pos.game_state(&moves, stack);
+        Self {
+            state,
+            ..Default::default()
+        }
+    }
+
+    fn expand(&mut self, pos: &Position, params: &TunableParams) {
         self.moves = pos.gen();
-        self.state = pos.game_state(&self.moves, stack);
         self.moves.set_policies(pos, params);
         self.left = self.moves.len();
     }
@@ -101,7 +109,7 @@ impl Searcher {
             let node = &mut self.tree[node_ptr as usize];
 
             if node.visits == 1 {
-                node.expand(&self.pos, &self.stack, &self.params);
+                node.expand(&self.pos, &self.params);
             }
 
             let node = &self.tree[node_ptr as usize];
@@ -142,7 +150,7 @@ impl Searcher {
         let mov = node.moves[node.left];
         self.make_move(mov);
 
-        let new_node = Node::default();
+        let new_node = Node::new(&self.pos, &self.stack);
         self.tree.push(new_node);
 
         let new_ptr = self.tree.len() as i32 - 1;
@@ -237,8 +245,8 @@ impl Searcher {
         let timer = Instant::now();
         self.tree.clear();
 
-        let mut root_node = Node::default();
-        root_node.expand(&self.startpos, &[], &self.params);
+        let mut root_node = Node::new(&self.startpos, &[]);
+        root_node.expand(&self.startpos, &self.params);
         self.tree.push(root_node);
 
         let mut nodes = 1;
