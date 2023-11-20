@@ -76,9 +76,15 @@ impl Searcher {
         let mut best_idx = 0;
         let mut best_uct = 0.0;
 
+        let fpu = if node.visits > 0 {
+            1.0 - node.wins / node.visits as f64
+        } else {
+            0.5
+        };
+
         for (idx, mov) in node.moves.iter().enumerate() {
             let uct = if mov.ptr() == -1 {
-                self.params.fpu() + expl * mov.policy()
+                fpu + expl * mov.policy()
             } else {
                 let child = &self.tree[mov.ptr() as usize];
 

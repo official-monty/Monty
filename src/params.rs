@@ -1,7 +1,6 @@
 #[derive(Clone)]
 pub struct TunableParams {
     cpuct: Param,
-    fpu: Param,
     cap: Param,
     promo: Param,
     mate_bonus: Param,
@@ -41,7 +40,6 @@ impl Default for TunableParams {
     fn default() -> Self {
         Self {
             cpuct: Param::new(1.41, 0.1, 5.0),
-            fpu: Param::new(0.5, 0.0, 1.0),
             cap: Param::new(2.0, 0.0, 5.0),
             promo: Param::new(2.0, 0.0, 5.0),
             mate_bonus: Param::new(1.0, 0.0, 10.0),
@@ -55,10 +53,6 @@ impl Default for TunableParams {
 impl TunableParams {
     pub fn cpuct(&self) -> f64 {
         self.cpuct.val
-    }
-
-    pub fn fpu(&self) -> f64 {
-        self.fpu.val
     }
 
     pub fn cap(&self) -> f64 {
@@ -89,7 +83,6 @@ impl TunableParams {
         let def = Self::default();
 
         def.cpuct.uci("cpuct");
-        def.fpu.uci("fpu");
         def.cap.uci("cap");
         def.promo.uci("promo");
         def.mate_bonus.uci("mate_bonus");
@@ -101,7 +94,6 @@ impl TunableParams {
     pub fn set(&mut self, name: &str, val: f64) {
         match name {
             "cpuct" => self.cpuct.set(val),
-            "fpu" => self.fpu.set(val),
             "cap" => self.cap.set(val),
             "promo" => self.promo.set(val),
             "mate_bonus" => self.mate_bonus.set(val),
