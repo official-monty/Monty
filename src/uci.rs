@@ -1,7 +1,6 @@
 use crate::{
-    mcts::Searcher,
-    params::TunableParams,
-    position::{self, Position},
+    search::{mcts::Searcher, params::TunableParams, policy::{PolicyNetwork, get_policy}},
+    state::position::{self, Position},
 };
 
 use std::time::Instant;
@@ -72,7 +71,14 @@ pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
     }
 }
 
-pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position, params: &TunableParams, report_moves: bool) {
+pub fn go(
+    commands: &[&str],
+    stack: Vec<u64>,
+    pos: &Position,
+    params: &TunableParams,
+    report_moves: bool,
+    policy: &PolicyNetwork,
+) {
     let mut nodes = 10_000_000;
     let mut max_time = None;
     let mut max_depth = 256;
@@ -93,14 +99,28 @@ pub fn go(commands: &[&str], stack: Vec<u64>, pos: &Position, params: &TunablePa
         }
     }
 
-    let mut searcher = Searcher::new(*pos, stack, nodes, params.clone());
+    let mut searcher = Searcher::new(*pos, stack, nodes, params.clone(), policy);
 
     let (mov, _) = searcher.search(max_time, max_depth, report_moves, true, &mut 0);
 
     println!("bestmove {}", mov.to_uci());
 }
 
-pub fn eval(pos: &Position, params: &TunableParams) {
+pub fn eval(pos: &Position, params: &TunableParams, policy: &PolicyNetwork) {
+    let moves = pos.gen();
+    let mut policies = Vec::new();
+    let mut total = 0.0;
+
+    for mov in moves.iter() {
+        let pol = get_policy(mov, pos, policy).exp();
+        total += pol;
+        policies.push(pol);
+    }
+
+    for (mov, policy) in moves.iter().zip(policies) {
+        println!("{} -> {: >5.2}%", mov.to_uci(), policy / total * 100.0);
+    }
+
     println!(
         "info eval cp {} wdl {:.2}",
         pos.eval_cp(),

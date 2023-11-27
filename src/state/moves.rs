@@ -1,8 +1,6 @@
 use crate::{
-    consts::Flag,
-    params::TunableParams,
-    policy::get_policy,
-    position::Position,
+    search::policy::{get_policy, PolicyNetwork},
+    state::{consts::Flag, position::Position},
 };
 
 #[macro_export]
@@ -23,7 +21,7 @@ pub struct Move {
     policy: f64,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct MoveList {
     list: Vec<Move>,
 }
@@ -76,6 +74,10 @@ impl Move {
 
     pub fn promo_pc(&self) -> usize {
         usize::from(self.flag & 3) + 3
+    }
+
+    pub fn index(&self, flip: u8) -> usize {
+        usize::from(self.moved - 2) * 64 + usize::from(self.to ^ flip)
     }
 
     #[must_use]
@@ -138,7 +140,7 @@ impl MoveList {
         self.list.swap(a, b);
     }
 
-    pub fn set_policies(&mut self, pos: &Position, params: &TunableParams) {
+    pub fn set_policies(&mut self, pos: &Position, params: &PolicyNetwork) {
         let mut total = 0.0;
 
         for mov in self.list.iter_mut() {

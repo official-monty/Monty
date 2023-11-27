@@ -1,15 +1,20 @@
 use crate::{
-    attacks::Attacks,
-    consts::*,
-    moves::{Move, MoveList},
-    params::TunableParams,
     pop_lsb,
-    value::{Accumulator, ValueNetwork},
+    search::{
+        params::TunableParams,
+        value::{Accumulator, ValueNetwork},
+    },
+    state::{
+        attacks::Attacks,
+        consts::*,
+        moves::{Move, MoveList},
+    },
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum GameState {
-    #[default] Ongoing,
+    #[default]
+    Ongoing,
     Lost,
     Draw,
 }
@@ -183,6 +188,10 @@ impl Position {
             }
         }
         0
+    }
+
+    pub fn flip_val(&self) -> u8 {
+        if self.stm() == Side::BLACK { 56 } else { 0 }
     }
 
     #[must_use]

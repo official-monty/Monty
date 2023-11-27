@@ -96,7 +96,7 @@ pub static LINE_THROUGH: [[u64; 64]; 64] = {
     while i < 64 {
         let mut j = 0;
         while j < 64 {
-            arr[i][j] = crate::attacks::line_through(i, j);
+            arr[i][j] = crate::state::attacks::line_through(i, j);
             j += 1;
         }
         i += 1;

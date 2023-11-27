@@ -1,18 +1,20 @@
 use crate::{
-    moves::{Move, MoveList},
-    params::TunableParams,
-    position::{GameState, Position},
+    search::{params::TunableParams, policy::PolicyNetwork},
+    state::{
+        moves::{Move, MoveList},
+        position::{GameState, Position},
+    },
 };
 
 use std::{fmt::Write, time::Instant};
 
-#[derive(Default)]
-struct Node {
+#[derive(Clone, Default)]
+pub struct Node {
     visits: i32,
     wins: f64,
     left: usize,
     state: GameState,
-    moves: MoveList,
+    pub moves: MoveList,
 }
 
 impl Node {
@@ -25,7 +27,7 @@ impl Node {
         }
     }
 
-    fn expand(&mut self, pos: &Position, params: &TunableParams) {
+    fn expand(&mut self, pos: &Position, params: &PolicyNetwork) {
         self.moves = pos.gen();
         self.moves.set_policies(pos, params);
         self.left = self.moves.len();
@@ -34,21 +36,32 @@ impl Node {
     fn is_terminal(&self) -> bool {
         self.state != GameState::Ongoing
     }
+
+    pub fn visits(&self) -> i32 {
+        self.visits
+    }
 }
 
-pub struct Searcher {
-    startpos: Position,
-    startstack: Vec<u64>,
+pub struct Searcher<'a> {
+    pub startpos: Position,
+    pub startstack: Vec<u64>,
+    pub tree: Vec<Node>,
     pos: Position,
-    tree: Vec<Node>,
     stack: Vec<u64>,
     node_limit: usize,
     selection: Vec<i32>,
     params: TunableParams,
+    policy: &'a PolicyNetwork,
 }
 
-impl Searcher {
-    pub fn new(pos: Position, stack: Vec<u64>, node_limit: usize, params: TunableParams) -> Self {
+impl<'a> Searcher<'a> {
+    pub fn new(
+        pos: Position,
+        stack: Vec<u64>,
+        node_limit: usize,
+        params: TunableParams,
+        policy: &'a PolicyNetwork,
+    ) -> Self {
         Self {
             startpos: pos,
             startstack: stack.clone(),
@@ -58,6 +71,7 @@ impl Searcher {
             node_limit,
             selection: Vec::new(),
             params,
+            policy,
         }
     }
 
@@ -115,7 +129,7 @@ impl Searcher {
             let node = &mut self.tree[node_ptr as usize];
 
             if node.visits == 1 {
-                node.expand(&self.pos, &self.params);
+                node.expand(&self.pos, self.policy);
             }
 
             let node = &self.tree[node_ptr as usize];
@@ -252,7 +266,7 @@ impl Searcher {
         self.tree.clear();
 
         let mut root_node = Node::new(&self.startpos, &[]);
-        root_node.expand(&self.startpos, &self.params);
+        root_node.expand(&self.startpos, self.policy);
         self.tree.push(root_node);
 
         let mut nodes = 1;

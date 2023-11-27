@@ -1,16 +1,15 @@
-mod attacks;
-mod consts;
-mod mcts;
-mod moves;
-mod params;
-mod policy;
-mod position;
+mod search;
+mod state;
+mod train;
 mod uci;
-mod value;
 
-use mcts::Searcher;
-use params::TunableParams;
-use position::Position;
+use search::{
+    mcts::Searcher,
+    params::TunableParams,
+    policy::{PolicyNetwork, POLICY_NETWORK},
+};
+use state::position::Position;
+use train::run_training;
 
 use std::time::Instant;
 
@@ -20,11 +19,21 @@ fn main() {
     let mut params = TunableParams::default();
     let mut stack = Vec::new();
     let mut report_moves = false;
+    let mut policy = Box::new(POLICY_NETWORK);
 
-    // bench
-    if let Some("bench") = std::env::args().nth(1).as_deref() {
-        run_bench(&params);
-        return;
+    let mut args = std::env::args();
+
+    match args.nth(1).as_deref() {
+        Some("bench") => {
+            run_bench(&params, &policy);
+            return;
+        }
+        Some("train") => {
+            let arg = args.next().unwrap();
+            run_training(arg.parse().unwrap(), params, &mut policy);
+            return;
+        }
+        _ => {}
     }
 
     // main uci loop
@@ -44,16 +53,23 @@ fn main() {
             "isready" => uci::isready(),
             "setoption" => uci::setoption(&commands, &mut params, &mut report_moves),
             "position" => uci::position(commands, &mut pos, &mut stack),
-            "go" => uci::go(&commands, stack.clone(), &pos, &params, report_moves),
+            "go" => uci::go(
+                &commands,
+                stack.clone(),
+                &pos,
+                &params,
+                report_moves,
+                &policy,
+            ),
             "perft" => uci::perft(&commands, &pos),
-            "eval" => uci::eval(&pos, &params),
+            "eval" => uci::eval(&pos, &params, &policy),
             "quit" => std::process::exit(0),
             _ => {}
         }
     }
 }
 
-fn run_bench(params: &TunableParams) {
+fn run_bench(params: &TunableParams, policy: &PolicyNetwork) {
     const FEN_STRING: &str = include_str!("../resources/fens.txt");
 
     let mut total_nodes = 0;
@@ -62,7 +78,7 @@ fn run_bench(params: &TunableParams) {
 
     for fen in bench_fens {
         let pos = Position::parse_fen(fen);
-        let mut searcher = Searcher::new(pos, Vec::new(), 1_000_000, params.clone());
+        let mut searcher = Searcher::new(pos, Vec::new(), 1_000_000, params.clone(), policy);
         searcher.search(None, 5, false, false, &mut total_nodes);
     }
 
