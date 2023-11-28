@@ -130,7 +130,7 @@ impl<'a> Searcher<'a> {
         loop {
             let node = &mut self.tree[node_ptr as usize];
 
-            if node.visits == 1 {
+            if node_ptr != 0 && node.visits == 1 {
                 node.expand(&self.pos, self.policy);
             }
 
