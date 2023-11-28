@@ -84,6 +84,6 @@ fn run_bench(params: &TunableParams, policy: &PolicyNetwork) {
 
     println!(
         "Bench: {total_nodes} nodes {:.0} nps",
-        total_nodes as f64 / timer.elapsed().as_secs_f64()
+        total_nodes as f32 / timer.elapsed().as_secs_f32()
     );
 }

@@ -18,7 +18,7 @@ pub struct Move {
     flag: u8,
     moved: u8,
     ptr: i32,
-    policy: f64,
+    policy: f32,
 }
 
 #[derive(Clone, Default)]
@@ -52,7 +52,7 @@ impl Move {
     }
 
     #[must_use]
-    pub fn policy(&self) -> f64 {
+    pub fn policy(&self) -> f32 {
         self.policy
     }
 

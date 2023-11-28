@@ -6,7 +6,7 @@ use self::{datagen::{run_datagen, TrainingPosition}, rng::Rand};
 
 const DATAGEN_SIZE: usize = 16_384;
 const BATCH_SIZE: usize = 1_024;
-const LR: f64 = 1.0;
+const LR: f32 = 1.0;
 
 pub fn run_training(threads: usize, params: TunableParams, _policy: &mut PolicyNetwork) {
     let mut policy = PolicyNetwork::boxed_and_zeroed();
@@ -38,25 +38,25 @@ fn shuffle(data: &mut Vec<TrainingPosition>) {
 fn train(threads: usize, policy: &mut PolicyNetwork, data: Vec<TrainingPosition>) {
     let mut grad = PolicyNetwork::boxed_and_zeroed();
     let error = gradient_batch(threads, policy, &mut grad, &data);
-    println!("> Before Loss: {}", error / data.len() as f64);
+    println!("> Before Loss: {}", error / data.len() as f32);
 
     let mut running_error = 0.0;
 
     for batch in data.chunks(BATCH_SIZE) {
         let mut grad = PolicyNetwork::boxed_and_zeroed();
         running_error += gradient_batch(threads, policy, &mut grad, batch);
-        let adj = LR / batch.len() as f64;
+        let adj = LR / batch.len() as f32;
         update(policy, &grad, adj);
     }
 
-    println!("> Running Loss: {}", running_error / data.len() as f64);
+    println!("> Running Loss: {}", running_error / data.len() as f32);
 
     let mut grad = PolicyNetwork::boxed_and_zeroed();
     let error = gradient_batch(threads, policy, &mut grad, &data);
-    println!("> After Loss: {}", error / data.len() as f64);
+    println!("> After Loss: {}", error / data.len() as f32);
 }
 
-fn gradient_batch(threads: usize, policy: &PolicyNetwork, grad: &mut PolicyNetwork, batch: &[TrainingPosition]) -> f64 {
+fn gradient_batch(threads: usize, policy: &PolicyNetwork, grad: &mut PolicyNetwork, batch: &[TrainingPosition]) -> f32 {
     let size = (batch.len() / threads).max(1);
     let mut errors = vec![0.0; threads];
 
@@ -79,7 +79,7 @@ fn gradient_batch(threads: usize, policy: &PolicyNetwork, grad: &mut PolicyNetwo
             .for_each(|part| *grad += &part);
     });
 
-    errors.iter().sum::<f64>()
+    errors.iter().sum::<f32>()
 }
 
 fn get_features(pos: &Position) -> Vec<usize> {
@@ -108,7 +108,7 @@ fn get_features(pos: &Position) -> Vec<usize> {
     res
 }
 
-fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut PolicyNetwork, error: &mut f64) {
+fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut PolicyNetwork, error: &mut f32) {
     let feats = get_features(&pos.position);
 
     let mut policies = Vec::with_capacity(pos.moves.len());
@@ -134,7 +134,7 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
 
     for ((mov, visits), score) in pos.moves.iter().zip(policies.iter()) {
         let idx = mov.index(flip);
-        let expected = f64::from(*visits) / f64::from(total_visits);
+        let expected = *visits as f32 / total_visits as f32;
         let err = score / total - expected;
 
         *error += err * err;
@@ -148,7 +148,7 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
     }
 }
 
-fn update(policy: &mut PolicyNetwork, grad: &PolicyNetwork, adj: f64) {
+fn update(policy: &mut PolicyNetwork, grad: &PolicyNetwork, adj: f32) {
     for (i, j) in policy.weights.iter_mut().zip(grad.weights.iter()) {
         for (a, b) in i.iter_mut().zip(j.iter()) {
             *a -= adj * *b;

@@ -13,7 +13,7 @@ pub const FEATURES: usize = 768;
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct PolicyNetwork {
-    pub weights: [[f64; FEATURES + 1]; INDICES],
+    pub weights: [[f32; FEATURES + 1]; INDICES],
 }
 
 impl std::ops::AddAssign<&PolicyNetwork> for PolicyNetwork {
@@ -56,7 +56,7 @@ impl PolicyNetwork {
 pub static POLICY_NETWORK: PolicyNetwork =
     unsafe { std::mem::transmute(*include_bytes!("../../resources/policy.bin")) };
 
-pub fn hce_policy(mov: &Move, pos: &Position) -> f64 {
+pub fn hce_policy(mov: &Move, pos: &Position) -> f32 {
     let mut score = 0.0;
 
     if pos.see(mov, -108) {
@@ -71,13 +71,13 @@ pub fn hce_policy(mov: &Move, pos: &Position) -> f64 {
         score += 2.0;
 
         let diff = pos.get_pc(1 << mov.to()) as i32 - i32::from(mov.moved());
-        score += 0.2 * f64::from(diff);
+        score += 0.2 * diff as f32;
     }
 
     score
 }
 
-pub fn get_policy(mov: &Move, pos: &Position, params: &PolicyNetwork) -> f64 {
+pub fn get_policy(mov: &Move, pos: &Position, params: &PolicyNetwork) -> f32 {
     let flip = pos.flip_val();
     let idx = mov.index(flip);
 

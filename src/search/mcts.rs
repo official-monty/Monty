@@ -13,7 +13,7 @@ use super::{qsearch::quiesce, cp_wdl};
 #[derive(Clone, Default)]
 pub struct Node {
     visits: i32,
-    wins: f64,
+    wins: f32,
     left: usize,
     state: GameState,
     pub moves: MoveList,
@@ -87,13 +87,13 @@ impl<'a> Searcher<'a> {
     }
 
     fn pick_child(&self, node: &Node) -> usize {
-        let expl = self.params.cpuct() * f64::from(node.visits).sqrt();
+        let expl = self.params.cpuct() * (node.visits as f32).sqrt();
 
         let mut best_idx = 0;
         let mut best_uct = 0.0;
 
         let fpu = if node.visits > 0 {
-            1.0 - node.wins / node.visits as f64
+            1.0 - node.wins / node.visits as f32
         } else {
             0.5
         };
@@ -104,8 +104,8 @@ impl<'a> Searcher<'a> {
             } else {
                 let child = &self.tree[mov.ptr() as usize];
 
-                let q = child.wins / f64::from(child.visits);
-                let u = expl * mov.policy() / f64::from(1 + child.visits);
+                let q = child.wins / child.visits as f32;
+                let u = expl * mov.policy() / (1 + child.visits) as f32;
 
                 q + u
             };
@@ -183,7 +183,7 @@ impl<'a> Searcher<'a> {
         self.selection.push(to_explore.ptr());
     }
 
-    fn simulate(&self) -> f64 {
+    fn simulate(&self) -> f32 {
         let node_ptr = self.selected();
 
         let node = &self.tree[node_ptr as usize];
@@ -199,7 +199,7 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    fn backprop(&mut self, mut result: f64) {
+    fn backprop(&mut self, mut result: f32) {
         while let Some(node_ptr) = self.selection.pop() {
             let node = &mut self.tree[node_ptr as usize];
             node.visits += 1;
@@ -208,7 +208,7 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    fn get_bestmove<const REPORT: bool>(&self, root_node: &Node) -> (Move, f64) {
+    fn get_bestmove<const REPORT: bool>(&self, root_node: &Node) -> (Move, f32) {
         let mut best_move = root_node.moves[0];
         let mut best_score = 0.0;
 
@@ -218,7 +218,7 @@ impl<'a> Searcher<'a> {
             }
 
             let node = &self.tree[mov.ptr() as usize];
-            let score = node.wins / f64::from(node.visits);
+            let score = node.wins / node.visits as f32;
 
             if REPORT {
                 println!(
@@ -239,7 +239,7 @@ impl<'a> Searcher<'a> {
         (best_move, best_score)
     }
 
-    fn get_pv(&self) -> (Vec<Move>, f64) {
+    fn get_pv(&self) -> (Vec<Move>, f32) {
         let mut node = &self.tree[0];
 
         let (mut mov, score) = self.get_bestmove::<false>(node);
@@ -267,7 +267,7 @@ impl<'a> Searcher<'a> {
         report_moves: bool,
         uci_output: bool,
         total_nodes: &mut usize,
-    ) -> (Move, f64) {
+    ) -> (Move, f32) {
         let timer = Instant::now();
         self.tree.clear();
 

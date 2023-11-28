@@ -7,17 +7,17 @@ pub struct TunableParams {
 
 #[derive(Clone)]
 struct Param {
-    val: f64,
-    min: f64,
-    max: f64,
+    val: f32,
+    min: f32,
+    max: f32,
 }
 
 impl Param {
-    fn new(val: f64, min: f64, max: f64) -> Self {
+    fn new(val: f32, min: f32, max: f32) -> Self {
         Self { val, min, max }
     }
 
-    fn set(&mut self, val: f64) {
+    fn set(&mut self, val: f32) {
         self.val = val.clamp(self.min, self.max);
     }
 
@@ -43,15 +43,15 @@ impl Default for TunableParams {
 }
 
 impl TunableParams {
-    pub fn cpuct(&self) -> f64 {
+    pub fn cpuct(&self) -> f32 {
         self.cpuct.val
     }
 
-    pub fn mate_bonus(&self) -> f64 {
+    pub fn mate_bonus(&self) -> f32 {
         self.mate_bonus.val
     }
 
-    pub fn scale(&self) -> f64 {
+    pub fn scale(&self) -> f32 {
         self.scale.val
     }
 
@@ -63,7 +63,7 @@ impl TunableParams {
         def.scale.uci("scale");
     }
 
-    pub fn set(&mut self, name: &str, val: f64) {
+    pub fn set(&mut self, name: &str, val: f32) {
         match name {
             "cpuct" => self.cpuct.set(val),
             "mate_bonus" => self.mate_bonus.set(val),

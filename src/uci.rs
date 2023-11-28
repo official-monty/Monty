@@ -32,7 +32,7 @@ pub fn setoption(commands: &[&str], params: &mut TunableParams, report_moves: &m
         return;
     };
 
-    params.set(name, f64::from(val) / 100.0);
+    params.set(name, val as f32 / 100.0);
 }
 
 pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
@@ -137,6 +137,6 @@ pub fn perft(commands: &[&str], pos: &Position) {
     println!(
         "perft {depth} time {} nodes {count} ({:.2} Mnps)",
         time / 1000,
-        count as f64 / time as f64
+        count as f32 / time as f32
     );
 }
