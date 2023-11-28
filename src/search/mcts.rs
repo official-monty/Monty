@@ -8,6 +8,8 @@ use crate::{
 
 use std::{fmt::Write, time::Instant};
 
+use super::{qsearch::quiesce, cp_wdl};
+
 #[derive(Clone, Default)]
 pub struct Node {
     visits: i32,
@@ -19,7 +21,7 @@ pub struct Node {
 
 impl Node {
     fn new(pos: &Position, stack: &[u64]) -> Self {
-        let moves = pos.gen();
+        let moves = pos.gen::<true>();
         let state = pos.game_state(&moves, stack);
         Self {
             state,
@@ -28,7 +30,7 @@ impl Node {
     }
 
     fn expand(&mut self, pos: &Position, params: &PolicyNetwork) {
-        self.moves = pos.gen();
+        self.moves = pos.gen::<true>();
         self.moves.set_policies(pos, params);
         self.left = self.moves.len();
     }
@@ -77,7 +79,7 @@ impl<'a> Searcher<'a> {
 
     fn make_move(&mut self, mov: Move) {
         self.stack.push(self.pos.hash());
-        self.pos.make(mov);
+        self.pos.make(mov, None);
     }
 
     fn selected(&self) -> i32 {
@@ -189,7 +191,11 @@ impl<'a> Searcher<'a> {
         match node.state {
             GameState::Lost => -self.params.mate_bonus(),
             GameState::Draw => 0.5,
-            GameState::Ongoing => self.pos.eval(&self.params),
+            GameState::Ongoing => {
+                let accs = self.pos.get_accs();
+                let qs = quiesce(&self.pos, &accs, -30_000, 30_000);
+                cp_wdl(qs, &self.params)
+            },
         }
     }
 

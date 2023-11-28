@@ -1,5 +1,5 @@
 use crate::{
-    search::{mcts::Searcher, params::TunableParams, policy::{PolicyNetwork, get_policy}},
+    search::{mcts::Searcher, params::TunableParams, policy::{PolicyNetwork, get_policy}, cp_wdl},
     state::position::{self, Position},
 };
 
@@ -61,11 +61,11 @@ pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
 
     for m in move_list {
         stack.push(pos.hash());
-        let possible_moves = pos.gen();
+        let possible_moves = pos.gen::<true>();
 
         for mov in possible_moves.iter() {
             if m == mov.to_uci() {
-                pos.make(*mov);
+                pos.make(*mov, None);
             }
         }
     }
@@ -107,7 +107,7 @@ pub fn go(
 }
 
 pub fn eval(pos: &Position, params: &TunableParams, policy: &PolicyNetwork) {
-    let moves = pos.gen();
+    let moves = pos.gen::<true>();
     let mut policies = Vec::new();
     let mut total = 0.0;
 
@@ -121,10 +121,11 @@ pub fn eval(pos: &Position, params: &TunableParams, policy: &PolicyNetwork) {
         println!("{} -> {: >5.2}%", mov.to_uci(), policy / total * 100.0);
     }
 
+    let eval_cp = pos.eval_cp();
+
     println!(
-        "info eval cp {} wdl {:.2}",
-        pos.eval_cp(),
-        pos.eval(params) * 100.0
+        "info eval cp {eval_cp} wdl {:.2}",
+        cp_wdl(eval_cp, params) * 100.0
     );
 }
 

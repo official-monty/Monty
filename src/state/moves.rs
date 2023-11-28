@@ -111,6 +111,12 @@ impl std::ops::Deref for MoveList {
     }
 }
 
+impl std::ops::DerefMut for MoveList {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.list
+    }
+}
+
 impl std::ops::Index<usize> for MoveList {
     type Output = Move;
     fn index(&self, index: usize) -> &Self::Output {

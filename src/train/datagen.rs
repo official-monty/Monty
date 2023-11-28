@@ -71,7 +71,7 @@ impl<'a> DatagenThread<'a> {
 
         // play 8 or 9 random moves
         for _ in 0..(8 + (self.rng.rand_int() % 2)) {
-            let moves = engine.startpos.gen();
+            let moves = engine.startpos.gen::<true>();
 
             if moves.is_empty() {
                 return;
@@ -80,10 +80,10 @@ impl<'a> DatagenThread<'a> {
             let mov = moves[self.rng.rand_int() as usize % moves.len()];
 
             engine.startstack.push(engine.startpos.hash());
-            engine.startpos.make(mov);
+            engine.startpos.make(mov, None);
         }
 
-        if engine.startpos.gen().is_empty() {
+        if engine.startpos.gen::<true>().is_empty() {
             return;
         }
 
@@ -113,9 +113,9 @@ impl<'a> DatagenThread<'a> {
             }
 
             engine.startstack.push(engine.startpos.hash());
-            engine.startpos.make(bm);
+            engine.startpos.make(bm, None);
 
-            let moves = engine.startpos.gen();
+            let moves = engine.startpos.gen::<true>();
             let game_state = engine.startpos.game_state(&moves, &engine.startstack);
             if game_state != GameState::Ongoing {
                 break;
