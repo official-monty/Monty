@@ -87,7 +87,7 @@ impl<'a> Searcher<'a> {
     }
 
     fn pick_child(&self, node: &Node) -> usize {
-        let expl = self.params.cpuct() * (node.visits as f32).sqrt();
+        let expl = self.params.cpuct() * (node.visits.max(1) as f32).sqrt();
 
         let mut best_idx = 0;
         let mut best_uct = 0.0;
