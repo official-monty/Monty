@@ -1,11 +1,9 @@
 use crate::{
     pop_lsb,
-    search::value::{Accumulator, ValueNetwork},
-    state::{
-        attacks::Attacks,
-        consts::*,
-        moves::{Move, MoveList},
-    },
+    value::{Accumulator, ValueNetwork},
+    attacks::Attacks,
+    consts::*,
+    moves::{Move, MoveList},
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
@@ -16,15 +14,16 @@ pub enum GameState {
     Draw,
 }
 
+#[repr(C)]
 #[derive(Copy, Clone, Default)]
 pub struct Position {
     bb: [u64; 8],
+    hash: u64,
+    phase: i32,
     stm: bool,
     enp_sq: u8,
     rights: u8,
     halfm: u8,
-    hash: u64,
-    phase: i32,
 }
 
 impl Position {
@@ -182,7 +181,7 @@ impl Position {
 
     #[must_use]
     pub fn get_pc(&self, bit: u64) -> usize {
-        for pc in Piece::PAWN..=Piece::QUEEN {
+        for pc in Piece::PAWN..=Piece::KING {
             if bit & self.bb[pc] > 0 {
                 return pc;
             }
@@ -723,6 +722,44 @@ impl Position {
                 moves.push_raw(mov);
             }
         }
+    }
+
+    pub fn to_fen(&self) -> String {
+        const PIECES: [char; 12] = ['P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k'];
+        let mut fen = String::new();
+
+        for rank in (0..8).rev() {
+            let mut clear = 0;
+
+            for file in 0..8 {
+                let sq = 8 * rank + file;
+                let bit = 1 << sq;
+                let pc = self.get_pc(bit);
+                if pc != 0 {
+                    if clear > 0 {
+                        fen.push_str(&format!("{}", clear));
+                    }
+                    clear = 0;
+                    fen.push(PIECES[pc - 2 + 6 * usize::from(self.piece(Side::BLACK) & bit > 0)]);
+                } else {
+                    clear += 1;
+                }
+            }
+
+            if clear > 0 {
+                fen.push_str(&format!("{}", clear));
+            }
+
+            if rank > 0 {
+                fen.push('/');
+            }
+        }
+
+        fen.push(' ');
+        fen.push(['w', 'b'][self.stm()]);
+        fen.push_str(" - - 0 1");
+
+        fen
     }
 }
 

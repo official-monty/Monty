@@ -1,0 +1,8 @@
+[package]
+name = "monty-engine"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jamie Whiting"]
+
+[dependencies]
+monty-core = { path = "../monty-core" }

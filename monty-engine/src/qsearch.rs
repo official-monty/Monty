@@ -1,6 +1,4 @@
-use crate::state::{moves::Move, position::Position};
-
-use super::value::Accumulator;
+use monty_core::{Accumulator, Move, Position};
 
 fn mvv_lva(mov: &Move, pos: &Position) -> i32 {
     8 * pos.get_pc(1 << mov.to()) as i32 - mov.moved() as i32

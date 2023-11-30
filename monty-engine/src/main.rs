@@ -1,39 +1,22 @@
-mod search;
-mod state;
-mod train;
-mod uci;
+use monty_engine::{Searcher, TunableParams, PolicyNetwork, POLICY_NETWORK, uci};
 
-use search::{
-    mcts::Searcher,
-    params::TunableParams,
-    policy::{PolicyNetwork, POLICY_NETWORK},
-};
-use state::position::Position;
-use train::run_training;
+use monty_core::{Position, STARTPOS};
 
 use std::time::Instant;
 
 fn main() {
     // initialise engine
-    let mut pos = Position::parse_fen(uci::STARTPOS);
+    let mut pos = Position::parse_fen(STARTPOS);
     let mut params = TunableParams::default();
     let mut stack = Vec::new();
     let mut report_moves = false;
-    let mut policy = Box::new(POLICY_NETWORK);
+    let policy = Box::new(POLICY_NETWORK);
 
     let mut args = std::env::args();
 
-    match args.nth(1).as_deref() {
-        Some("bench") => {
-            run_bench(&params, &policy);
-            return;
-        }
-        Some("train") => {
-            let arg = args.next().unwrap();
-            run_training(arg.parse().unwrap(), params, &mut policy);
-            return;
-        }
-        _ => {}
+    if let Some("bench") = args.nth(1).as_deref() {
+        run_bench(&params, &policy);
+        return;
     }
 
     // main uci loop
@@ -61,8 +44,8 @@ fn main() {
                 report_moves,
                 &policy,
             ),
-            "perft" => uci::perft(&commands, &pos),
-            "eval" => uci::eval(&pos, &params, &policy),
+            "perft" => uci::run_perft(&commands, &pos),
+            "eval" => uci::eval(&pos, &policy),
             "quit" => std::process::exit(0),
             _ => {}
         }
@@ -70,7 +53,7 @@ fn main() {
 }
 
 fn run_bench(params: &TunableParams, policy: &PolicyNetwork) {
-    const FEN_STRING: &str = include_str!("../resources/fens.txt");
+    const FEN_STRING: &str = include_str!("../../resources/fens.txt");
 
     let mut total_nodes = 0;
     let bench_fens = FEN_STRING.split('\n').collect::<Vec<&str>>();

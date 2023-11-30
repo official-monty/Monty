@@ -1,7 +1,6 @@
-[package]
-name = "monty"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = ["monty-core", "monty-engine", "monty-train"]
+resolver = "2"
 
 [profile.release]
 panic = 'abort'

@@ -1,7 +1,4 @@
-use crate::{
-    search::policy::{get_policy, PolicyNetwork},
-    state::{consts::Flag, position::Position},
-};
+use crate::{consts::Flag, position::Position};
 
 #[macro_export]
 macro_rules! pop_lsb {
@@ -11,7 +8,7 @@ macro_rules! pop_lsb {
     };
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Debug)]
 pub struct Move {
     from: u8,
     to: u8,
@@ -74,10 +71,6 @@ impl Move {
 
     pub fn promo_pc(&self) -> usize {
         usize::from(self.flag & 3) + 3
-    }
-
-    pub fn index(&self, flip: u8) -> usize {
-        usize::from(self.moved - 2) * 64 + usize::from(self.to ^ flip)
     }
 
     #[must_use]
@@ -146,11 +139,11 @@ impl MoveList {
         self.list.swap(a, b);
     }
 
-    pub fn set_policies(&mut self, pos: &Position, params: &PolicyNetwork) {
+    pub fn set_policies<T>(&mut self, pos: &Position, policy: &T, get_policy: fn(&Move, &Position, &T) -> f32) {
         let mut total = 0.0;
 
         for mov in self.list.iter_mut() {
-            let val = get_policy(mov, pos, params);
+            let val = get_policy(mov, pos, policy);
 
             mov.policy = val.exp();
             total += mov.policy;

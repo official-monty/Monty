@@ -1,11 +1,9 @@
-use crate::{
-    search::{mcts::Searcher, params::TunableParams, policy::{PolicyNetwork, get_policy}, cp_wdl},
-    state::position::{self, Position},
-};
+use crate::{mcts::Searcher, params::TunableParams, policy::PolicyNetwork};
+
+use monty_core::{cp_wdl, perft, Position, STARTPOS};
 
 use std::time::Instant;
 
-pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const KIWIPETE: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
 
 pub fn preamble() {
@@ -106,13 +104,13 @@ pub fn go(
     println!("bestmove {}", mov.to_uci());
 }
 
-pub fn eval(pos: &Position, params: &TunableParams, policy: &PolicyNetwork) {
+pub fn eval(pos: &Position, policy: &PolicyNetwork) {
     let moves = pos.gen::<true>();
     let mut policies = Vec::new();
     let mut total = 0.0;
 
     for mov in moves.iter() {
-        let pol = get_policy(mov, pos, policy).exp();
+        let pol = PolicyNetwork::get(mov, pos, policy).exp();
         total += pol;
         policies.push(pol);
     }
@@ -125,14 +123,14 @@ pub fn eval(pos: &Position, params: &TunableParams, policy: &PolicyNetwork) {
 
     println!(
         "info eval cp {eval_cp} wdl {:.2}",
-        cp_wdl(eval_cp, params) * 100.0
+        cp_wdl(eval_cp) * 100.0
     );
 }
 
-pub fn perft(commands: &[&str], pos: &Position) {
+pub fn run_perft(commands: &[&str], pos: &Position) {
     let depth = commands[1].parse().unwrap();
     let now = Instant::now();
-    let count = position::perft::<false, true>(pos, depth);
+    let count = perft::<false, true>(pos, depth);
     let time = now.elapsed().as_micros();
     println!(
         "perft {depth} time {} nodes {count} ({:.2} Mnps)",

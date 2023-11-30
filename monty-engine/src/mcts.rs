@@ -1,14 +1,12 @@
 use crate::{
-    search::{params::TunableParams, policy::PolicyNetwork},
-    state::{
-        moves::{Move, MoveList},
-        position::{GameState, Position},
-    },
+    params::TunableParams,
+    policy::PolicyNetwork,
+    qsearch::quiesce,
 };
 
-use std::{fmt::Write, time::Instant};
+use monty_core::{GameState, Move, MoveList, Position, cp_wdl};
 
-use super::{qsearch::quiesce, cp_wdl};
+use std::{fmt::Write, time::Instant};
 
 #[derive(Clone, Default)]
 pub struct Node {
@@ -31,7 +29,7 @@ impl Node {
 
     fn expand(&mut self, pos: &Position, params: &PolicyNetwork) {
         self.moves = pos.gen::<true>();
-        self.moves.set_policies(pos, params);
+        self.moves.set_policies(pos, params, PolicyNetwork::get);
         self.left = self.moves.len();
     }
 
@@ -194,7 +192,7 @@ impl<'a> Searcher<'a> {
             GameState::Ongoing => {
                 let accs = self.pos.get_accs();
                 let qs = quiesce(&self.pos, &accs, -30_000, 30_000);
-                cp_wdl(qs, &self.params)
+                cp_wdl(qs)
             },
         }
     }

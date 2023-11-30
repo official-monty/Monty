@@ -1,4 +1,4 @@
-use crate::state::consts::Piece;
+use crate::consts::Piece;
 
 // Macro for calculating tables (until const fn pointers are stable).
 #[macro_export]
