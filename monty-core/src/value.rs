@@ -1,4 +1,4 @@
-const HIDDEN: usize = 512;
+const HIDDEN: usize = 1024;
 const SCALE: i32 = 400;
 const QA: i32 = 255;
 const QB: i32 = 64;
@@ -6,34 +6,33 @@ const QAB: i32 = QA * QB;
 
 #[inline]
 fn activate(x: i16) -> i32 {
-    i32::from(x).clamp(0, QA)
+    i32::from(x).clamp(0, QA).pow(2)
 }
 
 #[repr(C)]
 pub struct ValueNetwork {
     feature_weights: [Accumulator; 768],
     feature_bias: Accumulator,
-    output_weights: [[Accumulator; 2]; 8],
-    output_bias: [i16; 8],
+    output_weights: [Accumulator; 2],
+    output_bias: i16,
 }
 
 static NNUE: ValueNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/giuseppe.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/net.bin")) };
 
 impl ValueNetwork {
-    pub fn out(boys: &Accumulator, opps: &Accumulator, occ: u64) -> i32 {
-        let bucket = (occ.count_ones() as usize - 2) / 4;
-        let mut sum = i32::from(NNUE.output_bias[bucket]);
+    pub fn out(boys: &Accumulator, opps: &Accumulator, _occ: u64) -> i32 {
+        let mut sum = 0;
 
-        for (&x, &w) in boys.vals.iter().zip(&NNUE.output_weights[bucket][0].vals) {
+        for (&x, &w) in boys.vals.iter().zip(&NNUE.output_weights[0].vals) {
             sum += activate(x) * i32::from(w);
         }
 
-        for (&x, &w) in opps.vals.iter().zip(&NNUE.output_weights[bucket][1].vals) {
+        for (&x, &w) in opps.vals.iter().zip(&NNUE.output_weights[1].vals) {
             sum += activate(x) * i32::from(w);
         }
 
-        sum * SCALE / QAB
+        (sum / QA + i32::from(NNUE.output_bias)) * SCALE / QAB
     }
 }
 
