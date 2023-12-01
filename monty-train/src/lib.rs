@@ -4,7 +4,7 @@ mod gradient;
 mod rng;
 
 pub use data::TrainingPosition;
-pub use datagen::DatagenThread;
+pub use datagen::{DatagenThread, set_stop};
 pub use gradient::gradient_batch;
 pub use rng::Rand;
 

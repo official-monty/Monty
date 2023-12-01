@@ -3,7 +3,17 @@ use crate::{TrainingPosition, Rand, to_slice_with_lifetime};
 use monty_core::{GameState, Position, STARTPOS};
 use monty_engine::{PolicyNetwork, TunableParams, Searcher};
 
-use std::{fs::File, io::{BufWriter, Write}};
+use std::{fs::File, io::{BufWriter, Write}, sync::atomic::{AtomicBool, Ordering}};
+
+static STOP: AtomicBool = AtomicBool::new(false);
+
+fn stop_is_set() -> bool {
+    STOP.load(Ordering::Relaxed)
+}
+
+pub fn set_stop() {
+    STOP.store(true, Ordering::Relaxed);
+}
 
 fn write(data: &mut Vec<TrainingPosition>, output: &mut BufWriter<File>) {
     if data.is_empty() {
@@ -50,6 +60,10 @@ impl<'a> DatagenThread<'a> {
         let mut output = BufWriter::new(File::create(out_path.as_str()).expect("Provide a correct path!"));
 
         while self.total < num_positions {
+            if stop_is_set() {
+                break;
+            }
+
             self.run_game(position, self.params.clone(), self.policy);
 
             let num_in_buffer = self.positions.len();

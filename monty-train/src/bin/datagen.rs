@@ -1,5 +1,5 @@
 use monty_engine::{TunableParams, POLICY_NETWORK};
-use monty_train::DatagenThread;
+use monty_train::{DatagenThread, set_stop};
 
 fn main() {
     let mut args = std::env::args();
@@ -19,5 +19,14 @@ fn main() {
             });
         }
 
+        loop {
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input).unwrap();
+            let commands = input.split_whitespace().collect::<Vec<_>>();
+            if let Some(&"stop") = commands.first() {
+                set_stop();
+                break;
+            }
+        }
     });
 }
