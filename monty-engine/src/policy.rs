@@ -6,7 +6,7 @@ pub static POLICY_NETWORK: PolicyNetwork =
 pub struct NetworkDims;
 
 impl NetworkDims {
-    pub const INDICES: usize = 64;
+    pub const INDICES: usize = 6 * 64;
     pub const FEATURES: usize = 769;
 }
 
