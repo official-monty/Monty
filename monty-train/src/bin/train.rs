@@ -1,5 +1,7 @@
 use monty_engine::{PolicyNetwork, NetworkDims};
-use monty_train::{data_from_bytes_with_lifetime, gradient_batch, TrainingPosition};
+use monty_train::{gradient_batch, TrainingPosition, to_slice_with_lifetime};
+
+use std::{fs::File, io::{BufReader, BufRead}};
 
 const BATCH_SIZE: usize = 16_384;
 
@@ -10,13 +12,15 @@ fn main() {
     let threads = args.next().unwrap().parse().unwrap();
     let data_path = args.next().unwrap();
 
-    let mut raw_bytes = std::fs::read(data_path).unwrap();
-    let data = data_from_bytes_with_lifetime(&mut raw_bytes);
+    let file = File::open(data_path.clone()).unwrap();
 
     let mut policy = PolicyNetwork::boxed_and_zeroed();
 
     println!("# [Info]");
-    println!("> {} Positions", data.len());
+    println!(
+        "> {} Positions",
+        file.metadata().unwrap().len() / std::mem::size_of::<TrainingPosition>() as u64,
+    );
 
     let mut lr = 0.001;
     let mut momentum = PolicyNetwork::boxed_and_zeroed();
@@ -24,7 +28,7 @@ fn main() {
 
     for iteration in 1..=20 {
         println!("# [Training Epoch {iteration}]");
-        train(threads, &mut policy, data, lr, &mut momentum, &mut velocity);
+        train(threads, &mut policy, lr, &mut momentum, &mut velocity, data_path.as_str());
 
         if iteration % 5 == 0 {
             lr *= 0.1;
@@ -36,21 +40,38 @@ fn main() {
 fn train(
     threads: usize,
     policy: &mut PolicyNetwork,
-    data: &[TrainingPosition],
     lr: f32,
     momentum: &mut PolicyNetwork,
     velocity: &mut PolicyNetwork,
+    path: &str,
 ) {
     let mut running_error = 0.0;
+    let mut num = 0;
 
-    for batch in data.chunks(BATCH_SIZE) {
-        let mut grad = PolicyNetwork::boxed_and_zeroed();
-        running_error += gradient_batch(threads, policy, &mut grad, batch);
-        let adj = 2.0 / batch.len() as f32;
-        update(policy, &grad, adj, lr, momentum, velocity);
+    let cap = 128 * BATCH_SIZE * std::mem::size_of::<TrainingPosition>();
+    let file = File::open(path).unwrap();
+    let mut loaded = BufReader::with_capacity(cap, file);
+
+    while let Ok(buf) = loaded.fill_buf() {
+        if buf.is_empty() {
+            break;
+        }
+
+        let data = to_slice_with_lifetime(buf);
+
+        for batch in data.chunks(BATCH_SIZE) {
+            let mut grad = PolicyNetwork::boxed_and_zeroed();
+            running_error += gradient_batch(threads, policy, &mut grad, batch);
+            let adj = 2.0 / batch.len() as f32;
+            update(policy, &grad, adj, lr, momentum, velocity);
+        }
+
+        num += data.len();
+        let consumed = buf.len();
+        loaded.consume(consumed);
     }
 
-    println!("> Running Loss: {}", running_error / data.len() as f32);
+    println!("> Running Loss: {}", running_error / num as f32);
 }
 
 const B1: f32 = 0.9;
