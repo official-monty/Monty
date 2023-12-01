@@ -2,7 +2,6 @@
 pub struct TunableParams {
     cpuct: Param,
     mate_bonus: Param,
-    scale: Param,
 }
 
 #[derive(Clone)]
@@ -37,7 +36,6 @@ impl Default for TunableParams {
         Self {
             cpuct: Param::new(1.41, 0.1, 5.0),
             mate_bonus: Param::new(1.0, 0.0, 10.0),
-            scale: Param::new(4.0, 1.0, 8.0),
         }
     }
 }
@@ -51,23 +49,17 @@ impl TunableParams {
         self.mate_bonus.val
     }
 
-    pub fn scale(&self) -> f32 {
-        self.scale.val
-    }
-
     pub fn uci_info() {
         let def = Self::default();
 
         def.cpuct.uci("cpuct");
         def.mate_bonus.uci("mate_bonus");
-        def.scale.uci("scale");
     }
 
     pub fn set(&mut self, name: &str, val: f32) {
         match name {
             "cpuct" => self.cpuct.set(val),
             "mate_bonus" => self.mate_bonus.set(val),
-            "scale" => self.scale.set(val),
             _ => panic!("unknown option!"),
         }
     }
