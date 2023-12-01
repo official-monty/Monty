@@ -1,24 +1,7 @@
 use monty_engine::{PolicyNetwork, NetworkDims};
-use monty_train::{gradient_batch, TrainingPosition, Rand};
-
-use std::time::Instant;
+use monty_train::{data_from_bytes_with_lifetime, gradient_batch, TrainingPosition};
 
 const BATCH_SIZE: usize = 16_384;
-
-fn data_from_bytes_with_lifetime(raw_bytes: &mut [u8]) -> &mut [TrainingPosition] {
-    let src_size = std::mem::size_of_val(raw_bytes);
-    let tgt_size = std::mem::size_of::<TrainingPosition>();
-
-    assert!(
-        src_size % tgt_size == 0,
-        "Target type size does not divide slice size!"
-    );
-
-    let len = src_size / tgt_size;
-    unsafe {
-        std::slice::from_raw_parts_mut(raw_bytes.as_mut_ptr().cast(), len)
-    }
-}
 
 fn main() {
     let mut args = std::env::args();
@@ -35,11 +18,6 @@ fn main() {
     println!("# [Info]");
     println!("> {} Positions", data.len());
 
-    println!("# [Shuffling Data]");
-    let time = Instant::now();
-    shuffle(data);
-    println!("> Took {:.2} seconds.", time.elapsed().as_secs_f32());
-
     let mut lr = 0.001;
     let mut momentum = PolicyNetwork::boxed_and_zeroed();
     let mut velocity = PolicyNetwork::boxed_and_zeroed();
@@ -48,20 +26,10 @@ fn main() {
         println!("# [Training Epoch {iteration}]");
         train(threads, &mut policy, data, lr, &mut momentum, &mut velocity);
 
-        if iteration % 7 == 0 {
+        if iteration % 5 == 0 {
             lr *= 0.1;
         }
         policy.write_to_bin("policy.bin");
-    }
-}
-
-fn shuffle(data: &mut [TrainingPosition]) {
-    let mut rng = Rand::with_seed();
-
-    for _ in 0..data.len() * 4 {
-        let idx1 = rng.rand_int() as usize % data.len();
-        let idx2 = rng.rand_int() as usize % data.len();
-        data.swap(idx1, idx2);
     }
 }
 

@@ -15,7 +15,7 @@ pub fn set_stop() {
     STOP.store(true, Ordering::Relaxed);
 }
 
-fn write(data: &mut Vec<TrainingPosition>, output: &mut BufWriter<File>) {
+pub fn write_data(data: &[TrainingPosition], output: &mut BufWriter<File>) {
     if data.is_empty() {
         return
     }
@@ -25,8 +25,6 @@ fn write(data: &mut Vec<TrainingPosition>, output: &mut BufWriter<File>) {
     output
         .write_all(data_slice)
         .expect("Nothing can go wrong in unsafe code!");
-
-    data.clear();
 }
 
 pub struct DatagenThread<'a> {
@@ -78,7 +76,7 @@ impl<'a> DatagenThread<'a> {
     }
 
     fn write(&mut self, output: &mut BufWriter<File>) {
-        write(&mut self.positions, output);
+        write_data(&self.positions, output);
         println!("thread {} count {} skipped {}", self.id, self.total, self.skipped);
         self.positions.clear();
     }
