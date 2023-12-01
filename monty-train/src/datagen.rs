@@ -75,7 +75,7 @@ impl<'a> DatagenThread<'a> {
         params: TunableParams,
         policy: &'a PolicyNetwork,
     ) {
-        let mut engine = Searcher::new(position, Vec::new(), 1_000, params, policy);
+        let mut engine = Searcher::new(position, Vec::new(), 5_000, params, policy);
 
         // play 8 or 9 random moves
         for _ in 0..(8 + (self.rng.rand_int() % 2)) {
