@@ -73,6 +73,10 @@ impl Move {
         usize::from(self.flag & 3) + 3
     }
 
+    pub fn index(&self, flip: u8) -> usize {
+        usize::from(self.to() ^ flip)
+    }
+
     #[must_use]
     pub fn new(from: u8, to: u8, flag: u8, moved: u8) -> Self {
         Self {

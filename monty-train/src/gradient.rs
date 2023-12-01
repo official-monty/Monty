@@ -42,10 +42,10 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
         let visits = training_mov.visits();
 
         let mut score = PolicyNetwork::hce(&mov, pos.board());
-        let sq = usize::from(mov.to() ^ flip);
+        let idx = mov.index(flip);
 
         for &feat in &feats {
-            score += policy.weights[sq][feat];
+            score += policy.weights[idx][feat];
         }
 
         let score = f64::from(score).exp();
@@ -56,7 +56,7 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
     }
 
     for (mov, visits, score) in policies {
-        let sq = usize::from(mov.to() ^ flip);
+        let idx = mov.index(flip);
 
         let ratio = (score / total) as f32;
 
@@ -68,7 +68,7 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
         let adj = err * ratio * (1.0 - ratio);
 
         for &feat in &feats {
-            grad.weights[sq][feat] += adj;
+            grad.weights[idx][feat] += adj;
         }
     }
 }

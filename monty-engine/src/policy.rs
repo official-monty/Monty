@@ -98,8 +98,8 @@ impl PolicyNetwork {
     }
 
     pub fn get(mov: &Move, pos: &Position, policy: &PolicyNetwork) -> f32 {
-        let sq = usize::from(mov.to() ^ pos.flip_val());
-        let sq_policy = policy.get_neuron(sq, pos);
+        let idx = mov.index(pos.flip_val());
+        let sq_policy = policy.get_neuron(idx, pos);
 
         let hce_policy = PolicyNetwork::hce(mov, pos);
 
