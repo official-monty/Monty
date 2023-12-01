@@ -105,18 +105,11 @@ pub fn go(
 }
 
 pub fn eval(pos: &Position, policy: &PolicyNetwork) {
-    let moves = pos.gen::<true>();
-    let mut policies = Vec::new();
-    let mut total = 0.0;
+    let mut moves = pos.gen::<true>();
+    moves.set_policies(pos, policy, PolicyNetwork::get);
 
     for mov in moves.iter() {
-        let pol = PolicyNetwork::get(mov, pos, policy);
-        total += pol.exp();
-        policies.push(pol);
-    }
-
-    for (mov, policy) in moves.iter().zip(policies) {
-        println!("{} -> {: >5.2}% ({: >5.3})", mov.to_uci(), policy.exp() / total * 100.0, policy);
+        println!("{} -> {: >5.2}%", mov.to_uci(), mov.policy() * 100.0);
     }
 
     let eval_cp = pos.eval_cp();

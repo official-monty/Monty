@@ -48,7 +48,7 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
             score += policy.weights[sq][feat];
         }
 
-        score = score.exp();
+        let score = f64::from(score).exp();
 
         total += score;
         total_visits += visits;
@@ -58,7 +58,7 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
     for (mov, visits, score) in policies {
         let sq = usize::from(mov.to() ^ flip);
 
-        let ratio = score / total;
+        let ratio = (score / total) as f32;
 
         let expected = visits as f32 / total_visits as f32;
         let err = ratio - expected;
