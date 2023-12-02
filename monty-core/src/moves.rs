@@ -145,17 +145,23 @@ impl MoveList {
 
     pub fn set_policies<T>(&mut self, pos: &Position, policy: &T, get_policy: fn(&Move, &Position, &T) -> f32) {
         let mut total = 0.0;
+        let mut max = -1000.0;
         let mut floats = [0.0; 256];
 
         for (i, mov) in self.list.iter_mut().enumerate() {
-            let val = get_policy(mov, pos, policy);
+            floats[i] = get_policy(mov, pos, policy);
+            if floats[i] > max {
+                max = floats[i];
+            }
+        }
 
-            floats[i] = f64::from(val).exp();
+        for (i, _) in self.list.iter_mut().enumerate() {
+            floats[i] = (floats[i] - max).exp();
             total += floats[i];
         }
 
         for (i, mov) in self.list.iter_mut().enumerate() {
-            mov.policy = (floats[i] / total) as f32;
+            mov.policy = floats[i] / total;
         }
     }
 

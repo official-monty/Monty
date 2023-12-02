@@ -34,6 +34,7 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
     let mut policies = Vec::with_capacity(pos.num_moves());
     let mut total = 0.0;
     let mut total_visits = 0;
+    let mut max = -1000.0;
 
     let flip = pos.board().flip_val();
 
@@ -48,17 +49,23 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
             score += policy.weights[idx][feat];
         }
 
-        let score = f64::from(score).exp();
+        if score > max {
+            max = score;
+        }
 
-        total += score;
         total_visits += visits;
         policies.push((mov, visits, score));
+    }
+
+    for (_, _, score) in policies.iter_mut() {
+        *score = (*score - max).exp();
+        total += *score;
     }
 
     for (mov, visits, score) in policies {
         let idx = mov.index(flip);
 
-        let ratio = (score / total) as f32;
+        let ratio = score / total;
 
         let expected = visits as f32 / total_visits as f32;
         let err = ratio - expected;
