@@ -1,4 +1,4 @@
-use monty_core::{Move, Position, Piece, pop_lsb};
+use monty_core::{Move, Position};
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug)]
@@ -84,33 +84,5 @@ impl TrainingPosition {
 
     pub fn moves(&self) -> &[TrainingMove] {
         &self.moves.list[..self.moves.len]
-    }
-
-    pub fn get_features(&self) -> Vec<usize> {
-        let pos = &self.position;
-
-        let mut res = Vec::with_capacity(pos.occ().count_ones() as usize + 1);
-        let flip = pos.flip_val();
-
-        // bias is just an always-present feature
-        res.push(768);
-
-        for piece in Piece::PAWN..=Piece::KING {
-            let pc = 64 * (piece - 2);
-
-            let mut our_bb = pos.piece(piece) & pos.piece(pos.stm());
-            while our_bb > 0 {
-                pop_lsb!(sq, our_bb);
-                res.push(pc + usize::from(sq ^ flip));
-            }
-
-            let mut opp_bb = pos.piece(piece) & pos.piece(pos.stm() ^ 1);
-            while opp_bb > 0 {
-                pop_lsb!(sq, opp_bb);
-                res.push(384 + pc + usize::from(sq ^ flip));
-            }
-        }
-
-        res
     }
 }

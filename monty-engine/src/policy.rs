@@ -1,4 +1,4 @@
-use monty_core::{Flag, Move, pop_lsb, Position, Piece};
+use monty_core::{Flag, Move, Position, FeatureList};
 
 pub static POLICY_NETWORK: PolicyNetwork =
     unsafe { std::mem::transmute(*include_bytes!("../../resources/policy.bin")) };
@@ -52,25 +52,12 @@ impl PolicyNetwork {
         }
     }
 
-    fn get_neuron(&self, idx: usize, pos: &Position) -> f32 {
+    fn get_neuron(&self, idx: usize, feats: &FeatureList) -> f32 {
         let wref = &self.weights[idx];
-        let flip = pos.flip_val();
-        let mut score = wref[768];
+        let mut score = 0.0;
 
-        for piece in Piece::PAWN..=Piece::KING {
-            let pc = 64 * (piece - 2);
-
-            let mut our_bb = pos.piece(piece) & pos.piece(pos.stm());
-            while our_bb > 0 {
-                pop_lsb!(sq, our_bb);
-                score += wref[pc + usize::from(sq ^ flip)];
-            }
-
-            let mut opp_bb = pos.piece(piece) & pos.piece(pos.stm() ^ 1);
-            while opp_bb > 0 {
-                pop_lsb!(sq, opp_bb);
-                score += wref[384 + pc + usize::from(sq ^ flip)];
-            }
+        for &feat in feats.iter() {
+            score += wref[feat];
         }
 
         score
@@ -97,9 +84,9 @@ impl PolicyNetwork {
         score
     }
 
-    pub fn get(mov: &Move, pos: &Position, policy: &PolicyNetwork) -> f32 {
+    pub fn get(mov: &Move, pos: &Position, policy: &PolicyNetwork, feats: &FeatureList) -> f32 {
         let idx = mov.index(pos.flip_val());
-        let sq_policy = policy.get_neuron(idx, pos);
+        let sq_policy = policy.get_neuron(idx, feats);
 
         let hce_policy = PolicyNetwork::hce(mov, pos);
 

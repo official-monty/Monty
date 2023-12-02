@@ -26,6 +26,31 @@ pub struct Position {
     halfm: u8,
 }
 
+pub struct FeatureList {
+    list: [usize; 33],
+    len: usize
+}
+
+impl Default for FeatureList {
+    fn default() -> Self {
+        Self { list: [0; 33], len: 0 }
+    }
+}
+
+impl std::ops::Deref for FeatureList {
+    type Target = [usize];
+    fn deref(&self) -> &Self::Target {
+        &self.list[..self.len]
+    }
+}
+
+impl FeatureList {
+    fn push(&mut self, feat: usize) {
+        self.list[self.len] = feat;
+        self.len += 1;
+    }
+}
+
 impl Position {
     // ACCESSOR METHODS
 
@@ -153,6 +178,30 @@ impl Position {
         }
 
         accs
+    }
+
+    pub fn get_features(&self) -> FeatureList {
+        let flip = self.flip_val();
+        let mut feats = FeatureList::default();
+        feats.push(768);
+
+        for piece in Piece::PAWN..=Piece::KING {
+            let pc = 64 * (piece - 2);
+
+            let mut our_bb = self.piece(piece) & self.piece(self.stm());
+            while our_bb > 0 {
+                pop_lsb!(sq, our_bb);
+                feats.push(pc + usize::from(sq ^ flip));
+            }
+
+            let mut opp_bb = self.piece(piece) & self.piece(self.stm() ^ 1);
+            while opp_bb > 0 {
+                pop_lsb!(sq, opp_bb);
+                feats.push(384 + pc + usize::from(sq ^ flip));
+            }
+        }
+
+        feats
     }
 
     pub fn eval_from_acc(&self, accs: &[Accumulator; 2]) -> i32 {

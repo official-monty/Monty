@@ -29,7 +29,7 @@ pub fn gradient_batch(threads: usize, policy: &PolicyNetwork, grad: &mut PolicyN
 }
 
 fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut PolicyNetwork, error: &mut f32) {
-    let feats = pos.get_features();
+    let feats = pos.board().get_features();
 
     let mut policies = Vec::with_capacity(pos.num_moves());
     let mut total = 0.0;
@@ -45,7 +45,7 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
         let mut score = PolicyNetwork::hce(&mov, pos.board());
         let idx = mov.index(flip);
 
-        for &feat in &feats {
+        for &feat in feats.iter() {
             score += policy.weights[idx][feat];
         }
 
@@ -74,7 +74,7 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
 
         let adj = err * ratio * (1.0 - ratio);
 
-        for &feat in &feats {
+        for &feat in feats.iter() {
             grad.weights[idx][feat] += adj;
         }
     }

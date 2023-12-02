@@ -6,7 +6,7 @@ mod value;
 
 pub use consts::{Flag, Piece, Side};
 pub use moves::{Move, MoveList};
-pub use position::{Position, GameState, perft};
+pub use position::{FeatureList, Position, GameState, perft};
 pub use value::Accumulator;
 
 pub const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
