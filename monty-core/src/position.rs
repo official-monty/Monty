@@ -181,7 +181,7 @@ impl Position {
     }
 
     pub fn get_features(&self) -> FeatureList {
-        let flip = self.flip_val();
+        let flip = self.stm() == Side::BLACK;
         let mut feats = FeatureList::default();
         feats.push(768);
 
@@ -189,15 +189,21 @@ impl Position {
             let pc = 64 * (piece - 2);
 
             let mut our_bb = self.piece(piece) & self.piece(self.stm());
-            while our_bb > 0 {
-                pop_lsb!(sq, our_bb);
-                feats.push(pc + usize::from(sq ^ flip));
+            let mut opp_bb = self.piece(piece) & self.piece(self.stm() ^ 1);
+
+            if flip {
+                our_bb = our_bb.swap_bytes();
+                opp_bb = opp_bb.swap_bytes();
             }
 
-            let mut opp_bb = self.piece(piece) & self.piece(self.stm() ^ 1);
+            while our_bb > 0 {
+                pop_lsb!(sq, our_bb);
+                feats.push(pc + usize::from(sq));
+            }
+
             while opp_bb > 0 {
                 pop_lsb!(sq, opp_bb);
-                feats.push(384 + pc + usize::from(sq ^ flip));
+                feats.push(384 + pc + usize::from(sq));
             }
         }
 
