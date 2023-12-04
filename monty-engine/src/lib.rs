@@ -6,4 +6,4 @@ pub mod uci;
 
 pub use mcts::Searcher;
 pub use params::TunableParams;
-pub use policy::{NetworkDims, PolicyNetwork, POLICY_NETWORK};
+pub use policy::{NetworkDims, PolicyNetwork, POLICY_NETWORK, PolicyVal};

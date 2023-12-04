@@ -1,9 +1,11 @@
-use monty_engine::{PolicyNetwork, NetworkDims};
-use monty_train::{gradient_batch, TrainingPosition, to_slice_with_lifetime};
+use monty_engine::{PolicyNetwork, NetworkDims, PolicyVal};
+use monty_train::{gradient_batch, TrainingPosition, to_slice_with_lifetime, Rand};
 
-use std::{fs::File, io::{BufReader, BufRead}};
+use std::{fs::File, io::{BufReader, BufRead, Write}};
 
 const BATCH_SIZE: usize = 16_384;
+const EPOCHS: usize = 10;
+const LR_DROP: usize = 7;
 
 fn main() {
     let mut args = std::env::args();
@@ -15,6 +17,20 @@ fn main() {
     let file = File::open(data_path.clone()).unwrap();
 
     let mut policy = PolicyNetwork::boxed_and_zeroed();
+    let mut rng = Rand::with_seed();
+    for i in 0..NetworkDims::INDICES {
+        for j in 0..NetworkDims::FEATURES {
+            let mut val = [0.0; NetworkDims::NEURONS];
+            for v in val.iter_mut() {
+                *v = rng.rand_f32(0.2);
+            }
+            policy.weights[i][j] = PolicyVal::from_raw(val);
+        }
+    }
+
+    for i in 0..NetworkDims::NEURONS {
+        policy.outputs[i] = rng.rand_f32(0.1);
+    }
 
     println!("# [Info]");
     println!(
@@ -26,14 +42,15 @@ fn main() {
     let mut momentum = PolicyNetwork::boxed_and_zeroed();
     let mut velocity = PolicyNetwork::boxed_and_zeroed();
 
-    for iteration in 1..=10 {
+    for iteration in 1..=EPOCHS {
         println!("# [Training Epoch {iteration}]");
         train(threads, &mut policy, lr, &mut momentum, &mut velocity, data_path.as_str());
 
-        if iteration % 3 == 0 {
+        if iteration % LR_DROP == 0 {
             lr *= 0.1;
         }
-        policy.write_to_bin("policy.bin");
+        println!("{:?}", policy.hce);
+        policy.write_to_bin(format!("resources/policy-{iteration}.bin").as_str());
     }
 }
 
@@ -50,7 +67,10 @@ fn train(
 
     let cap = 128 * BATCH_SIZE * std::mem::size_of::<TrainingPosition>();
     let file = File::open(path).unwrap();
+    let size = file.metadata().unwrap().len() as usize / std::mem::size_of::<TrainingPosition>();
     let mut loaded = BufReader::with_capacity(cap, file);
+    let mut batch_no = 0;
+    let num_batches = (size + BATCH_SIZE - 1) / BATCH_SIZE;
 
     while let Ok(buf) = loaded.fill_buf() {
         if buf.is_empty() {
@@ -64,6 +84,10 @@ fn train(
             running_error += gradient_batch(threads, policy, &mut grad, batch);
             let adj = 2.0 / batch.len() as f32;
             update(policy, &grad, adj, lr, momentum, velocity);
+
+            batch_no += 1;
+            print!("> Batch {batch_no}/{num_batches}\r");
+            let _ = std::io::stdout().flush();
         }
 
         num += data.len();
@@ -95,7 +119,28 @@ fn update(
             *m = B1 * *m + (1. - B1) * g;
             *v = B2 * *v + (1. - B2) * g * g;
             *p -= lr * *m / (v.sqrt() + 0.000_000_01);
-            assert!(!p.is_nan() && !p.is_infinite(), "{}, {}, {}, {}", *p, g, *m, *v);
         }
+    }
+
+    for i in 0..NetworkDims::NEURONS {
+        let g = adj * grad.outputs[i];
+        let m = &mut momentum.outputs[i];
+        let v = &mut velocity.outputs[i];
+        let p = &mut policy.outputs[i];
+
+        *m = B1 * *m + (1. - B1) * g;
+        *v = B2 * *v + (1. - B2) * g * g;
+        *p -= lr * *m / (v.sqrt() + 0.000_000_01);
+    }
+
+    for i in 0..NetworkDims::HCE {
+        let g = adj * grad.hce[i];
+        let m = &mut momentum.hce[i];
+        let v = &mut velocity.hce[i];
+        let p = &mut policy.hce[i];
+
+        *m = B1 * *m + (1. - B1) * g;
+        *v = B2 * *v + (1. - B2) * g * g;
+        *p -= lr * *m / (v.sqrt() + 0.000_000_01);
     }
 }

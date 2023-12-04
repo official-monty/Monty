@@ -22,6 +22,12 @@ impl Rand {
         self.0
     }
 
+    pub fn rand_f32(&mut self, abs_max: f32) -> f32 {
+        let rand_int = self.rand_int();
+        let float = f64::from(rand_int) / f64::from(u32::MAX);
+        (2.0 * float - 1.0) as f32 * abs_max
+    }
+
     pub fn with_seed() -> Self {
         let seed = SystemTime::now()
             .duration_since(UNIX_EPOCH)
