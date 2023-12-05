@@ -28,9 +28,11 @@ fn main() {
         }
     }
 
-    for i in 0..NetworkDims::NEURONS {
-        policy.outputs[i] = rng.rand_f32(0.1);
+    let mut val = [0.0; NetworkDims::NEURONS];
+    for v in val.iter_mut() {
+        *v = rng.rand_f32(0.1);
     }
+    policy.outputs = PolicyVal::from_raw(val);
 
     println!("# [Info]");
     println!(
@@ -122,16 +124,13 @@ fn update(
         }
     }
 
-    for i in 0..NetworkDims::NEURONS {
-        let g = adj * grad.outputs[i];
-        let m = &mut momentum.outputs[i];
-        let v = &mut velocity.outputs[i];
-        let p = &mut policy.outputs[i];
-
-        *m = B1 * *m + (1. - B1) * g;
-        *v = B2 * *v + (1. - B2) * g * g;
-        *p -= lr * *m / (v.sqrt() + 0.000_000_01);
-    }
+    let g = adj * grad.outputs;
+    let m = &mut momentum.outputs;
+    let v = &mut velocity.outputs;
+    let p = &mut policy.outputs;
+    *m = B1 * *m + (1. - B1) * g;
+    *v = B2 * *v + (1. - B2) * g * g;
+    *p -= lr * *m / (v.sqrt() + 0.000_000_01);
 
     for i in 0..NetworkDims::HCE {
         let g = adj * grad.hce[i];

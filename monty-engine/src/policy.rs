@@ -15,7 +15,7 @@ impl NetworkDims {
 #[derive(Clone, Copy)]
 pub struct PolicyNetwork {
     pub weights: [[PolicyVal; NetworkDims::FEATURES]; NetworkDims::INDICES],
-    pub outputs: [f32; NetworkDims::NEURONS],
+    pub outputs: PolicyVal,
     pub hce: [f32; NetworkDims::HCE],
 }
 
@@ -106,7 +106,7 @@ impl std::ops::SubAssign<PolicyVal> for PolicyVal {
 impl PolicyVal {
     pub fn out(&self, policy: &PolicyNetwork) -> f32 {
         let mut score = 0.0;
-        for (i, j) in self.inner.iter().zip(policy.outputs.iter()) {
+        for (i, j) in self.inner.iter().zip(policy.outputs.inner.iter()) {
             score += i.max(0.0) * j;
         }
 
@@ -125,9 +125,17 @@ impl PolicyVal {
         Self { inner }
     }
 
+    pub fn activate(mut self) -> Self {
+        for i in self.inner.iter_mut() {
+            *i = i.max(0.0);
+        }
+
+        self
+    }
+
     pub fn derivative(mut self) -> Self {
         for i in self.inner.iter_mut() {
-            *i =if *i > 0.0 {1.0} else {0.0};
+            *i = if *i > 0.0 {1.0} else {0.0};
         }
 
         self
@@ -142,7 +150,7 @@ impl std::ops::AddAssign<&PolicyNetwork> for PolicyNetwork {
             }
         }
 
-        for (i, j) in self.outputs.iter_mut().zip(rhs.outputs.iter()) {
+        for (i, j) in self.outputs.inner.iter_mut().zip(rhs.outputs.inner.iter()) {
             *i += *j;
         }
 
