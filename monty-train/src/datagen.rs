@@ -1,7 +1,7 @@
 use crate::{TrainingPosition, Rand, to_slice_with_lifetime};
 
-use monty_core::{GameState, Position, STARTPOS};
-use monty_engine::{PolicyNetwork, TunableParams, Searcher};
+use monty_core::{GameState, PolicyNetwork, Position, STARTPOS};
+use monty_engine::{TunableParams, Searcher};
 
 use std::{fs::File, io::{BufWriter, Write}, sync::atomic::{AtomicBool, Ordering}};
 

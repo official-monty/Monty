@@ -1,6 +1,6 @@
-use crate::{mcts::Searcher, params::TunableParams, policy::PolicyNetwork};
+use crate::{mcts::Searcher, params::TunableParams};
 
-use monty_core::{cp_wdl, perft, Position, STARTPOS};
+use monty_core::{cp_wdl, perft, PolicyNetwork, Position, STARTPOS};
 
 use std::time::Instant;
 

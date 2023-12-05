@@ -1,6 +1,6 @@
-use monty_engine::{Searcher, TunableParams, PolicyNetwork, POLICY_NETWORK, uci};
+use monty_engine::{Searcher, TunableParams, uci};
 
-use monty_core::{Position, STARTPOS};
+use monty_core::{PolicyNetwork, POLICY_NETWORK, Position, STARTPOS};
 
 use std::time::Instant;
 

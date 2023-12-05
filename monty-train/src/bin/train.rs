@@ -1,4 +1,4 @@
-use monty_engine::{PolicyNetwork, NetworkDims, PolicyVal};
+use monty_core::{PolicyNetwork, NetworkDims, PolicyVal};
 use monty_train::{gradient_batch, TrainingPosition, to_slice_with_lifetime, Rand};
 
 use std::{fs::File, io::{BufReader, BufRead, Write}};

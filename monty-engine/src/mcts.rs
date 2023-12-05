@@ -1,10 +1,9 @@
 use crate::{
     params::TunableParams,
-    policy::PolicyNetwork,
     qsearch::quiesce,
 };
 
-use monty_core::{GameState, Move, MoveList, Position, cp_wdl};
+use monty_core::{GameState, Move, MoveList, PolicyNetwork, Position, cp_wdl};
 
 use std::{fmt::Write, time::Instant};
 

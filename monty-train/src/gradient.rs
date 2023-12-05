@@ -1,7 +1,6 @@
 use crate::TrainingPosition;
 
-use monty_core::Flag;
-use monty_engine::{PolicyNetwork, PolicyVal};
+use monty_core::{Flag, PolicyNetwork, PolicyVal};
 
 pub fn gradient_batch(threads: usize, policy: &PolicyNetwork, grad: &mut PolicyNetwork, batch: &[TrainingPosition]) -> f32 {
     let size = (batch.len() / threads).max(1);

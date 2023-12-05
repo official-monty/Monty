@@ -1,4 +1,5 @@
-use monty_engine::{TunableParams, POLICY_NETWORK};
+use monty_core::POLICY_NETWORK;
+use monty_engine::TunableParams;
 use monty_train::{DatagenThread, set_stop};
 
 fn main() {

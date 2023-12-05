@@ -1,4 +1,4 @@
-use monty_core::{Flag, Move, Position, FeatureList};
+use crate::{Flag, Move, Position, FeatureList};
 
 pub static POLICY_NETWORK: PolicyNetwork =
     unsafe { std::mem::transmute(*include_bytes!("../../resources/policy.bin")) };
@@ -150,9 +150,7 @@ impl std::ops::AddAssign<&PolicyNetwork> for PolicyNetwork {
             }
         }
 
-        for (i, j) in self.outputs.inner.iter_mut().zip(rhs.outputs.inner.iter()) {
-            *i += *j;
-        }
+        self.outputs += rhs.outputs;
 
         for (i, j) in self.hce.iter_mut().zip(rhs.hce.iter()) {
             *i += *j;
