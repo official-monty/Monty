@@ -106,7 +106,7 @@ pub fn go(
 
 pub fn eval(pos: &Position, policy: &PolicyNetwork) {
     let mut moves = pos.gen::<true>();
-    moves.set_policies(pos, policy, PolicyNetwork::get);
+    moves.set_policies(pos, policy);
 
     for mov in moves.iter() {
         println!("{} -> {: >5.2}%", mov.to_uci(), mov.policy() * 100.0);

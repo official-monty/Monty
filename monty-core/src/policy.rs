@@ -5,7 +5,7 @@ pub static POLICY_NETWORK: PolicyNetwork =
 
 pub struct NetworkDims;
 impl NetworkDims {
-    pub const INDICES: usize = 6 * 64;
+    pub const INDICES: usize = 2 * 64;
     pub const FEATURES: usize = 769;
     pub const NEURONS: usize = 16;
     pub const HCE: usize = 4;
@@ -15,7 +15,6 @@ impl NetworkDims {
 #[derive(Clone, Copy)]
 pub struct PolicyNetwork {
     pub weights: [[PolicyVal; NetworkDims::FEATURES]; NetworkDims::INDICES],
-    pub outputs: PolicyVal,
     pub hce: [f32; NetworkDims::HCE],
 }
 
@@ -104,10 +103,10 @@ impl std::ops::SubAssign<PolicyVal> for PolicyVal {
 }
 
 impl PolicyVal {
-    pub fn out(&self, policy: &PolicyNetwork) -> f32 {
+    pub fn out(&self, other: &PolicyVal) -> f32 {
         let mut score = 0.0;
-        for (i, j) in self.inner.iter().zip(policy.outputs.inner.iter()) {
-            score += i.max(0.0) * j;
+        for (i, j) in self.inner.iter().zip(other.inner.iter()) {
+            score += i.max(0.0) * j.max(0.0);
         }
 
         score
@@ -150,8 +149,6 @@ impl std::ops::AddAssign<&PolicyNetwork> for PolicyNetwork {
             }
         }
 
-        self.outputs += rhs.outputs;
-
         for (i, j) in self.hce.iter_mut().zip(rhs.hce.iter()) {
             *i += *j;
         }
@@ -184,15 +181,20 @@ impl PolicyNetwork {
         }
     }
 
-    fn get_neuron(&self, idx: usize, feats: &FeatureList) -> f32 {
-        let wref = &self.weights[idx];
-        let mut score = PolicyVal::default();
-
+    fn get_neuron(&self, mov: &Move, feats: &FeatureList, flip: u8) -> f32 {
+        let wref = &self.weights[usize::from(mov.from() ^ flip)];
+        let mut from = PolicyVal::default();
         for &feat in feats.iter() {
-            score += wref[feat];
+            from += wref[feat];
         }
 
-        score.out(self)
+        let wref = &self.weights[64 + usize::from(mov.to() ^ flip)];
+        let mut to = PolicyVal::default();
+        for &feat in feats.iter() {
+            to += wref[feat];
+        }
+
+        from.out(&to)
     }
 
     pub fn hce(&self, mov: &Move, pos: &Position) -> f32 {
@@ -217,8 +219,7 @@ impl PolicyNetwork {
     }
 
     pub fn get(mov: &Move, pos: &Position, policy: &PolicyNetwork, feats: &FeatureList) -> f32 {
-        let idx = mov.index(pos.flip_val());
-        let sq_policy = policy.get_neuron(idx, feats);
+        let sq_policy = policy.get_neuron(mov, feats, pos.flip_val());
 
         let hce_policy = policy.hce(mov, pos);
 

@@ -28,7 +28,7 @@ impl Node {
 
     fn expand(&mut self, pos: &Position, params: &PolicyNetwork) {
         self.moves = pos.gen::<true>();
-        self.moves.set_policies(pos, params, PolicyNetwork::get);
+        self.moves.set_policies(pos, params);
         self.left = self.moves.len();
     }
 

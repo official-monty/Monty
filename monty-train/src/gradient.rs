@@ -41,31 +41,37 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
     for training_mov in pos.moves() {
         let mov = training_mov.mov(pos.board());
         let visits = training_mov.visits();
-        let idx = mov.index(flip);
+        let from = usize::from(mov.from() ^ flip);
+        let to = 64 + usize::from(mov.to() ^ flip);
 
-        let mut hidden = PolicyVal::default();
-
+        let mut from_hidden = PolicyVal::default();
         for &feat in feats.iter() {
-            hidden += policy.weights[idx][feat];
+            from_hidden += policy.weights[from][feat];
         }
 
-        let score = hidden.out(policy) + policy.hce(&mov, pos.board());
+        let mut to_hidden = PolicyVal::default();
+        for &feat in feats.iter() {
+            to_hidden += policy.weights[to][feat];
+        }
+
+        let score = from_hidden.out(&to_hidden) + policy.hce(&mov, pos.board());
 
         if score > max {
             max = score;
         }
 
         total_visits += visits;
-        policies.push((mov, visits, score, hidden));
+        policies.push((mov, visits, score, from_hidden, to_hidden));
     }
 
-    for (_, _, score, _) in policies.iter_mut() {
+    for (_, _, score, _, _) in policies.iter_mut() {
         *score = (*score - max).exp();
         total += *score;
     }
 
-    for (mov, visits, score, hidden) in policies {
-        let idx = mov.index(flip);
+    for (mov, visits, score, from_hidden, to_hidden) in policies {
+        let from = usize::from(mov.from() ^ flip);
+        let to = 64 + usize::from(mov.to() ^ flip);
 
         let ratio = score / total;
 
@@ -75,13 +81,16 @@ fn update_single_grad(pos: &TrainingPosition, policy: &PolicyNetwork, grad: &mut
         *error += err * err;
 
         let factor = err * ratio * (1.0 - ratio);
-        let adj = factor * hidden.derivative();
 
+        let from_adj = factor * to_hidden.activate() * from_hidden.derivative();
         for &feat in feats.iter() {
-            grad.weights[idx][feat] += adj;
+            grad.weights[from][feat] += from_adj;
         }
 
-        grad.outputs += factor * hidden.activate();
+        let to_adj = factor * from_hidden.activate() * to_hidden.derivative();
+        for &feat in feats.iter() {
+            grad.weights[to][feat] += to_adj;
+        }
 
         if pos.board().see(&mov, -108) {
             grad.hce[0] += factor;
