@@ -40,7 +40,10 @@ pub struct TrainingMoveList {
 
 impl Default for TrainingMoveList {
     fn default() -> Self {
-        Self { list: [TrainingMove::default(); 106], len: 0 }
+        Self {
+            list: [TrainingMove::default(); 106],
+            len: 0,
+        }
     }
 }
 

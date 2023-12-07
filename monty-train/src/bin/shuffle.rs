@@ -1,4 +1,4 @@
-use monty_train::{Rand, TrainingPosition, write_data};
+use monty_train::{write_data, Rand, TrainingPosition};
 
 use std::{fs::File, io::BufWriter, time::Instant};
 
@@ -12,9 +12,7 @@ fn data_from_bytes_with_lifetime(raw_bytes: &mut [u8]) -> &mut [TrainingPosition
     );
 
     let len = src_size / tgt_size;
-    unsafe {
-        std::slice::from_raw_parts_mut(raw_bytes.as_mut_ptr().cast(), len)
-    }
+    unsafe { std::slice::from_raw_parts_mut(raw_bytes.as_mut_ptr().cast(), len) }
 }
 
 fn shuffle(data: &mut [TrainingPosition]) {
@@ -37,7 +35,8 @@ fn main() {
     let mut raw_bytes = std::fs::read(data_path).unwrap();
     let data = data_from_bytes_with_lifetime(&mut raw_bytes);
 
-    let mut output = BufWriter::new(File::create(out_path.as_str()).expect("Provide a correct path!"));
+    let mut output =
+        BufWriter::new(File::create(out_path.as_str()).expect("Provide a correct path!"));
 
     println!("# [Shuffling Data]");
     let time = Instant::now();

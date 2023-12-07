@@ -1,9 +1,6 @@
-use crate::{
-    params::TunableParams,
-    qsearch::quiesce,
-};
+use crate::{params::TunableParams, qsearch::quiesce};
 
-use monty_core::{GameState, Move, MoveList, PolicyNetwork, Position, cp_wdl};
+use monty_core::{cp_wdl, GameState, Move, MoveList, PolicyNetwork, Position};
 
 use std::{fmt::Write, time::Instant};
 
@@ -192,7 +189,7 @@ impl<'a> Searcher<'a> {
                 let accs = self.pos.get_accs();
                 let qs = quiesce(&self.pos, &accs, -30_000, 30_000);
                 cp_wdl(qs)
-            },
+            }
         }
     }
 

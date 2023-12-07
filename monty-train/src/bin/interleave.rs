@@ -1,6 +1,9 @@
-use std::{fs::File, io::{BufReader, Read, BufWriter, Write}};
+use std::{
+    fs::File,
+    io::{BufReader, BufWriter, Read, Write},
+};
 
-use monty_train::{TrainingPosition, Rand};
+use monty_train::{Rand, TrainingPosition};
 
 const SIZE: usize = std::mem::size_of::<TrainingPosition>();
 
@@ -56,9 +59,11 @@ fn main() {
 
         if remaining % 16384 == 0 {
             let written = total - remaining;
-            print!("Written {written} / {total} ({:.2})\r", written as f32 / total as f32 * 100.0);
+            print!(
+                "Written {written} / {total} ({:.2})\r",
+                written as f32 / total as f32 * 100.0
+            );
             let _ = std::io::stdout().flush();
         }
-
     }
 }

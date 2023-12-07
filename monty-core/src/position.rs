@@ -1,9 +1,9 @@
 use crate::{
-    pop_lsb,
-    value::{Accumulator, ValueNetwork},
     attacks::Attacks,
     consts::*,
     moves::{Move, MoveList},
+    pop_lsb,
+    value::{Accumulator, ValueNetwork},
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
@@ -28,12 +28,15 @@ pub struct Position {
 
 pub struct FeatureList {
     list: [usize; 33],
-    len: usize
+    len: usize,
 }
 
 impl Default for FeatureList {
     fn default() -> Self {
-        Self { list: [0; 33], len: 0 }
+        Self {
+            list: [0; 33],
+            len: 0,
+        }
     }
 }
 
@@ -245,7 +248,11 @@ impl Position {
     }
 
     pub fn flip_val(&self) -> u8 {
-        if self.stm() == Side::BLACK { 56 } else { 0 }
+        if self.stm() == Side::BLACK {
+            56
+        } else {
+            0
+        }
     }
 
     #[must_use]
@@ -373,7 +380,13 @@ impl Position {
 
     // MODIFY POSITION
 
-    pub fn toggle<const ADD: bool>(&mut self, accs: &mut Option<&mut [Accumulator; 2]>, side: usize, piece: usize, sq: u8) {
+    pub fn toggle<const ADD: bool>(
+        &mut self,
+        accs: &mut Option<&mut [Accumulator; 2]>,
+        side: usize,
+        piece: usize,
+        sq: u8,
+    ) {
         let bit = 1 << sq;
         self.bb[piece] ^= bit;
         self.bb[side] ^= bit;
@@ -542,7 +555,13 @@ impl Position {
         }
     }
 
-    fn gen_pnbrq<const QUIETS: bool>(&self, moves: &mut MoveList, checkers: u64, free: u64, pinned: u64) {
+    fn gen_pnbrq<const QUIETS: bool>(
+        &self,
+        moves: &mut MoveList,
+        checkers: u64,
+        free: u64,
+        pinned: u64,
+    ) {
         let boys = self.boys();
         let pawns = self.piece(Piece::PAWN) & boys;
         let side = self.stm();
@@ -635,7 +654,12 @@ impl Position {
         pinned
     }
 
-    fn piece_moves<const QUIETS: bool, const PC: usize>(&self, moves: &mut MoveList, check_mask: u64, pinned: u64) {
+    fn piece_moves<const QUIETS: bool, const PC: usize>(
+        &self,
+        moves: &mut MoveList,
+        check_mask: u64,
+        pinned: u64,
+    ) {
         let attackers = self.boys() & self.piece(PC);
         self.piece_moves_internal::<QUIETS, PC, false>(moves, check_mask, attackers & !pinned);
         self.piece_moves_internal::<QUIETS, PC, true>(moves, check_mask, attackers & pinned);

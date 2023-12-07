@@ -1,4 +1,8 @@
-use crate::{Flag, Move, Position, FeatureList};
+use crate::{FeatureList, Flag, Move, Position};
+
+use monty_policy::{ReLU, SubNet, Vector};
+
+pub type PolicyVal = Vector<{ NetworkDims::NEURONS }>;
 
 pub static POLICY_NETWORK: PolicyNetwork =
     unsafe { std::mem::transmute(*include_bytes!("../../resources/policy.bin")) };
@@ -14,139 +18,15 @@ impl NetworkDims {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct PolicyNetwork {
-    pub weights: [[PolicyVal; NetworkDims::FEATURES]; NetworkDims::INDICES],
+    pub weights:
+        [SubNet<ReLU, { NetworkDims::NEURONS }, { NetworkDims::FEATURES }>; NetworkDims::INDICES],
     pub hce: [f32; NetworkDims::HCE],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default)]
-pub struct PolicyVal {
-    inner: [f32; NetworkDims::NEURONS],
-}
-
-impl std::ops::Index<usize> for PolicyVal {
-    type Output = f32;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.inner[index]
-    }
-}
-
-impl std::ops::Add<PolicyVal> for PolicyVal {
-    type Output = PolicyVal;
-    fn add(mut self, rhs: PolicyVal) -> Self::Output {
-        for (i, j) in self.inner.iter_mut().zip(rhs.inner.iter()) {
-            *i += *j;
-        }
-
-        self
-    }
-}
-
-impl std::ops::Add<f32> for PolicyVal {
-    type Output = PolicyVal;
-    fn add(mut self, rhs: f32) -> Self::Output {
-        for i in self.inner.iter_mut() {
-            *i += rhs;
-        }
-
-        self
-    }
-}
-
-impl std::ops::AddAssign<PolicyVal> for PolicyVal {
-    fn add_assign(&mut self, rhs: PolicyVal) {
-        for (i, j) in self.inner.iter_mut().zip(rhs.inner.iter()) {
-            *i += *j;
-        }
-    }
-}
-
-impl std::ops::Div<PolicyVal> for PolicyVal {
-    type Output = PolicyVal;
-    fn div(mut self, rhs: PolicyVal) -> Self::Output {
-        for (i, j) in self.inner.iter_mut().zip(rhs.inner.iter()) {
-            *i /= *j;
-        }
-
-        self
-    }
-}
-
-impl std::ops::Mul<PolicyVal> for PolicyVal {
-    type Output = PolicyVal;
-    fn mul(mut self, rhs: PolicyVal) -> Self::Output {
-        for (i, j) in self.inner.iter_mut().zip(rhs.inner.iter()) {
-            *i *= *j;
-        }
-
-        self
-    }
-}
-
-impl std::ops::Mul<PolicyVal> for f32 {
-    type Output = PolicyVal;
-    fn mul(self, mut rhs: PolicyVal) -> Self::Output {
-        for i in rhs.inner.iter_mut() {
-            *i *= self;
-        }
-
-        rhs
-    }
-}
-
-impl std::ops::SubAssign<PolicyVal> for PolicyVal {
-    fn sub_assign(&mut self, rhs: PolicyVal) {
-        for (i, j) in self.inner.iter_mut().zip(rhs.inner.iter()) {
-            *i -= *j;
-        }
-    }
-}
-
-impl PolicyVal {
-    pub fn out(&self, other: &PolicyVal) -> f32 {
-        let mut score = 0.0;
-        for (i, j) in self.inner.iter().zip(other.inner.iter()) {
-            score += i.max(0.0) * j.max(0.0);
-        }
-
-        score
-    }
-
-    pub fn sqrt(mut self) -> Self {
-        for i in self.inner.iter_mut() {
-            *i = i.sqrt();
-        }
-
-        self
-    }
-
-    pub const fn from_raw(inner: [f32; NetworkDims::NEURONS]) -> Self {
-        Self { inner }
-    }
-
-    pub fn activate(mut self) -> Self {
-        for i in self.inner.iter_mut() {
-            *i = i.max(0.0);
-        }
-
-        self
-    }
-
-    pub fn derivative(mut self) -> Self {
-        for i in self.inner.iter_mut() {
-            *i = if *i > 0.0 {1.0} else {0.0};
-        }
-
-        self
-    }
 }
 
 impl std::ops::AddAssign<&PolicyNetwork> for PolicyNetwork {
     fn add_assign(&mut self, rhs: &PolicyNetwork) {
         for (i, j) in self.weights.iter_mut().zip(rhs.weights.iter()) {
-            for (a, b) in i.iter_mut().zip(j.iter()) {
-                *a += *b;
-            }
+            *i += j;
         }
 
         for (i, j) in self.hce.iter_mut().zip(rhs.hce.iter()) {
@@ -182,19 +62,13 @@ impl PolicyNetwork {
     }
 
     fn get_neuron(&self, mov: &Move, feats: &FeatureList, flip: u8) -> f32 {
-        let wref = &self.weights[usize::from(mov.from() ^ flip)];
-        let mut from = PolicyVal::default();
-        for &feat in feats.iter() {
-            from += wref[feat];
-        }
+        let from_subnet = &self.weights[usize::from(mov.from() ^ flip)];
+        let from_vec = from_subnet.out(feats);
 
-        let wref = &self.weights[64 + usize::from(mov.to() ^ flip)];
-        let mut to = PolicyVal::default();
-        for &feat in feats.iter() {
-            to += wref[feat];
-        }
+        let to_subnet = &self.weights[64 + usize::from(mov.to() ^ flip)];
+        let to_vec = to_subnet.out(feats);
 
-        from.out(&to)
+        from_vec.dot(&to_vec)
     }
 
     pub fn hce(&self, mov: &Move, pos: &Position) -> f32 {

@@ -1,9 +1,13 @@
-use crate::{TrainingPosition, Rand, to_slice_with_lifetime};
+use crate::{to_slice_with_lifetime, Rand, TrainingPosition};
 
 use monty_core::{GameState, PolicyNetwork, Position, STARTPOS};
-use monty_engine::{TunableParams, Searcher};
+use monty_engine::{Searcher, TunableParams};
 
-use std::{fs::File, io::{BufWriter, Write}, sync::atomic::{AtomicBool, Ordering}};
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 static STOP: AtomicBool = AtomicBool::new(false);
 
@@ -17,7 +21,7 @@ pub fn set_stop() {
 
 pub fn write_data(data: &[TrainingPosition], output: &mut BufWriter<File>) {
     if data.is_empty() {
-        return
+        return;
     }
 
     let data_slice = to_slice_with_lifetime(data);
@@ -55,7 +59,8 @@ impl<'a> DatagenThread<'a> {
         let position = Position::parse_fen(STARTPOS);
 
         let out_path = format!("monty-{}.data", self.id);
-        let mut output = BufWriter::new(File::create(out_path.as_str()).expect("Provide a correct path!"));
+        let mut output =
+            BufWriter::new(File::create(out_path.as_str()).expect("Provide a correct path!"));
 
         while self.total < num_positions {
             if stop_is_set() {
@@ -77,16 +82,14 @@ impl<'a> DatagenThread<'a> {
 
     fn write(&mut self, output: &mut BufWriter<File>) {
         write_data(&self.positions, output);
-        println!("thread {} count {} skipped {}", self.id, self.total, self.skipped);
+        println!(
+            "thread {} count {} skipped {}",
+            self.id, self.total, self.skipped
+        );
         self.positions.clear();
     }
 
-    fn run_game(
-        &mut self,
-        position: Position,
-        params: TunableParams,
-        policy: &'a PolicyNetwork,
-    ) {
+    fn run_game(&mut self, position: Position, params: TunableParams, policy: &'a PolicyNetwork) {
         let mut engine = Searcher::new(position, Vec::new(), 5_000, params, policy);
 
         // play 8 or 9 random moves

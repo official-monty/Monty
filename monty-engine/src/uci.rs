@@ -114,10 +114,7 @@ pub fn eval(pos: &Position, policy: &PolicyNetwork) {
 
     let eval_cp = pos.eval_cp();
 
-    println!(
-        "info eval cp {eval_cp} wdl {:.2}",
-        cp_wdl(eval_cp) * 100.0
-    );
+    println!("info eval cp {eval_cp} wdl {:.2}", cp_wdl(eval_cp) * 100.0);
 }
 
 pub fn run_perft(commands: &[&str], pos: &Position) {

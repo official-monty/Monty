@@ -4,10 +4,9 @@ mod gradient;
 mod rng;
 
 pub use data::TrainingPosition;
-pub use datagen::{DatagenThread, set_stop, write_data};
+pub use datagen::{set_stop, write_data, DatagenThread};
 pub use gradient::gradient_batch;
 pub use rng::Rand;
-
 
 pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {
     let src_size = std::mem::size_of_val(slice);
@@ -19,8 +18,5 @@ pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {
     );
 
     let len = src_size / tgt_size;
-    unsafe {
-        std::slice::from_raw_parts(slice.as_ptr().cast(), len)
-    }
+    unsafe { std::slice::from_raw_parts(slice.as_ptr().cast(), len) }
 }
-

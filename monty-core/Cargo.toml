@@ -3,3 +3,6 @@ name = "monty-core"
 version = "0.1.0"
 edition = "2021"
 authors = ["Jamie Whiting"]
+
+[dependencies]
+monty-policy = { path = "../monty-policy" }

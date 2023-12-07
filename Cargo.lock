@@ -5,6 +5,9 @@ version = 3
 [[package]]
 name = "monty-core"
 version = "0.1.0"
+dependencies = [
+ "monty-policy",
+]
 
 [[package]]
 name = "monty-engine"
@@ -14,9 +17,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "monty-policy"
+version = "0.1.0"
+
+[[package]]
 name = "monty-train"
 version = "0.1.0"
 dependencies = [
  "monty-core",
  "monty-engine",
+ "monty-policy",
 ]

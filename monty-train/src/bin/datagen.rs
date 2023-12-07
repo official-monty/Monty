@@ -1,6 +1,6 @@
 use monty_core::POLICY_NETWORK;
 use monty_engine::TunableParams;
-use monty_train::{DatagenThread, set_stop};
+use monty_train::{set_stop, DatagenThread};
 
 fn main() {
     let mut args = std::env::args();
