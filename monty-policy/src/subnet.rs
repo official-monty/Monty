@@ -1,50 +1,24 @@
-use std::marker::PhantomData;
-
-use crate::{activation::Activation, Vector};
+use crate::{Vector, Matrix, ReLU, SparseLayer};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct SubNet<T: Activation, const N: usize, const FEATS: usize> {
-    ft: [Vector<N>; FEATS],
-    phantom: PhantomData<T>,
+pub struct SubNet {
+    ft: SparseLayer<ReLU, 768, 16>,
 }
 
-impl<T: Activation, const N: usize, const FEATS: usize> std::ops::AddAssign<&SubNet<T, N, FEATS>>
-    for SubNet<T, N, FEATS>
-{
-    fn add_assign(&mut self, rhs: &SubNet<T, N, FEATS>) {
-        for (u, v) in self.ft.iter_mut().zip(rhs.ft.iter()) {
-            *u += *v;
-        }
+impl std::ops::AddAssign<&SubNet> for SubNet {
+    fn add_assign(&mut self, rhs: &SubNet) {
+        self.ft += rhs.ft;
     }
 }
 
-impl<T: Activation, const N: usize, const FEATS: usize> SubNet<T, N, FEATS> {
-    pub fn from_fn<F: FnMut(usize) -> Vector<N>>(mut f: F) -> Self {
-        let mut res = Self {
-            ft: [Vector::zeroed(); FEATS],
-            phantom: PhantomData,
-        };
-
-        for (i, v) in res.ft.iter_mut().enumerate() {
-            *v = f(i);
-        }
-
-        res
+impl SubNet {
+    pub fn out(&self, feats: &[usize]) -> Vector<16> {
+        self.ft.out(feats)
     }
 
-    pub fn out(&self, feats: &[usize]) -> Vector<N> {
-        self.ft(feats).activate::<T>()
-    }
-
-    pub fn ft(&self, feats: &[usize]) -> Vector<N> {
-        let mut res = Vector::<N>::zeroed();
-
-        for &feat in feats {
-            res += self.ft[feat];
-        }
-
-        res
+    pub fn out_with_layers(&self, feats: &[usize]) -> Vector<16> {
+        self.ft.out(feats)
     }
 
     pub fn backprop(
@@ -52,13 +26,11 @@ impl<T: Activation, const N: usize, const FEATS: usize> SubNet<T, N, FEATS> {
         feats: &[usize],
         factor: f32,
         grad: &mut Self,
-        other: Vector<N>,
-        ft: Vector<N>,
+        other: Vector<16>,
+        ft: Vector<16>,
     ) {
-        let adj = factor * other * ft.derivative::<T>();
-        for &feat in feats.iter() {
-            grad.ft[feat] += adj;
-        }
+        let cumulated = factor * other;
+        self.ft.backprop(&mut grad.ft, cumulated, feats, ft);
     }
 
     pub fn adam(
@@ -69,18 +41,24 @@ impl<T: Activation, const N: usize, const FEATS: usize> SubNet<T, N, FEATS> {
         adj: f32,
         lr: f32,
     ) {
-        const B1: f32 = 0.9;
-        const B2: f32 = 0.999;
+        self.ft.adam(&grad.ft, &mut momentum.ft, &mut velocity.ft, adj, lr);
+    }
 
-        for i in 0..FEATS {
-            let g = adj * grad.ft[i];
-            let m = &mut momentum.ft[i];
-            let v = &mut velocity.ft[i];
-            let p = &mut self.ft[i];
+    pub const fn zeroed() -> Self {
+        Self {
+            ft: SparseLayer::from_raw(Matrix::zeroed(), Vector::zeroed()),
+        }
+    }
 
-            *m = B1 * *m + (1. - B1) * g;
-            *v = B2 * *v + (1. - B2) * g * g;
-            *p -= lr * *m / (v.sqrt() + 0.000_000_01);
+    pub fn from_fn<F: FnMut() -> f32>(mut f: F) -> Self {
+        let mut v = [Vector::zeroed(); 768];
+        for r in v.iter_mut() {
+            *r = Vector::from_fn(|_| f());
+        }
+        let m = Matrix::from_raw(v);
+
+        Self {
+            ft: SparseLayer::from_raw(m, Vector::from_fn(|_| f())),
         }
     }
 }

@@ -1,4 +1,4 @@
-use monty_core::{NetworkDims, PolicyNetwork, PolicyVal};
+use monty_core::PolicyNetwork;
 use monty_policy::SubNet;
 use monty_train::{gradient_batch, to_slice_with_lifetime, Rand, TrainingPosition};
 
@@ -22,8 +22,8 @@ fn main() {
 
     let mut policy = PolicyNetwork::boxed_and_zeroed();
     let mut rng = Rand::with_seed();
-    for i in 0..NetworkDims::INDICES {
-        policy.weights[i] = SubNet::from_fn(|_| PolicyVal::from_fn(|_| rng.rand_f32(0.2)));
+    for subnet in policy.weights.iter_mut() {
+        *subnet = SubNet::from_fn(|| rng.rand_f32(0.2));
     }
 
     println!("# [Info]");
@@ -120,11 +120,10 @@ fn update(
         );
     }
 
-    for i in 0..NetworkDims::HCE {
+    for (i, p) in policy.hce.iter_mut().enumerate() {
         let g = adj * grad.hce[i];
         let m = &mut momentum.hce[i];
         let v = &mut velocity.hce[i];
-        let p = &mut policy.hce[i];
 
         *m = B1 * *m + (1. - B1) * g;
         *v = B2 * *v + (1. - B2) * g * g;

@@ -1,26 +1,15 @@
 use crate::{FeatureList, Flag, Move, Position};
 
-use monty_policy::{ReLU, SubNet, Vector};
-
-pub type PolicyVal = Vector<{ NetworkDims::NEURONS }>;
+use monty_policy::SubNet;
 
 pub static POLICY_NETWORK: PolicyNetwork =
     unsafe { std::mem::transmute(*include_bytes!("../../resources/policy.bin")) };
 
-pub struct NetworkDims;
-impl NetworkDims {
-    pub const INDICES: usize = 2 * 64;
-    pub const FEATURES: usize = 769;
-    pub const NEURONS: usize = 16;
-    pub const HCE: usize = 4;
-}
-
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct PolicyNetwork {
-    pub weights:
-        [SubNet<ReLU, { NetworkDims::NEURONS }, { NetworkDims::FEATURES }>; NetworkDims::INDICES],
-    pub hce: [f32; NetworkDims::HCE],
+    pub weights: [SubNet; 128],
+    pub hce: [f32; 4],
 }
 
 impl std::ops::AddAssign<&PolicyNetwork> for PolicyNetwork {

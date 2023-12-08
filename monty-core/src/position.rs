@@ -26,18 +26,10 @@ pub struct Position {
     halfm: u8,
 }
 
+#[derive(Default)]
 pub struct FeatureList {
-    list: [usize; 33],
+    list: [usize; 32],
     len: usize,
-}
-
-impl Default for FeatureList {
-    fn default() -> Self {
-        Self {
-            list: [0; 33],
-            len: 0,
-        }
-    }
 }
 
 impl std::ops::Deref for FeatureList {
@@ -186,7 +178,6 @@ impl Position {
     pub fn get_features(&self) -> FeatureList {
         let flip = self.stm() == Side::BLACK;
         let mut feats = FeatureList::default();
-        feats.push(768);
 
         for piece in Piece::PAWN..=Piece::KING {
             let pc = 64 * (piece - 2);
