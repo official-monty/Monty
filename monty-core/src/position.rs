@@ -1,3 +1,5 @@
+use goober::SparseVector;
+
 use crate::{
     attacks::Attacks,
     consts::*,
@@ -24,26 +26,6 @@ pub struct Position {
     enp_sq: u8,
     rights: u8,
     halfm: u8,
-}
-
-#[derive(Default)]
-pub struct FeatureList {
-    list: [usize; 32],
-    len: usize,
-}
-
-impl std::ops::Deref for FeatureList {
-    type Target = [usize];
-    fn deref(&self) -> &Self::Target {
-        &self.list[..self.len]
-    }
-}
-
-impl FeatureList {
-    fn push(&mut self, feat: usize) {
-        self.list[self.len] = feat;
-        self.len += 1;
-    }
 }
 
 impl Position {
@@ -175,9 +157,9 @@ impl Position {
         accs
     }
 
-    pub fn get_features(&self) -> FeatureList {
+    pub fn get_features(&self) -> SparseVector {
         let flip = self.stm() == Side::BLACK;
-        let mut feats = FeatureList::default();
+        let mut feats = SparseVector::with_capacity(32);
 
         for piece in Piece::PAWN..=Piece::KING {
             let pc = 64 * (piece - 2);

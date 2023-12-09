@@ -1,9 +1,35 @@
-use crate::{FeatureList, Flag, Move, Position};
+use crate::{Flag, Move, Position};
 
-use monty_policy::SubNet;
+use goober::{Vector, Matrix, activation::ReLU, layer::SparseLayer, FeedForwardNetwork, SparseVector};
 
 pub static POLICY_NETWORK: PolicyNetwork =
     unsafe { std::mem::transmute(*include_bytes!("../../resources/policy.bin")) };
+
+#[repr(C)]
+#[derive(Clone, Copy, FeedForwardNetwork)]
+pub struct SubNet {
+    ft: SparseLayer<ReLU, 768, 16>,
+}
+
+impl SubNet {
+    pub const fn zeroed() -> Self {
+        Self {
+            ft: SparseLayer::from_raw(Matrix::zeroed(), Vector::zeroed()),
+        }
+    }
+
+    pub fn from_fn<F: FnMut() -> f32>(mut f: F) -> Self {
+        let mut v = [Vector::zeroed(); 768];
+        for r in v.iter_mut() {
+            *r = Vector::from_fn(|_| f());
+        }
+        let m = Matrix::from_raw(v);
+
+        Self {
+            ft: SparseLayer::from_raw(m, Vector::from_fn(|_| f())),
+        }
+    }
+}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -50,7 +76,7 @@ impl PolicyNetwork {
         }
     }
 
-    fn get_neuron(&self, mov: &Move, feats: &FeatureList, flip: u8) -> f32 {
+    fn get_neuron(&self, mov: &Move, feats: &SparseVector, flip: u8) -> f32 {
         let from_subnet = &self.weights[usize::from(mov.from() ^ flip)];
         let from_vec = from_subnet.out(feats);
 
@@ -81,7 +107,7 @@ impl PolicyNetwork {
         score
     }
 
-    pub fn get(mov: &Move, pos: &Position, policy: &PolicyNetwork, feats: &FeatureList) -> f32 {
+    pub fn get(mov: &Move, pos: &Position, policy: &PolicyNetwork, feats: &SparseVector) -> f32 {
         let sq_policy = policy.get_neuron(mov, feats, pos.flip_val());
 
         let hce_policy = policy.hce(mov, pos);

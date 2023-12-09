@@ -1,6 +1,7 @@
-use monty_core::PolicyNetwork;
-use monty_policy::SubNet;
+use monty_core::{PolicyNetwork, SubNet};
 use monty_train::{gradient_batch, to_slice_with_lifetime, Rand, TrainingPosition};
+
+use goober::FeedForwardNetwork;
 
 use std::{
     fs::File,

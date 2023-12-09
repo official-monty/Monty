@@ -1,5 +1,5 @@
 [workspace]
-members = ["monty-core", "monty-engine", "monty-policy", "monty-train"]
+members = ["monty-core", "monty-engine", "monty-train"]
 resolver = "2"
 
 [profile.release]

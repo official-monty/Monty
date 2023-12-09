@@ -1,6 +1,7 @@
 use crate::TrainingPosition;
 
 use monty_core::{Flag, PolicyNetwork};
+use goober::{FeedForwardNetwork, OutputLayer};
 
 pub fn gradient_batch(
     threads: usize,
@@ -57,7 +58,7 @@ fn update_single_grad(
         let from_out = policy.weights[from].out_with_layers(&feats);
         let to_out = policy.weights[to].out_with_layers(&feats);
 
-        let net_out = from_out.dot(&to_out);
+        let net_out = from_out.output_layer().dot(&to_out.output_layer());
 
         let score = net_out + policy.hce(&mov, pos.board());
 
@@ -89,18 +90,16 @@ fn update_single_grad(
 
         policy.weights[from].backprop(
             &feats,
-            factor,
             &mut grad.weights[from],
-            to_out,
-            from_out,
+            factor * to_out.output_layer(),
+            &from_out,
         );
 
         policy.weights[to].backprop(
             &feats,
-            factor,
             &mut grad.weights[to],
-            from_out,
-            to_out,
+            factor * from_out.output_layer(),
+            &to_out,
         );
 
         if pos.board().see(&mov, -108) {

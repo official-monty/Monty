@@ -5,4 +5,4 @@ edition = "2021"
 authors = ["Jamie Whiting"]
 
 [dependencies]
-monty-policy = { path = "../monty-policy" }
+goober = { git = 'https://github.com/jw1912/goober.git' }
