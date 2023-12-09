@@ -5,7 +5,7 @@ version = 3
 [[package]]
 name = "goober"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/goober.git#7e52562af4f97557d3682bec89e123f3f6646855"
+source = "git+https://github.com/jw1912/goober.git#7f456130d0e36e3de0d6806a346cd6a0947c5405"
 dependencies = [
  "goober-derive",
 ]
@@ -13,7 +13,7 @@ dependencies = [
 [[package]]
 name = "goober-derive"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/goober.git#7e52562af4f97557d3682bec89e123f3f6646855"
+source = "git+https://github.com/jw1912/goober.git#7f456130d0e36e3de0d6806a346cd6a0947c5405"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -1,6 +1,6 @@
 use crate::{Flag, Move, Position};
 
-use goober::{Vector, Matrix, activation::ReLU, layer::SparseLayer, FeedForwardNetwork, SparseVector};
+use goober::{Vector, Matrix, activation::ReLU, layer::SparseConnected, FeedForwardNetwork, SparseVector};
 
 pub static POLICY_NETWORK: PolicyNetwork =
     unsafe { std::mem::transmute(*include_bytes!("../../resources/policy.bin")) };
@@ -8,13 +8,13 @@ pub static POLICY_NETWORK: PolicyNetwork =
 #[repr(C)]
 #[derive(Clone, Copy, FeedForwardNetwork)]
 pub struct SubNet {
-    ft: SparseLayer<ReLU, 768, 16>,
+    ft: SparseConnected<ReLU, 768, 16>,
 }
 
 impl SubNet {
     pub const fn zeroed() -> Self {
         Self {
-            ft: SparseLayer::from_raw(Matrix::zeroed(), Vector::zeroed()),
+            ft: SparseConnected::zeroed(),
         }
     }
 
@@ -26,7 +26,7 @@ impl SubNet {
         let m = Matrix::from_raw(v);
 
         Self {
-            ft: SparseLayer::from_raw(m, Vector::from_fn(|_| f())),
+            ft: SparseConnected::from_raw(m, Vector::from_fn(|_| f())),
         }
     }
 }
