@@ -71,6 +71,26 @@ impl<'a> Searcher<'a> {
         }
     }
 
+    pub fn set(
+        &mut self,
+        pos: Position,
+        stack: Vec<u64>,
+        node_limit: usize,
+        params: TunableParams,
+        policy: &'a PolicyNetwork,
+        tree: Vec<Node>,
+    ) {
+        self.startpos = pos;
+        self.startstack = stack.clone();
+        self.pos = pos;
+        self.tree = tree;
+        self.stack = stack.clone();
+        self.node_limit = node_limit;
+        self.selection = Vec::new();
+        self.params = params;
+        self.policy = policy;
+    }
+
     fn make_move(&mut self, mov: Move) {
         self.stack.push(self.pos.hash());
         self.pos.make(mov, None);
@@ -132,6 +152,10 @@ impl<'a> Searcher<'a> {
 
             if node.is_terminal() {
                 break;
+            }
+
+            if node.moves.is_empty() {
+                println!("visits {} ptr {}", node.visits, node_ptr);
             }
 
             let mov_idx = self.pick_child(node);
@@ -254,6 +278,43 @@ impl<'a> Searcher<'a> {
         (pv, score)
     }
 
+    fn construct_subtree(&self, node_ptr: i32, subtree: &mut Vec<Node>) {
+        if node_ptr == -1 {
+            return;
+        }
+
+        let node = &self.tree[node_ptr as usize];
+        subtree.push(node.clone());
+
+        let idx = subtree.len() - 1;
+
+        for (i, mov) in node.moves.iter().enumerate() {
+            let new_ptr = mov.ptr();
+            let curr_len = subtree.len();
+
+            if new_ptr != -1 {
+                subtree[idx].moves[i].set_ptr(curr_len as i32);
+                self.construct_subtree(new_ptr, subtree);
+            }
+        }
+    }
+
+    fn find_mov_ptr(&self, start: i32, mov: &Move) -> i32 {
+        if start == -1 {
+            return -1;
+        }
+
+        let node = &self.tree[start as usize];
+
+        for child_mov in node.moves.iter() {
+            if child_mov.is_same(mov) {
+                return child_mov.ptr();
+            }
+        }
+
+        -1
+    }
+
     pub fn search(
         &mut self,
         max_time: Option<u128>,
@@ -261,13 +322,32 @@ impl<'a> Searcher<'a> {
         report_moves: bool,
         uci_output: bool,
         total_nodes: &mut usize,
+        prevs: Option<(Move, Move)>
     ) -> (Move, f32) {
         let timer = Instant::now();
-        self.tree.clear();
 
-        let mut root_node = Node::new(&self.startpos, &[]);
-        root_node.expand(&self.startpos, self.policy);
-        self.tree.push(root_node);
+        // attempt to reuse the previous tree
+        if !self.tree.is_empty() {
+            if let Some((prev_prev, prev)) = prevs {
+                let prev_prev_ptr = self.find_mov_ptr(0, &prev_prev);
+                let prev_ptr = self.find_mov_ptr(prev_prev_ptr, &prev);
+                if prev_ptr == -1 || self.tree[prev_ptr as usize].visits == 1 {
+                    self.tree.clear();
+                } else {
+                    let mut subtree = Vec::new();
+                    self.construct_subtree(prev_ptr, &mut subtree);
+                    self.tree = subtree;
+                }
+            } else {
+                self.tree.clear();
+            }
+        }
+
+        if self.tree.is_empty() {
+            let mut root_node = Node::new(&self.startpos, &[]);
+            root_node.expand(&self.startpos, self.policy);
+            self.tree.push(root_node);
+        }
 
         let mut nodes = 1;
         let mut depth = 0;

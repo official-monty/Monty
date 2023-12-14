@@ -24,6 +24,22 @@ pub struct MoveList {
 }
 
 impl Move {
+    pub const NULL: Move = Move {
+        from: 0,
+        to: 0,
+        flag: 0,
+        moved: 0,
+        ptr: -1,
+        policy: 0.0,
+    };
+
+    pub fn is_same(&self, other: &Self) -> bool {
+        self.from == other.from
+            && self.to == other.to
+            && self.flag == other.flag
+            && self.moved == other.moved
+    }
+
     #[must_use]
     pub fn from(&self) -> u8 {
         self.from

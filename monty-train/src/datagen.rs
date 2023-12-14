@@ -112,7 +112,7 @@ impl<'a> DatagenThread<'a> {
 
         // play out game
         loop {
-            let (bm, _) = engine.search(None, 128, false, false, &mut 0);
+            let (bm, _) = engine.search(None, 128, false, false, &mut 0, None);
 
             // disallow positions with >106 moves
             if engine.tree[0].moves.len() <= 106 {

@@ -1,6 +1,6 @@
-use crate::{mcts::Searcher, params::TunableParams};
+use crate::{mcts::{Searcher, Node}, params::TunableParams};
 
-use monty_core::{cp_wdl, perft, PolicyNetwork, Position, STARTPOS};
+use monty_core::{cp_wdl, perft, PolicyNetwork, Position, STARTPOS, Move};
 
 use std::time::Instant;
 
@@ -33,7 +33,7 @@ pub fn setoption(commands: &[&str], params: &mut TunableParams, report_moves: &m
     params.set(name, val as f32 / 100.0);
 }
 
-pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
+pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>, prevs: &mut Option<(Move, Move)>) {
     let mut fen = String::new();
     let mut move_list = Vec::new();
     let mut moves = false;
@@ -57,26 +57,37 @@ pub fn position(commands: Vec<&str>, pos: &mut Position, stack: &mut Vec<u64>) {
     *pos = Position::parse_fen(&fen);
     stack.clear();
 
-    for m in move_list {
+    let len = move_list.len();
+
+    for (i, &m) in move_list.iter().enumerate() {
         stack.push(pos.hash());
         let possible_moves = pos.gen::<true>();
 
         for mov in possible_moves.iter() {
             if m == mov.to_uci() {
                 pos.make(*mov, None);
+
+                if i == len - 1 {
+                    if let Some((_, y)) = prevs.as_mut() {
+                        *y = *mov;
+                    }
+                }
             }
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn go(
     commands: &[&str],
+    tree: Vec<Node>,
     stack: Vec<u64>,
     pos: &Position,
     params: &TunableParams,
     report_moves: bool,
     policy: &PolicyNetwork,
-) {
+    prevs: &mut Option<(Move, Move)>,
+) -> Vec<Node> {
     let mut nodes = 10_000_000;
     let mut max_time = None;
     let mut max_depth = 256;
@@ -98,10 +109,15 @@ pub fn go(
     }
 
     let mut searcher = Searcher::new(*pos, stack, nodes, params.clone(), policy);
+    searcher.tree = tree;
 
-    let (mov, _) = searcher.search(max_time, max_depth, report_moves, true, &mut 0);
+    let (mov, _) = searcher.search(max_time, max_depth, report_moves, true, &mut 0, *prevs);
+
+    *prevs = Some((mov, Move::NULL));
 
     println!("bestmove {}", mov.to_uci());
+
+    searcher.tree
 }
 
 pub fn eval(pos: &Position, policy: &PolicyNetwork) {
