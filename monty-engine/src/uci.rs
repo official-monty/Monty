@@ -92,6 +92,10 @@ pub fn go(
     let mut max_time = None;
     let mut max_depth = 256;
 
+    let mut times = [None; 2];
+    let mut incs = [None; 2];
+    let mut movestogo = 30;
+
     let mut mode = "";
 
     for cmd in commands {
@@ -99,19 +103,53 @@ pub fn go(
             "nodes" => mode = "nodes",
             "movetime" => mode = "movetime",
             "depth" => mode = "depth",
+            "wtime" => mode = "wtime",
+            "btime" => mode = "btime",
+            "winc" => mode = "winc",
+            "binc" => mode = "binc",
+            "movestogo" => mode = "movestogo",
             _ => match mode {
                 "nodes" => nodes = cmd.parse().unwrap_or(nodes),
                 "movetime" => max_time = cmd.parse().ok(),
                 "depth" => max_depth = cmd.parse().unwrap_or(max_depth),
-                _ => {}
+                "wtime" => times[0] = Some(cmd.parse().unwrap_or(0)),
+                "btime" => times[1] = Some(cmd.parse().unwrap_or(0)),
+                "winc" =>  incs[0]= Some(cmd.parse().unwrap_or(0)),
+                "binc" =>  incs[1]= Some(cmd.parse().unwrap_or(0)),
+                "movestogo" => movestogo = cmd.parse().unwrap_or(30),
+                _ => mode = "none"
             },
         }
+    }
+
+    let mut time = None;
+
+    // `go wtime <wtime> btime <btime> winc <winc> binc <binc>``
+    if let Some(t) = times[pos.stm()] {
+        let mut base = t / movestogo.max(1);
+
+        if let Some(i) = incs[pos.stm()] {
+            base += i * 3 / 4;
+        }
+
+        time = Some(base);
+    }
+
+    // `go movetime <time>`
+    if let Some(max) = max_time {
+        // if both movetime and increment time controls given, use
+        time = Some(time.unwrap_or(u128::MAX).min(max));
+    }
+
+    // 5ms move overhead
+    if let Some(t) = time.as_mut() {
+        *t = t.saturating_sub(5);
     }
 
     let mut searcher = Searcher::new(*pos, stack, nodes, params.clone(), policy);
     searcher.tree = tree;
 
-    let (mov, _) = searcher.search(max_time, max_depth, report_moves, true, &mut 0, *prevs);
+    let (mov, _) = searcher.search(time, max_depth, report_moves, true, &mut 0, *prevs);
 
     *prevs = Some((mov, Move::NULL));
 
