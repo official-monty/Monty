@@ -84,7 +84,7 @@ impl<'a> Searcher<'a> {
         self.startstack = stack.clone();
         self.pos = pos;
         self.tree = tree;
-        self.stack = stack.clone();
+        self.stack = stack;
         self.node_limit = node_limit;
         self.selection = Vec::new();
         self.params = params;
