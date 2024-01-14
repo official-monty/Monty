@@ -84,9 +84,9 @@ fn update_single_grad(
         let expected = visits as f32 / total_visits as f32;
         let err = ratio - expected;
 
-        *error += err * err;
+        *error -= expected * ratio.ln();
 
-        let factor = err * ratio * (1.0 - ratio);
+        let factor = err;
 
         policy.weights[from].backprop(
             &feats,
