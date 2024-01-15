@@ -162,9 +162,21 @@ pub fn eval(pos: &Position, policy: &PolicyNetwork) {
     let mut moves = pos.gen::<true>();
     moves.set_policies(pos, policy);
 
+    let mut w = [0f32; 64];
+    let mut count = [0; 64];
+
     for mov in moves.iter() {
-        println!("{} -> {: >5.2}%", mov.to_uci(), mov.policy() * 100.0);
+        let fr = usize::from(mov.from());
+        let to = usize::from(mov.to());
+
+        w[fr] = w[fr].max(mov.policy());
+        w[to] = w[fr].max(mov.policy());
+
+        count[fr] += 1;
+        count[to] += 1;
     }
+
+    println!("{}", pos.coloured_board(&count, &w));
 
     let eval_cp = pos.eval_cp();
 

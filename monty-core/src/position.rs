@@ -813,6 +813,41 @@ impl Position {
 
         fen
     }
+
+    pub fn coloured_board(&self, counts: &[i32; 64], weights: &[f32; 64]) -> String {
+        let pcs = [['p', 'n', 'b', 'r', 'q', 'k'], ['P', 'N', 'B', 'R', 'Q', 'K']];
+
+        let mut string = "+-----------------+\n".to_string();
+
+        for i in (0..8).rev() {
+            string += "|";
+
+            for j in 0..8 {
+                let sq = 8 * i + j;
+                let pc = self.get_pc(1 << sq);
+                let ch = if pc != 0 {
+                    let is_white = self.piece(Side::WHITE) & (1 << sq) > 0;
+                    pcs[usize::from(is_white)][pc - 2]
+                } else {
+                    '.'
+                };
+
+                if counts[sq] > 0 {
+                    let g = (255.0 * (2.0 * weights[sq]).min(1.0)) as u8;
+                    let r = 255 - g;
+                    string += format!(" \x1b[38;2;{r};{g};0m{ch}\x1b[0m").as_str();
+                } else {
+                    string += format!(" \x1b[34m{ch}\x1b[0m").as_str();
+                }
+            }
+
+            string += " |\n";
+        }
+
+        string += "+-----------------+";
+
+        string
+    }
 }
 
 fn shift<const SIDE: usize>(bb: u64) -> u64 {
