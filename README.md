@@ -12,9 +12,9 @@
 ## Compiling
 Run the following command
 ```
-cargo r -r --bin monty-engine
+cargo b -r
 ```
-and the executable will be located at `target/release/monty-engine[.exe]`.
+and the executable will be located at `target/release/monty[.exe]`.
 
 ## How it works
 

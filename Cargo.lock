@@ -36,6 +36,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "monty"
+version = "0.1.0"
+dependencies = [
+ "monty-core",
+ "monty-engine",
+]
+
+[[package]]
 name = "monty-core"
 version = "0.1.0"
 dependencies = [

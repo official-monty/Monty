@@ -1,3 +1,13 @@
+[package]
+name = "monty"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jamie Whiting"]
+
+[dependencies]
+monty-core = { path = "monty-core" }
+monty-engine = { path = "monty-engine" }
+
 [workspace]
 members = ["monty-core", "monty-engine", "monty-train"]
 resolver = "2"

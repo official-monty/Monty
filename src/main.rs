@@ -59,7 +59,7 @@ fn main() {
 }
 
 fn run_bench(params: &TunableParams, policy: &PolicyNetwork) {
-    const FEN_STRING: &str = include_str!("../../resources/fens.txt");
+    const FEN_STRING: &str = include_str!("../resources/fens.txt");
 
     let mut total_nodes = 0;
     let bench_fens = FEN_STRING.split('\n').collect::<Vec<&str>>();
