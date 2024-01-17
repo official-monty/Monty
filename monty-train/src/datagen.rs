@@ -6,8 +6,10 @@ use monty_engine::{Searcher, TunableParams};
 use std::{
     fs::File,
     io::{BufWriter, Write},
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, Ordering}, time::Instant,
 };
+
+const NODES_PER_MOVE: usize = 1_000;
 
 static STOP: AtomicBool = AtomicBool::new(false);
 
@@ -39,30 +41,31 @@ pub struct DatagenThread<'a> {
     positions: Vec<TrainingPosition>,
     skipped: usize,
     total: usize,
+    timer: Instant,
 }
 
 impl<'a> DatagenThread<'a> {
-    pub fn new(params: TunableParams, policy: &'a PolicyNetwork) -> Self {
-        let mut rng = Rand::with_seed();
+    pub fn new(id: u32, params: TunableParams, policy: &'a PolicyNetwork) -> Self {
         Self {
-            id: rng.rand_int(),
-            rng,
+            id,
+            rng: Rand::with_seed(),
             params,
             policy,
             positions: Vec::new(),
             skipped: 0,
             total: 0,
+            timer: Instant::now(),
         }
     }
 
-    pub fn run(&mut self, num_positions: usize) {
+    pub fn run(&mut self) {
         let position = Position::parse_fen(STARTPOS);
 
-        let out_path = format!("monty-{}.data", self.id);
+        let out_path = format!("monty-{}.data", self.rng.rand_int());
         let mut output =
             BufWriter::new(File::create(out_path.as_str()).expect("Provide a correct path!"));
 
-        while self.total < num_positions {
+        loop {
             if stop_is_set() {
                 break;
             }
@@ -83,14 +86,14 @@ impl<'a> DatagenThread<'a> {
     fn write(&mut self, output: &mut BufWriter<File>) {
         write_data(&self.positions, output);
         println!(
-            "thread {} count {} skipped {}",
-            self.id, self.total, self.skipped
+            "thread {} count {} skipped {} pos/sec {:.2}",
+            self.id, self.total, self.skipped, self.total as f32 / self.timer.elapsed().as_secs_f32()
         );
         self.positions.clear();
     }
 
     fn run_game(&mut self, position: Position, params: TunableParams, policy: &'a PolicyNetwork) {
-        let mut engine = Searcher::new(position, Vec::new(), 5_000, params, policy);
+        let mut engine = Searcher::new(position, Vec::new(), NODES_PER_MOVE, params, policy);
 
         // play 8 or 9 random moves
         for _ in 0..(8 + (self.rng.rand_int() % 2)) {
