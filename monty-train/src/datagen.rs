@@ -115,10 +115,15 @@ impl<'a> DatagenThread<'a> {
 
         // play out game
         loop {
-            let (bm, _) = engine.search(None, 128, false, false, &mut 0, None);
+            let (bm, score) = engine.search(None, 128, false, false, &mut 0, None);
 
-            // disallow positions with >106 moves
-            if engine.tree[0].moves.len() <= 106 {
+            // adjudicate
+            if score > 0.97 {
+                return;
+            }
+
+            // disallow positions with >106 moves and moves when in check
+            if engine.tree[0].moves.len() <= 106 || engine.startpos.in_check() {
                 let mut training_pos = TrainingPosition::new(engine.startpos);
 
                 for mov in engine.tree[0].moves.iter() {

@@ -18,10 +18,9 @@ fn data_from_bytes_with_lifetime(raw_bytes: &mut [u8]) -> &mut [TrainingPosition
 fn shuffle(data: &mut [TrainingPosition]) {
     let mut rng = Rand::with_seed();
 
-    for _ in 0..data.len() * 16 {
-        let idx1 = rng.rand_int() as usize % data.len();
-        let idx2 = rng.rand_int() as usize % data.len();
-        data.swap(idx1, idx2);
+    for i in (0..data.len()).rev() {
+        let idx = rng.rand_int() as usize % (i + 1);
+        data.swap(idx, i);
     }
 }
 
