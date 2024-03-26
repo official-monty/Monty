@@ -1,11 +1,13 @@
 mod attacks;
 mod consts;
+mod frc;
 mod moves;
 mod policy;
 mod position;
 mod value;
 
 pub use consts::{Flag, Piece, Side};
+pub use frc::Castling;
 pub use moves::{Move, MoveList};
 pub use policy::{PolicyNetwork, POLICY_NETWORK, SubNet};
 pub use position::{perft, GameState, Position};

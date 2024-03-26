@@ -1,6 +1,6 @@
 use crate::{to_slice_with_lifetime, Rand, TrainingPosition};
 
-use monty_core::{GameState, PolicyNetwork, Position, STARTPOS};
+use monty_core::{Castling, GameState, PolicyNetwork, Position, STARTPOS};
 use monty_engine::{Searcher, TunableParams};
 
 use std::{
@@ -59,7 +59,8 @@ impl<'a> DatagenThread<'a> {
     }
 
     pub fn run(&mut self) {
-        let position = Position::parse_fen(STARTPOS);
+        let mut castling = Castling::default();
+        let position = Position::parse_fen(STARTPOS, &mut castling);
 
         let out_path = format!("monty-{}.data", self.rng.rand_int());
         let mut output =
@@ -70,7 +71,7 @@ impl<'a> DatagenThread<'a> {
                 break;
             }
 
-            self.run_game(position, self.params.clone(), self.policy);
+            self.run_game(castling, position, self.params.clone(), self.policy);
 
             let num_in_buffer = self.positions.len();
             if num_in_buffer > 2048 {
@@ -92,12 +93,12 @@ impl<'a> DatagenThread<'a> {
         self.positions.clear();
     }
 
-    fn run_game(&mut self, position: Position, params: TunableParams, policy: &'a PolicyNetwork) {
-        let mut engine = Searcher::new(position, Vec::new(), NODES_PER_MOVE, params, policy);
+    fn run_game(&mut self, castling: Castling, position: Position, params: TunableParams, policy: &'a PolicyNetwork) {
+        let mut engine = Searcher::new(castling, position, Vec::new(), NODES_PER_MOVE, params, policy);
 
         // play 8 or 9 random moves
         for _ in 0..(8 + (self.rng.rand_int() % 2)) {
-            let moves = engine.startpos.gen::<true>();
+            let moves = engine.startpos.gen::<true>(&castling);
 
             if moves.is_empty() {
                 return;
@@ -106,10 +107,10 @@ impl<'a> DatagenThread<'a> {
             let mov = moves[self.rng.rand_int() as usize % moves.len()];
 
             engine.startstack.push(engine.startpos.hash());
-            engine.startpos.make(mov, None);
+            engine.startpos.make(mov, None, &castling);
         }
 
-        if engine.startpos.gen::<true>().is_empty() {
+        if engine.startpos.gen::<true>(&castling).is_empty() {
             return;
         }
 
@@ -144,9 +145,9 @@ impl<'a> DatagenThread<'a> {
             }
 
             engine.startstack.push(engine.startpos.hash());
-            engine.startpos.make(bm, None);
+            engine.startpos.make(bm, None, &castling);
 
-            let moves = engine.startpos.gen::<true>();
+            let moves = engine.startpos.gen::<true>(&castling);
             let game_state = engine.startpos.game_state(&moves, &engine.startstack);
             if game_state != GameState::Ongoing {
                 break;

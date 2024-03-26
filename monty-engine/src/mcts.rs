@@ -1,6 +1,6 @@
 use crate::{params::TunableParams, qsearch::quiesce};
 
-use monty_core::{cp_wdl, GameState, Move, MoveList, PolicyNetwork, Position};
+use monty_core::{cp_wdl, Castling, GameState, Move, MoveList, PolicyNetwork, Position};
 
 use std::{fmt::Write, time::Instant};
 
@@ -14,8 +14,8 @@ pub struct Node {
 }
 
 impl Node {
-    fn new(pos: &Position, stack: &[u64]) -> Self {
-        let moves = pos.gen::<true>();
+    fn new(pos: &Position, stack: &[u64], castling: &Castling) -> Self {
+        let moves = pos.gen::<true>(castling);
         let state = pos.game_state(&moves, stack);
         Self {
             state,
@@ -23,8 +23,8 @@ impl Node {
         }
     }
 
-    fn expand(&mut self, pos: &Position, params: &PolicyNetwork) {
-        self.moves = pos.gen::<true>();
+    fn expand(&mut self, pos: &Position, params: &PolicyNetwork, castling: &Castling) {
+        self.moves = pos.gen::<true>(castling);
         self.moves.set_policies(pos, params);
         self.left = self.moves.len();
     }
@@ -39,6 +39,7 @@ impl Node {
 }
 
 pub struct Searcher<'a> {
+    pub castling: Castling,
     pub startpos: Position,
     pub startstack: Vec<u64>,
     pub tree: Vec<Node>,
@@ -52,6 +53,7 @@ pub struct Searcher<'a> {
 
 impl<'a> Searcher<'a> {
     pub fn new(
+        castling: Castling,
         pos: Position,
         stack: Vec<u64>,
         node_limit: usize,
@@ -59,6 +61,7 @@ impl<'a> Searcher<'a> {
         policy: &'a PolicyNetwork,
     ) -> Self {
         Self {
+            castling,
             startpos: pos,
             startstack: stack.clone(),
             pos,
@@ -93,7 +96,7 @@ impl<'a> Searcher<'a> {
 
     fn make_move(&mut self, mov: Move) {
         self.stack.push(self.pos.hash());
-        self.pos.make(mov, None);
+        self.pos.make(mov, None, &self.castling);
     }
 
     fn selected(&self) -> i32 {
@@ -145,7 +148,7 @@ impl<'a> Searcher<'a> {
             let node = &mut self.tree[node_ptr as usize];
 
             if node_ptr != 0 && node.visits == 1 {
-                node.expand(&self.pos, self.policy);
+                node.expand(&self.pos, self.policy, &self.castling);
             }
 
             let node = &self.tree[node_ptr as usize];
@@ -190,7 +193,7 @@ impl<'a> Searcher<'a> {
         let mov = node.moves[node.left];
         self.make_move(mov);
 
-        let new_node = Node::new(&self.pos, &self.stack);
+        let new_node = Node::new(&self.pos, &self.stack, &self.castling);
         self.tree.push(new_node);
 
         let new_ptr = self.tree.len() as i32 - 1;
@@ -211,7 +214,7 @@ impl<'a> Searcher<'a> {
             GameState::Draw => 0.5,
             GameState::Ongoing => {
                 let accs = self.pos.get_accs();
-                let qs = quiesce(&self.pos, &accs, -30_000, 30_000);
+                let qs = quiesce(&self.pos, &self.castling, &accs, -30_000, 30_000);
                 cp_wdl(qs)
             }
         }
@@ -241,7 +244,7 @@ impl<'a> Searcher<'a> {
             if REPORT {
                 println!(
                     "info move {} score wdl {:.2}% ({:.2} / {})",
-                    mov.to_uci(),
+                    mov.to_uci(&self.castling),
                     score * 100.0,
                     node.wins,
                     node.visits,
@@ -344,8 +347,8 @@ impl<'a> Searcher<'a> {
         }
 
         if self.tree.is_empty() {
-            let mut root_node = Node::new(&self.startpos, &[]);
-            root_node.expand(&self.startpos, self.policy);
+            let mut root_node = Node::new(&self.startpos, &[], &self.castling);
+            root_node.expand(&self.startpos, self.policy, &self.castling);
             self.tree.push(root_node);
         }
 
@@ -384,7 +387,7 @@ impl<'a> Searcher<'a> {
                     let elapsed = timer.elapsed();
                     let nps = nodes as f32 / elapsed.as_secs_f32();
                     let pv = pv_line.iter().fold(String::new(), |mut pv_str, mov| {
-                        write!(&mut pv_str, "{} ", mov.to_uci()).unwrap();
+                        write!(&mut pv_str, "{} ", mov.to_uci(&self.castling)).unwrap();
                         pv_str
                     });
 

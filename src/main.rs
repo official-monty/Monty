@@ -1,12 +1,13 @@
 use monty_engine::{uci, Searcher, TunableParams};
 
-use monty_core::{PolicyNetwork, Position, POLICY_NETWORK, STARTPOS};
+use monty_core::{Castling, PolicyNetwork, Position, POLICY_NETWORK, STARTPOS};
 
 use std::time::Instant;
 
 fn main() {
     // initialise engine
-    let mut pos = Position::parse_fen(STARTPOS);
+    let mut castling = Castling::default();
+    let mut pos = Position::parse_fen(STARTPOS, &mut castling);
     let mut params = TunableParams::default();
     let mut stack = Vec::new();
     let mut tree = Vec::new();
@@ -38,19 +39,20 @@ fn main() {
             "uci" => uci::preamble(),
             "isready" => uci::isready(),
             "setoption" => uci::setoption(&commands, &mut params, &mut report_moves),
-            "position" => uci::position(commands, &mut pos, &mut stack, &mut prevs),
+            "position" => uci::position(commands, &mut pos, &mut stack, &mut prevs, &mut castling),
             "go" => tree = uci::go(
                 &commands,
                 tree,
                 stack.clone(),
                 &pos,
+                &castling,
                 &params,
                 report_moves,
                 &policy,
                 &mut prevs,
             ),
-            "perft" => uci::run_perft(&commands, &pos),
-            "eval" => uci::eval(&pos, &policy),
+            "perft" => uci::run_perft(&commands, &pos, &castling),
+            "eval" => uci::eval(&pos, &policy, &castling),
             "quit" => std::process::exit(0),
             "ucinewgame" => prevs = None,
             _ => {}
@@ -66,8 +68,9 @@ fn run_bench(params: &TunableParams, policy: &PolicyNetwork) {
     let timer = Instant::now();
 
     for fen in bench_fens {
-        let pos = Position::parse_fen(fen);
-        let mut searcher = Searcher::new(pos, Vec::new(), 1_000_000, params.clone(), policy);
+        let mut castling = Castling::default();
+        let pos = Position::parse_fen(fen, &mut castling);
+        let mut searcher = Searcher::new(castling, pos, Vec::new(), 1_000_000, params.clone(), policy);
         searcher.search(None, 5, false, false, &mut total_nodes, None);
     }
 

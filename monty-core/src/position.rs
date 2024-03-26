@@ -3,6 +3,7 @@ use goober::SparseVector;
 use crate::{
     attacks::Attacks,
     consts::*,
+    frc::Castling,
     moves::{Move, MoveList},
     pop_lsb,
     value::{Accumulator, ValueNetwork},
@@ -376,7 +377,7 @@ impl Position {
         }
     }
 
-    pub fn make(&mut self, mov: Move, mut acc: Option<&mut [Accumulator; 2]>) {
+    pub fn make(&mut self, mov: Move, mut acc: Option<&mut [Accumulator; 2]>, castling: &Castling) {
         // extracting move info
         let side = usize::from(self.stm);
         let bb_to = 1 << mov.to();
@@ -389,7 +390,7 @@ impl Position {
         // updating state
         self.stm = !self.stm;
         self.enp_sq = 0;
-        self.rights &= CASTLE_MASK[usize::from(mov.to())] & CASTLE_MASK[usize::from(mov.from())];
+        self.rights &= castling.mask(usize::from(mov.to())) & castling.mask(usize::from(mov.from()));
         self.halfm += 1;
 
         if mov.moved() == Piece::PAWN as u8 || mov.is_capture() {
@@ -410,7 +411,10 @@ impl Position {
         match mov.flag() {
             Flag::DBL => self.enp_sq = mov.to() ^ 8,
             Flag::KS | Flag::QS => {
-                let (rfr, rto) = ROOK_MOVES[usize::from(mov.flag() == Flag::KS)][side];
+                let ks = usize::from(mov.flag() == Flag::KS);
+                let sf = 56 * side as u8;
+                let rfr = sf + castling.rook_file(side, ks);
+                let rto = sf + [3, 5][ks];
                 self.toggle::<false>(&mut acc, side, Piece::ROOK, rfr);
                 self.toggle::<true>(&mut acc, side, Piece::ROOK, rto);
             }
@@ -428,7 +432,7 @@ impl Position {
     // CREATE POSITION
 
     #[must_use]
-    pub fn parse_fen(fen: &str) -> Self {
+    pub fn parse_fen(fen: &str, castling: &mut Castling) -> Self {
         let mut pos = Self::default();
         let vec: Vec<&str> = fen.split_whitespace().collect();
         let p: Vec<char> = vec[0].chars().collect();
@@ -458,15 +462,7 @@ impl Position {
         pos.stm = vec[1] == "b";
 
         // castle rights
-        for ch in vec[2].chars() {
-            pos.rights |= match ch {
-                'Q' => Right::WQS,
-                'K' => Right::WKS,
-                'q' => Right::BQS,
-                'k' => Right::BKS,
-                _ => 0,
-            }
-        }
+        pos.rights = castling.parse(&pos, vec[2]);
 
         // en passant square
         pos.enp_sq = if vec[3] == "-" {
@@ -480,7 +476,7 @@ impl Position {
     }
 
     #[must_use]
-    pub fn gen<const QUIETS: bool>(&self) -> MoveList {
+    pub fn gen<const QUIETS: bool>(&self, castling: &Castling) -> MoveList {
         let mut moves = MoveList::default();
 
         let pinned = self.pinned();
@@ -495,14 +491,14 @@ impl Position {
         self.king_moves::<QUIETS>(&mut moves, threats);
 
         if checkers == 0 {
-            self.gen_pnbrq::<QUIETS>(&mut moves, u64::MAX, u64::MAX, pinned);
+            self.gen_pnbrq::<QUIETS>(&mut moves, u64::MAX, u64::MAX, pinned, castling);
             if QUIETS {
-                self.castles(&mut moves, self.occ(), threats);
+                self.castles(&mut moves, self.occ(), threats, castling, pinned);
             }
         } else if checkers & (checkers - 1) == 0 {
             let checker_sq = checkers.trailing_zeros() as usize;
             let free = IN_BETWEEN[king_sq][checker_sq];
-            self.gen_pnbrq::<QUIETS>(&mut moves, checkers, free, pinned);
+            self.gen_pnbrq::<QUIETS>(&mut moves, checkers, free, pinned, castling);
         }
 
         moves
@@ -534,6 +530,7 @@ impl Position {
         checkers: u64,
         free: u64,
         pinned: u64,
+        castling: &Castling,
     ) {
         let boys = self.boys();
         let pawns = self.piece(Piece::PAWN) & boys;
@@ -553,7 +550,7 @@ impl Position {
         }
 
         if self.enp_sq() > 0 {
-            self.en_passants(moves, pawns);
+            self.en_passants(moves, pawns, castling);
         }
 
         self.pawn_captures::<false>(moves, free_pawns, checkers);
@@ -565,35 +562,37 @@ impl Position {
         self.piece_moves::<QUIETS, { Piece::QUEEN }>(moves, check_mask, pinned);
     }
 
-    fn castles(&self, moves: &mut MoveList, occ: u64, threats: u64) {
+    fn castles(&self, moves: &mut MoveList, occ: u64, threats: u64, castling: &Castling, pinned: u64) {
+        let kbb = self.bb[Piece::KING] & self.bb[self.stm()];
+        let ksq = kbb.trailing_zeros() as u8;
+
+        let can_castle = |right: u8, kto: u64, rto: u64| {
+            let side = self.stm();
+            let ks = usize::from([Right::BKS, Right::WKS].contains(&right));
+            let bit = 1 << (56 * side + usize::from(castling.rook_file(side, ks)));
+
+            self.rights & right > 0
+                && bit & pinned == 0
+                && (occ ^ bit) & (btwn(kbb, kto) ^ kto) == 0
+                && (occ ^ kbb) & (btwn(bit, rto) ^ rto) == 0
+                && (btwn(kbb, kto) | kto) & threats == 0
+        };
+
         if self.stm() == Side::BLACK {
-            if self.can_castle::<{ Side::BLACK }, 0>(occ, threats, 59, 58) {
-                moves.push(60, 58, Flag::QS, Piece::KING);
+            if can_castle(Right::BQS, 1 << 58, 1 << 59) {
+                moves.push(ksq, 58, Flag::QS, Piece::KING);
             }
-            if self.can_castle::<{ Side::BLACK }, 1>(occ, threats, 61, 62) {
-                moves.push(60, 62, Flag::KS, Piece::KING);
+            if can_castle(Right::BKS, 1 << 62, 1 << 61) {
+                moves.push(ksq, 62, Flag::KS, Piece::KING);
             }
         } else {
-            if self.can_castle::<{ Side::WHITE }, 0>(occ, threats, 3, 2) {
-                moves.push(4, 2, Flag::QS, Piece::KING);
+            if can_castle(Right::WQS, 1 << 2, 1 << 3) {
+                moves.push(ksq, 2, Flag::QS, Piece::KING);
             }
-            if self.can_castle::<{ Side::WHITE }, 1>(occ, threats, 5, 6) {
-                moves.push(4, 6, Flag::KS, Piece::KING);
+            if can_castle(Right::WKS, 1 << 6, 1 << 5) {
+                moves.push(ksq, 6, Flag::KS, Piece::KING);
             }
         }
-    }
-
-    fn can_castle<const SIDE: usize, const KS: usize>(
-        &self,
-        occ: u64,
-        threats: u64,
-        sq1: usize,
-        sq2: usize,
-    ) -> bool {
-        let path = (1 << sq1) | (1 << sq2);
-        self.rights() & Right::TABLE[SIDE][KS] > 0
-            && occ & Path::TABLE[SIDE][KS] == 0
-            && path & threats == 0
     }
 
     #[must_use]
@@ -759,7 +758,7 @@ impl Position {
         }
     }
 
-    fn en_passants(&self, moves: &mut MoveList, pawns: u64) {
+    fn en_passants(&self, moves: &mut MoveList, pawns: u64, castling: &Castling) {
         let mut attackers = Attacks::pawn(usize::from(self.enp_sq()), self.stm() ^ 1) & pawns;
 
         while attackers > 0 {
@@ -767,7 +766,7 @@ impl Position {
 
             let mut tmp = *self;
             let mov = Move::new(from, self.enp_sq(), Flag::ENP, Piece::PAWN as u8);
-            tmp.make(mov, None);
+            tmp.make(mov, None, castling);
 
             let king = (tmp.piece(Piece::KING) & tmp.opps()).trailing_zeros() as usize;
             if !tmp.is_square_attacked(king, self.stm(), tmp.occ()) {
@@ -809,7 +808,21 @@ impl Position {
 
         fen.push(' ');
         fen.push(['w', 'b'][self.stm()]);
-        fen.push_str(" - - 0 1");
+        fen.push(' ');
+
+        if self.rights == 0 {
+            fen.push('-');
+        } else {
+            let mut r = self.rights;
+            while r > 0 {
+                let q = r.trailing_zeros();
+                r &= r - 1;
+                fen.push(['k', 'q', 'K', 'Q'][q as usize]);
+            }
+        }
+
+
+        fen.push_str(" - 0 1");
 
         fen
     }
@@ -866,9 +879,14 @@ fn idx_shift<const SIDE: usize, const AMOUNT: u8>(idx: u8) -> u8 {
     }
 }
 
+fn btwn(bit1: u64, bit2: u64) -> u64 {
+    let min = bit1.min(bit2);
+    (bit1.max(bit2) - min) ^ min
+}
+
 #[must_use]
-pub fn perft<const ROOT: bool, const BULK: bool>(pos: &Position, depth: u8) -> u64 {
-    let moves = pos.gen::<true>();
+pub fn perft<const ROOT: bool, const BULK: bool>(pos: &Position, depth: u8, castling: &Castling) -> u64 {
+    let moves = pos.gen::<true>(castling);
 
     if BULK && !ROOT && depth == 1 {
         return moves.len() as u64;
@@ -879,17 +897,17 @@ pub fn perft<const ROOT: bool, const BULK: bool>(pos: &Position, depth: u8) -> u
 
     for m_idx in 0..moves.len() {
         let mut tmp = *pos;
-        tmp.make(moves[m_idx], None);
+        tmp.make(moves[m_idx], None, castling);
 
         let num = if !BULK && leaf {
             1
         } else {
-            perft::<false, BULK>(&tmp, depth - 1)
+            perft::<false, BULK>(&tmp, depth - 1, castling)
         };
         positions += num;
 
         if ROOT {
-            println!("{}: {num}", moves[m_idx].to_uci());
+            println!("{}: {num}", moves[m_idx].to_uci(castling));
         }
     }
 

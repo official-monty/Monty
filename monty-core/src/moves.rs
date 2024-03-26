@@ -1,4 +1,4 @@
-use crate::{consts::Flag, position::Position, PolicyNetwork};
+use crate::{consts::Flag, frc::Castling, position::Position, PolicyNetwork};
 
 #[macro_export]
 macro_rules! pop_lsb {
@@ -101,15 +101,22 @@ impl Move {
         }
     }
 
-    #[must_use]
-    pub fn to_uci(self) -> String {
+    pub fn to_uci(self, castling: &Castling) -> String {
         let idx_to_sq = |i| format!("{}{}", ((i & 7) + b'a') as char, (i / 8) + 1);
         let promo = if self.flag & 0b1000 > 0 {
             ["n", "b", "r", "q"][(self.flag & 0b11) as usize]
         } else {
             ""
         };
-        format!("{}{}{}", idx_to_sq(self.from), idx_to_sq(self.to), promo)
+
+        let to = if castling.is_chess960() && [Flag::QS, Flag::KS].contains(&self.flag) {
+            let sf = 56 * (self.to / 56);
+            sf + castling.rook_file(usize::from(sf > 0), usize::from(self.flag == Flag::KS))
+        } else {
+            self.to
+        };
+
+        format!("{}{}{}", idx_to_sq(self.from), idx_to_sq(to), promo)
     }
 }
 

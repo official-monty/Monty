@@ -1,4 +1,4 @@
-use monty_core::{Move, Position};
+use monty_core::{Castling, Move, Position};
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug)]
@@ -58,7 +58,7 @@ impl std::fmt::Debug for TrainingPosition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "FEN: {}", self.board().to_fen())?;
         for mov in self.moves() {
-            writeln!(f, "{}: {}", mov.mov(self.board()).to_uci(), mov.visits)?;
+            writeln!(f, "{}: {}", mov.mov(self.board()).to_uci(&Castling::default()), mov.visits)?;
         }
         Ok(())
     }
