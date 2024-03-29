@@ -3,7 +3,7 @@ use bullet::{
     TrainingSchedule, WdlScheduler,
 };
 
-const HIDDEN_SIZE: usize = 8;
+const HIDDEN_SIZE: usize = 32;
 const PER_TUPLE: usize = 3usize.pow(4);
 const NUM_TUPLES: usize = 36;
 
@@ -19,7 +19,7 @@ pub fn train_value() {
         .build();
 
     let schedule = TrainingSchedule {
-        net_id: "ataxx-value005".to_string(),
+        net_id: "ataxx-value006".to_string(),
         eval_scale: 400.0,
         batch_size: 16_384,
         batches_per_superbatch: 512,
