@@ -119,16 +119,6 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
 
             let (bm, score) = searcher.search(limits, false, false, &mut 0, None);
 
-            // adjudicate
-            if score > 0.97 {
-                if position.stm() == 1 {
-                    result = 0.0;
-                } else {
-                    result = 1.0;
-                }
-                break;
-            }
-
             let tree = searcher.tree();
             let root_moves = tree[0].moves();
 
