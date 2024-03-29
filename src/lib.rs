@@ -1,3 +1,4 @@
+pub mod ataxx;
 pub mod chess;
 mod comm;
 mod game;

@@ -60,7 +60,7 @@ impl TunableParams {
         match name {
             "cpuct" => self.cpuct.set(val),
             "mate_bonus" => self.mate_bonus.set(val),
-            _ => panic!("unknown option!"),
+            _ => println!("unknown option!"),
         }
     }
 }

@@ -1,3 +1,6 @@
 /target
-policy-*
+*-policy-*
 *.data
+*.exe
+checkpoints
+data

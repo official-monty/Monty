@@ -31,9 +31,9 @@ impl<T: GameRep> Node<T> {
         }
     }
 
-    fn expand(&mut self, pos: &T, policy: &T::Policy) {
+    fn expand(&mut self, pos: &T) {
         self.moves = pos.gen_legal_moves();
-        pos.set_policies(policy, &mut self.moves);
+        pos.set_policies(&mut self.moves);
         self.left = self.moves.len();
     }
 
@@ -50,29 +50,23 @@ impl<T: GameRep> Node<T> {
     }
 }
 
-pub struct Searcher<'a, T: GameRep> {
+pub struct Searcher<T: GameRep> {
     root_position: T,
     tree: Vec<Node<T>>,
     selection: Vec<i32>,
-    policy: &'a T::Policy,
-    value: &'a T::Value,
     params: TunableParams,
 }
 
-impl<'a, T: GameRep> Searcher<'a, T> {
+impl<T: GameRep> Searcher<T> {
     pub fn new(
         root_position: T,
         tree: Vec<Node<T>>,
-        policy: &'a T::Policy,
-        value: &'a T::Value,
         params: TunableParams,
     ) -> Self {
         Self {
             root_position,
             tree,
             selection: Vec::new(),
-            policy,
-            value,
             params,
         }
     }
@@ -128,7 +122,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
             let node = &mut self.tree[node_ptr as usize];
 
             if node_ptr != 0 && node.visits == 1 {
-                node.expand(pos, self.policy);
+                node.expand(pos);
             }
 
             let node = &self.tree[node_ptr as usize];
@@ -190,7 +184,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         let node = &self.tree[node_ptr as usize];
 
         match node.state {
-            GameState::Ongoing => pos.get_value(self.value),
+            GameState::Ongoing => pos.get_value(),
             GameState::Draw => 0.5,
             GameState::Lost => -self.params.mate_bonus(),
             GameState::Won => 1.0 + self.params.mate_bonus(),
@@ -325,7 +319,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
 
         if self.tree.is_empty() {
             let mut root_node = Node::new(&self.root_position);
-            root_node.expand(&self.root_position, self.policy);
+            root_node.expand(&self.root_position);
             self.tree.push(root_node);
         }
 

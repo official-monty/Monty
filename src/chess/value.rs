@@ -18,7 +18,7 @@ pub struct ValueNetwork {
 }
 
 pub static NNUE: ValueNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/net.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/chess-value.bin")) };
 
 impl ValueNetwork {
     pub fn out(boys: &Accumulator, opps: &Accumulator) -> i32 {

@@ -45,8 +45,6 @@ pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {
 pub fn run_datagen<T: DatagenSupport>(
     nodes: usize,
     threads: usize,
-    policy: &T::Policy,
-    value: &T::Value,
 ) {
     let params = TunableParams::default();
     let stop_base = AtomicBool::new(false);
@@ -55,11 +53,10 @@ pub fn run_datagen<T: DatagenSupport>(
     std::thread::scope(|s| {
         for i in 0..threads {
             let params = params.clone();
-            let policy = &policy;
             std::thread::sleep(Duration::from_millis(10));
             s.spawn(move || {
                 let mut thread =
-                    DatagenThread::<T>::new(i as u32, params.clone(), policy, value, stop);
+                    DatagenThread::<T>::new(i as u32, params.clone(), stop);
                 thread.run(nodes);
             });
         }

@@ -11,10 +11,11 @@ pub trait UciLike: Sized {
     const NAME: &'static str;
     const NEWGAME: &'static str;
     const OK: &'static str;
+    const FEN_STRING: &'static str;
 
     fn options();
 
-    fn run(policy: &<Self::Game as GameRep>::Policy, value: &<Self::Game as GameRep>::Value) {
+    fn run() {
         let mut prevs = None;
         let mut pos = Self::Game::default();
         let mut params = TunableParams::default();
@@ -43,13 +44,12 @@ pub trait UciLike: Sized {
                         &pos,
                         &params,
                         report_moves,
-                        policy,
-                        value,
                         &mut prevs,
                     )
                 }
                 "perft" => run_perft::<Self::Game>(&commands, &pos),
                 "quit" => std::process::exit(0),
+                "eval" => println!("value: {}%", 100.0 * pos.get_value()),
                 _ => {
                     if cmd == Self::NAME {
                         preamble::<Self>();
@@ -63,14 +63,10 @@ pub trait UciLike: Sized {
 
     fn bench(
         depth: usize,
-        policy: &<Self::Game as GameRep>::Policy,
-        value: &<Self::Game as GameRep>::Value,
         params: &TunableParams,
     ) {
-        const FEN_STRING: &str = include_str!("../resources/fens.txt");
-
         let mut total_nodes = 0;
-        let bench_fens = FEN_STRING.split('\n').collect::<Vec<&str>>();
+        let bench_fens = Self::FEN_STRING.split('\n').collect::<Vec<&str>>();
         let timer = Instant::now();
 
         let limits = Limits {
@@ -81,7 +77,7 @@ pub trait UciLike: Sized {
 
         for fen in bench_fens {
             let pos = Self::Game::from_fen(fen);
-            let mut searcher = Searcher::new(pos, Vec::new(), policy, value, params.clone());
+            let mut searcher = Searcher::new(pos, Vec::new(), params.clone());
             searcher.search(limits, false, false, &mut total_nodes, None);
         }
 
@@ -112,7 +108,7 @@ fn setoption(commands: &[&str], params: &mut TunableParams, report_moves: &mut b
             return;
         }
 
-        (*x, y.parse::<i32>().unwrap())
+        (*x, y.parse::<i32>().unwrap_or(0))
     } else {
         return;
     };
@@ -168,8 +164,6 @@ fn go<T: GameRep>(
     pos: &T,
     params: &TunableParams,
     report_moves: bool,
-    policy: &T::Policy,
-    value: &T::Value,
     prevs: &mut Option<(T::Move, T::Move)>,
 ) -> Vec<Node<T>> {
     let mut max_nodes = 10_000_000;
@@ -209,10 +203,10 @@ fn go<T: GameRep>(
     let mut time = None;
 
     // `go wtime <wtime> btime <btime> winc <winc> binc <binc>``
-    if let Some(t) = times[pos.stm()] {
+    if let Some(t) = times[pos.tm_stm()] {
         let mut base = t / movestogo.max(1);
 
-        if let Some(i) = incs[pos.stm()] {
+        if let Some(i) = incs[pos.tm_stm()] {
             base += i * 3 / 4;
         }
 
@@ -230,7 +224,7 @@ fn go<T: GameRep>(
         *t = t.saturating_sub(5);
     }
 
-    let mut searcher = Searcher::new(pos.clone(), tree, policy, value, params.clone());
+    let mut searcher = Searcher::new(pos.clone(), tree, params.clone());
 
     let limits = Limits {
         max_time: time,

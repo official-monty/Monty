@@ -17,6 +17,7 @@ cargo b -r
 and the executable will be located at `target/release/monty[.exe]`.
 
 ## Supported Games
+- Ataxx
 - Chess
 
 ## How it works

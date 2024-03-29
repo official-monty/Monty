@@ -14,32 +14,28 @@ pub struct DatagenThread<'a, T: DatagenSupport> {
     id: u32,
     rng: Rand,
     params: TunableParams,
-    policy: &'a T::Policy,
-    value: &'a T::Value,
     skipped: usize,
     total: usize,
     timer: Instant,
     stop: &'a AtomicBool,
+    marker: std::marker::PhantomData<T>,
 }
 
 impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
     pub fn new(
         id: u32,
         params: TunableParams,
-        policy: &'a T::Policy,
-        value: &'a T::Value,
         stop: &'a AtomicBool,
     ) -> Self {
         Self {
             id,
             rng: Rand::with_seed(),
             params,
-            policy,
-            value,
             skipped: 0,
             total: 0,
             timer: Instant::now(),
             stop,
+            marker: std::marker::PhantomData,
         }
     }
 
@@ -112,8 +108,6 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
             let mut searcher = Searcher::new(
                 position.clone(),
                 Vec::new(),
-                self.policy,
-                self.value,
                 self.params.clone(),
             );
 

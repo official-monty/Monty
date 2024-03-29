@@ -49,7 +49,7 @@ impl DatagenSupport for Chess {
 
     fn into_policy(pos: &Self, mut score: f32) -> Self::PolicyData {
         if pos.stm() == 1 {
-            score = -score;
+            score = 1.0 - score;
         }
 
         ChessPolicyData {

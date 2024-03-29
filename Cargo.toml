@@ -10,6 +10,9 @@ strip = true
 lto = true
 codegen-units = 1
 
+[features]
+ataxx = []
+
 [dependencies]
 goober = { git = 'https://github.com/jw1912/goober.git' }
 

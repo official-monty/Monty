@@ -1,6 +1,6 @@
-use datagen::{impls::chess::ChessPolicyData, to_slice_with_lifetime, Rand};
+use datagen::{impls::ataxx::AtaxxPolicyData, to_slice_with_lifetime, Rand};
 use goober::{FeedForwardNetwork, OutputLayer};
-use monty::chess::{consts::Flag, PolicyNetwork, SubNet};
+use monty::ataxx::{PolicyNetwork, SubNet};
 
 use std::{
     fs::File,
@@ -16,14 +16,14 @@ pub fn train_policy(threads: usize, data_path: &str) {
 
     let mut policy = PolicyNetwork::boxed_and_zeroed();
     let mut rng = Rand::with_seed();
-    for subnet in policy.weights.iter_mut() {
+    for subnet in policy.subnets.iter_mut() {
         *subnet = SubNet::from_fn(|| rng.rand_f32(0.2));
     }
 
     println!("# [Info]");
     println!(
         "> {} Positions",
-        file.metadata().unwrap().len() / std::mem::size_of::<ChessPolicyData>() as u64,
+        file.metadata().unwrap().len() / std::mem::size_of::<AtaxxPolicyData>() as u64,
     );
 
     let mut lr = 0.001;
@@ -44,8 +44,8 @@ pub fn train_policy(threads: usize, data_path: &str) {
         if iteration % LR_DROP == 0 {
             lr *= 0.1;
         }
-        println!("{:?}", policy.hce);
-        policy.write_to_bin(format!("checkpoints/chess-policy-{iteration}.bin").as_str());
+
+        policy.write_to_bin(format!("checkpoints/ataxx-policy-{iteration}.bin").as_str());
     }
 }
 
@@ -60,9 +60,9 @@ fn train(
     let mut running_error = 0.0;
     let mut num = 0;
 
-    let cap = 128 * BATCH_SIZE * std::mem::size_of::<ChessPolicyData>();
+    let cap = 128 * BATCH_SIZE * std::mem::size_of::<AtaxxPolicyData>();
     let file = File::open(path).unwrap();
-    let size = file.metadata().unwrap().len() as usize / std::mem::size_of::<ChessPolicyData>();
+    let size = file.metadata().unwrap().len() as usize / std::mem::size_of::<AtaxxPolicyData>();
     let mut loaded = BufReader::with_capacity(cap, file);
     let mut batch_no = 0;
     let num_batches = (size + BATCH_SIZE - 1) / BATCH_SIZE;
@@ -93,9 +93,6 @@ fn train(
     println!("> Running Loss: {}", running_error / num as f32);
 }
 
-const B1: f32 = 0.9;
-const B2: f32 = 0.999;
-
 fn update(
     policy: &mut PolicyNetwork,
     grad: &PolicyNetwork,
@@ -104,24 +101,14 @@ fn update(
     momentum: &mut PolicyNetwork,
     velocity: &mut PolicyNetwork,
 ) {
-    for (i, subnet) in policy.weights.iter_mut().enumerate() {
+    for (i, subnet) in policy.subnets.iter_mut().enumerate() {
         subnet.adam(
-            &grad.weights[i],
-            &mut momentum.weights[i],
-            &mut velocity.weights[i],
+            &grad.subnets[i],
+            &mut momentum.subnets[i],
+            &mut velocity.subnets[i],
             adj,
             lr,
         );
-    }
-
-    for (i, p) in policy.hce.iter_mut().enumerate() {
-        let g = adj * grad.hce[i];
-        let m = &mut momentum.hce[i];
-        let v = &mut velocity.hce[i];
-
-        *m = B1 * *m + (1. - B1) * g;
-        *v = B2 * *v + (1. - B2) * g * g;
-        *p -= lr * *m / (v.sqrt() + 0.000_000_01);
     }
 }
 
@@ -129,7 +116,7 @@ fn gradient_batch(
     threads: usize,
     policy: &PolicyNetwork,
     grad: &mut PolicyNetwork,
-    batch: &[ChessPolicyData],
+    batch: &[AtaxxPolicyData],
 ) -> f32 {
     let size = (batch.len() / threads).max(1);
     let mut errors = vec![0.0; threads];
@@ -157,7 +144,7 @@ fn gradient_batch(
 }
 
 fn update_single_grad(
-    pos: &ChessPolicyData,
+    pos: &AtaxxPolicyData,
     policy: &PolicyNetwork,
     grad: &mut PolicyNetwork,
     error: &mut f32,
@@ -171,38 +158,33 @@ fn update_single_grad(
     let mut total_visits = 0;
     let mut max = -1000.0;
 
-    let flip = board.flip_val();
+    for mov in &pos.moves[..pos.num] {
+        let visits = mov.visits;
+        let from = usize::from(mov.from.min(49));
+        let to = 50 + usize::from(mov.to.min(48));
 
-    for training_mov in &pos.moves[..pos.num] {
-        let mov = board.move_from_u16(training_mov.mov);
+        let from_out = policy.subnets[from].out_with_layers(&feats);
+        let to_out = policy.subnets[to].out_with_layers(&feats);
 
-        let visits = training_mov.visits;
-        let from = usize::from(mov.from() ^ flip);
-        let to = 64 + usize::from(mov.to() ^ flip);
-
-        let from_out = policy.weights[from].out_with_layers(&feats);
-        let to_out = policy.weights[to].out_with_layers(&feats);
-
-        let net_out = from_out.output_layer().dot(&to_out.output_layer());
-
-        let score = net_out + policy.hce(&mov, &board);
+        let score = from_out.output_layer().dot(&to_out.output_layer());
 
         if score > max {
             max = score;
         }
 
         total_visits += visits;
-        policies.push((mov, visits, score, from_out, to_out));
+        policies.push((mov, score, from_out, to_out));
     }
 
-    for (_, _, score, _, _) in policies.iter_mut() {
+    for (_, score, _, _) in policies.iter_mut() {
         *score = (*score - max).exp();
         total += *score;
     }
 
-    for (mov, visits, score, from_out, to_out) in policies {
-        let from = usize::from(mov.from() ^ flip);
-        let to = 64 + usize::from(mov.to() ^ flip);
+    for (mov, score, from_out, to_out) in policies {
+        let visits = mov.visits;
+        let from = usize::from(mov.from.min(49));
+        let to = 50 + usize::from(mov.to.min(48));
 
         let ratio = score / total;
 
@@ -213,33 +195,18 @@ fn update_single_grad(
 
         let factor = err;
 
-        policy.weights[from].backprop(
+        policy.subnets[from].backprop(
             &feats,
-            &mut grad.weights[from],
+            &mut grad.subnets[from],
             factor * to_out.output_layer(),
             &from_out,
         );
 
-        policy.weights[to].backprop(
+        policy.subnets[to].backprop(
             &feats,
-            &mut grad.weights[to],
+            &mut grad.subnets[to],
             factor * from_out.output_layer(),
             &to_out,
         );
-
-        if board.see(&mov, -108) {
-            grad.hce[0] += factor;
-        }
-
-        if [Flag::QPR, Flag::QPC].contains(&mov.flag()) {
-            grad.hce[1] += factor;
-        }
-
-        if mov.is_capture() {
-            grad.hce[2] += factor;
-
-            let diff = board.get_pc(1 << mov.to()) as i32 - i32::from(mov.moved());
-            grad.hce[3] += factor * diff as f32;
-        }
     }
 }
