@@ -130,4 +130,3 @@ pub fn serialise(moves: &mut MoveList<Move>, mut attacks: u64, from: u8, flag: u
         moves.push(Move::new(from, to, flag, pc));
     }
 }
-

@@ -7,11 +7,19 @@ mod policy;
 mod qsearch;
 mod value;
 
-use crate::{comm::UciLike, game::{GameRep, GameState}, moves::{MoveList, MoveType}};
+use crate::{
+    comm::UciLike,
+    game::{GameRep, GameState},
+    moves::{MoveList, MoveType},
+};
 
 use self::{frc::Castling, moves::Move, qsearch::quiesce};
 
-pub use self::{board::Board, policy::{POLICY_NETWORK, PolicyNetwork, SubNet}, value::{NNUE, ValueNetwork}};
+pub use self::{
+    board::Board,
+    policy::{PolicyNetwork, SubNet, POLICY_NETWORK},
+    value::{ValueNetwork, NNUE},
+};
 
 const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -40,7 +48,11 @@ impl Default for Chess {
         let mut castling = Castling::default();
         let board = Board::parse_fen(STARTPOS, &mut castling);
 
-        Self { board, castling, stack: Vec::new() }
+        Self {
+            board,
+            castling,
+            stack: Vec::new(),
+        }
     }
 }
 
@@ -69,7 +81,11 @@ impl GameRep for Chess {
         let mut castling = Castling::default();
         let board = Board::parse_fen(fen, &mut castling);
 
-        Self { board, castling, stack: Vec::new() }
+        Self {
+            board,
+            castling,
+            stack: Vec::new(),
+        }
     }
 
     fn gen_legal_moves(&self) -> MoveList<Move> {

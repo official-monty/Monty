@@ -1,10 +1,16 @@
-use super::{value::Accumulator, frc::Castling, moves::Move, board::Board};
+use super::{board::Board, frc::Castling, moves::Move, value::Accumulator};
 
 fn mvv_lva(mov: &Move, pos: &Board) -> i32 {
     8 * pos.get_pc(1 << mov.to()) as i32 - mov.moved() as i32
 }
 
-pub fn quiesce(pos: &Board, castling: &Castling, acc: &[Accumulator; 2], mut alpha: i32, beta: i32) -> i32 {
+pub fn quiesce(
+    pos: &Board,
+    castling: &Castling,
+    acc: &[Accumulator; 2],
+    mut alpha: i32,
+    beta: i32,
+) -> i32 {
     let mut eval = pos.eval_from_acc(acc);
 
     // stand-pat

@@ -1,6 +1,6 @@
-use super::{consts::Flag, moves::Move, board::Board};
+use super::{board::Board, consts::Flag, moves::Move};
 
-use goober::{activation, layer, FeedForwardNetwork, SparseVector, Matrix, Vector};
+use goober::{activation, layer, FeedForwardNetwork, Matrix, SparseVector, Vector};
 
 pub static POLICY_NETWORK: PolicyNetwork =
     unsafe { std::mem::transmute(*include_bytes!("../../resources/policy.bin")) };

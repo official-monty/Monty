@@ -1,4 +1,8 @@
-use crate::{game::GameRep, mcts::{Limits, Node, Searcher}, params::TunableParams};
+use crate::{
+    game::GameRep,
+    mcts::{Limits, Node, Searcher},
+    params::TunableParams,
+};
 
 use std::time::Instant;
 
@@ -10,10 +14,7 @@ pub trait UciLike: Sized {
 
     fn options();
 
-    fn run(
-        policy: &<Self::Game as GameRep>::Policy,
-        value: &<Self::Game as GameRep>::Value,
-    ) {
+    fn run(policy: &<Self::Game as GameRep>::Policy, value: &<Self::Game as GameRep>::Value) {
         let mut prevs = None;
         let mut pos = Self::Game::default();
         let mut params = TunableParams::default();
@@ -35,7 +36,18 @@ pub trait UciLike: Sized {
                 "isready" => println!("readyok"),
                 "setoption" => setoption(&commands, &mut params, &mut report_moves),
                 "position" => position(commands, &mut pos, &mut prevs),
-                "go" => tree = go(&commands, tree, &pos, &params, report_moves, policy, value, &mut prevs),
+                "go" => {
+                    tree = go(
+                        &commands,
+                        tree,
+                        &pos,
+                        &params,
+                        report_moves,
+                        policy,
+                        value,
+                        &mut prevs,
+                    )
+                }
                 "perft" => run_perft::<Self::Game>(&commands, &pos),
                 "quit" => std::process::exit(0),
                 _ => {
@@ -49,7 +61,12 @@ pub trait UciLike: Sized {
         }
     }
 
-    fn bench(depth: usize, policy: &<Self::Game as GameRep>::Policy, value: &<Self::Game as GameRep>::Value, params: &TunableParams) {
+    fn bench(
+        depth: usize,
+        policy: &<Self::Game as GameRep>::Policy,
+        value: &<Self::Game as GameRep>::Value,
+        params: &TunableParams,
+    ) {
         const FEN_STRING: &str = include_str!("../resources/fens.txt");
 
         let mut total_nodes = 0;
@@ -181,10 +198,10 @@ fn go<T: GameRep>(
                 "depth" => max_depth = cmd.parse().unwrap_or(max_depth),
                 "wtime" => times[0] = Some(cmd.parse().unwrap_or(0)),
                 "btime" => times[1] = Some(cmd.parse().unwrap_or(0)),
-                "winc" =>  incs[0]= Some(cmd.parse().unwrap_or(0)),
-                "binc" =>  incs[1]= Some(cmd.parse().unwrap_or(0)),
+                "winc" => incs[0] = Some(cmd.parse().unwrap_or(0)),
+                "binc" => incs[1] = Some(cmd.parse().unwrap_or(0)),
                 "movestogo" => movestogo = cmd.parse().unwrap_or(30),
-                _ => mode = "none"
+                _ => mode = "none",
             },
         }
     }
@@ -213,13 +230,7 @@ fn go<T: GameRep>(
         *t = t.saturating_sub(5);
     }
 
-    let mut searcher = Searcher::new(
-        pos.clone(),
-        tree,
-        policy,
-        value,
-        params.clone(),
-    );
+    let mut searcher = Searcher::new(pos.clone(), tree, policy, value, params.clone());
 
     let limits = Limits {
         max_time: time,

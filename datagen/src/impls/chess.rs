@@ -1,5 +1,8 @@
 use bulletformat::ChessBoard;
-use monty::{chess::{Chess, Board}, GameRep};
+use monty::{
+    chess::{Board, Chess},
+    GameRep,
+};
 
 use crate::{DatagenSupport, PolicyFormat};
 

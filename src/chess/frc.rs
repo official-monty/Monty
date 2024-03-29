@@ -1,6 +1,6 @@
 use super::{
-    consts::{Piece, Right, Side},
     board::Board,
+    consts::{Piece, Right, Side},
 };
 
 #[derive(Clone, Copy)]
@@ -68,13 +68,7 @@ impl Castling {
         rights
     }
 
-    fn parse_castle(
-        &mut self,
-        pos: &Board,
-        side: usize,
-        kings: &mut [usize; 2],
-        ch: char,
-    ) -> u8 {
+    fn parse_castle(&mut self, pos: &Board, side: usize, kings: &mut [usize; 2], ch: char) -> u8 {
         self.chess960 = true;
 
         let wkc = (pos.piece(side) & pos.piece(Piece::KING)).trailing_zeros() as u8 & 7;

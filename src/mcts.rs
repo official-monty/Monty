@@ -1,6 +1,7 @@
 use crate::{
     game::{GameRep, GameState},
-    moves::{MoveList, MoveType}, params::TunableParams,
+    moves::{MoveList, MoveType},
+    params::TunableParams,
 };
 
 use std::{fmt::Write, time::Instant};
@@ -301,7 +302,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         report_moves: bool,
         uci_output: bool,
         total_nodes: &mut usize,
-        prevs: Option<(T::Move, T::Move)>
+        prevs: Option<(T::Move, T::Move)>,
     ) -> (T::Move, f32) {
         let timer = Instant::now();
 
@@ -365,7 +366,8 @@ impl<'a, T: GameRep> Searcher<'a, T> {
                     let elapsed = timer.elapsed();
                     let nps = nodes as f32 / elapsed.as_secs_f32();
                     let pv = pv_line.iter().fold(String::new(), |mut pv_str, mov| {
-                        write!(&mut pv_str, "{} ", self.root_position.conv_mov_to_str(*mov)).unwrap();
+                        write!(&mut pv_str, "{} ", self.root_position.conv_mov_to_str(*mov))
+                            .unwrap();
                         pv_str
                     });
 
@@ -386,7 +388,6 @@ impl<'a, T: GameRep> Searcher<'a, T> {
                     break;
                 }
             }
-
 
             nodes += 1;
         }

@@ -1,12 +1,12 @@
 use goober::SparseVector;
 
-use crate::{pop_lsb, game::GameState, moves::MoveList};
+use crate::{game::GameState, moves::MoveList, pop_lsb};
 
 use super::{
     attacks::Attacks,
     consts::*,
     frc::Castling,
-    moves::{Move, serialise},
+    moves::{serialise, Move},
     value::{Accumulator, ValueNetwork},
 };
 
@@ -396,7 +396,8 @@ impl Board {
         // updating state
         self.stm = !self.stm;
         self.enp_sq = 0;
-        self.rights &= castling.mask(usize::from(mov.to())) & castling.mask(usize::from(mov.from()));
+        self.rights &=
+            castling.mask(usize::from(mov.to())) & castling.mask(usize::from(mov.from()));
         self.halfm += 1;
 
         if mov.moved() == Piece::PAWN as u8 || mov.is_capture() {
@@ -568,7 +569,14 @@ impl Board {
         self.piece_moves::<QUIETS, { Piece::QUEEN }>(moves, check_mask, pinned);
     }
 
-    fn castles(&self, moves: &mut MoveList<Move>, occ: u64, threats: u64, castling: &Castling, pinned: u64) {
+    fn castles(
+        &self,
+        moves: &mut MoveList<Move>,
+        occ: u64,
+        threats: u64,
+        castling: &Castling,
+        pinned: u64,
+    ) {
         let kbb = self.bb[Piece::KING] & self.bb[self.stm()];
         let ksq = kbb.trailing_zeros() as u8;
 
@@ -827,14 +835,16 @@ impl Board {
             }
         }
 
-
         fen.push_str(" - 0 1");
 
         fen
     }
 
     pub fn coloured_board(&self, counts: &[i32; 64], weights: &[f32; 64]) -> String {
-        let pcs = [['p', 'n', 'b', 'r', 'q', 'k'], ['P', 'N', 'B', 'R', 'Q', 'K']];
+        let pcs = [
+            ['p', 'n', 'b', 'r', 'q', 'k'],
+            ['P', 'N', 'B', 'R', 'Q', 'K'],
+        ];
 
         let mut string = "+-----------------+\n".to_string();
 

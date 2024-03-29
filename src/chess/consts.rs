@@ -1,5 +1,5 @@
-use crate::init;
 use super::attacks::line_through;
+use crate::init;
 
 pub struct Side;
 impl Side {

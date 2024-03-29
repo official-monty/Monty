@@ -1,6 +1,6 @@
-use datagen::{Rand, impls::chess::ChessPolicyData, to_slice_with_lifetime};
-use monty::chess::{PolicyNetwork, SubNet, consts::Flag};
+use datagen::{impls::chess::ChessPolicyData, to_slice_with_lifetime, Rand};
 use goober::{FeedForwardNetwork, OutputLayer};
+use monty::chess::{consts::Flag, PolicyNetwork, SubNet};
 
 use std::{
     fs::File,

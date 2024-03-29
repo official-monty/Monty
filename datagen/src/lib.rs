@@ -2,11 +2,14 @@ pub mod impls;
 mod rng;
 mod thread;
 
-use std::{sync::atomic::{AtomicBool, Ordering}, time::Duration};
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
 
 use bulletformat::BulletFormat;
 pub use rng::Rand;
-pub use thread::{DatagenThread, write};
+pub use thread::{write, DatagenThread};
 
 use monty::{GameRep, TunableParams};
 
@@ -39,7 +42,12 @@ pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {
     unsafe { std::slice::from_raw_parts(slice.as_ptr().cast(), len) }
 }
 
-pub fn run_datagen<T: DatagenSupport>(nodes: usize, threads: usize, policy: &T::Policy, value: &T::Value) {
+pub fn run_datagen<T: DatagenSupport>(
+    nodes: usize,
+    threads: usize,
+    policy: &T::Policy,
+    value: &T::Value,
+) {
     let params = TunableParams::default();
     let stop_base = AtomicBool::new(false);
     let stop = &stop_base;
@@ -50,7 +58,8 @@ pub fn run_datagen<T: DatagenSupport>(nodes: usize, threads: usize, policy: &T::
             let policy = &policy;
             std::thread::sleep(Duration::from_millis(10));
             s.spawn(move || {
-                let mut thread = DatagenThread::<T>::new(i as u32, params.clone(), policy, value, stop);
+                let mut thread =
+                    DatagenThread::<T>::new(i as u32, params.clone(), policy, value, stop);
                 thread.run(nodes);
             });
         }

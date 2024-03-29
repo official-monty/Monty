@@ -1,12 +1,13 @@
-use crate::{DatagenSupport, Rand, PolicyFormat, to_slice_with_lifetime};
+use crate::{to_slice_with_lifetime, DatagenSupport, PolicyFormat, Rand};
 
 use bulletformat::BulletFormat;
-use monty::{GameState, Limits, Searcher, TunableParams, MoveType};
+use monty::{GameState, Limits, MoveType, Searcher, TunableParams};
 
 use std::{
     fs::File,
     io::{BufWriter, Write},
-    sync::atomic::{AtomicBool, Ordering}, time::Instant,
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
 };
 
 pub struct DatagenThread<'a, T: DatagenSupport> {
@@ -22,7 +23,13 @@ pub struct DatagenThread<'a, T: DatagenSupport> {
 }
 
 impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
-    pub fn new(id: u32, params: TunableParams, policy: &'a T::Policy, value: &'a T::Value, stop: &'a AtomicBool) -> Self {
+    pub fn new(
+        id: u32,
+        params: TunableParams,
+        policy: &'a T::Policy,
+        value: &'a T::Value,
+        stop: &'a AtomicBool,
+    ) -> Self {
         Self {
             id,
             rng: Rand::with_seed(),
@@ -39,8 +46,10 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
     pub fn run(&mut self, node_limit: usize) {
         let pout_path = format!("monty-policy-{}.data", self.rng.rand_int());
         let vout_path = format!("monty-value-{}.data", self.rng.rand_int());
-        let mut vout = BufWriter::new(File::create(vout_path.as_str()).expect("Provide a correct path!"));
-        let mut pout = BufWriter::new(File::create(pout_path.as_str()).expect("Provide a correct path!"));
+        let mut vout =
+            BufWriter::new(File::create(vout_path.as_str()).expect("Provide a correct path!"));
+        let mut pout =
+            BufWriter::new(File::create(pout_path.as_str()).expect("Provide a correct path!"));
 
         let mut prev = 0;
 
@@ -55,13 +64,21 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
                 prev = self.total;
                 println!(
                     "thread {} count {} skipped {} pos/sec {:.2}",
-                    self.id, self.total, self.skipped, self.total as f32 / self.timer.elapsed().as_secs_f32()
+                    self.id,
+                    self.total,
+                    self.skipped,
+                    self.total as f32 / self.timer.elapsed().as_secs_f32()
                 );
             }
         }
     }
 
-    fn run_game(&mut self, node_limit: usize, pout: &mut BufWriter<File>, vout: &mut BufWriter<File>) {
+    fn run_game(
+        &mut self,
+        node_limit: usize,
+        pout: &mut BufWriter<File>,
+        vout: &mut BufWriter<File>,
+    ) {
         let mut position = T::from_fen(T::STARTPOS);
 
         // play 8 or 9 random moves
