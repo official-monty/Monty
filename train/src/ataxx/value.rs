@@ -19,7 +19,7 @@ pub fn train_value() {
         .build();
 
     let schedule = TrainingSchedule {
-        net_id: "ataxx-value004".to_string(),
+        net_id: "ataxx-value005".to_string(),
         eval_scale: 400.0,
         batch_size: 16_384,
         batches_per_superbatch: 512,
@@ -32,7 +32,7 @@ pub fn train_value() {
 
     let settings = LocalSettings {
         threads: 4,
-        data_file_paths: vec!["data/ataxx/ataxx-value003.data"],
+        data_file_paths: vec!["data/ataxx/ataxx-value004.data"],
         output_directory: "checkpoints",
     };
 
