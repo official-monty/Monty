@@ -1,0 +1,9 @@
+[package]
+name = "datagen"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jamie Whiting"]
+
+[dependencies]
+monty = { path = "../" }
+bulletformat = "1.3.0"

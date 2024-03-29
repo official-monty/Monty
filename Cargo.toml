@@ -4,16 +4,15 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Jamie Whiting"]
 
-[dependencies]
-monty-core = { path = "monty-core" }
-monty-engine = { path = "monty-engine" }
-
-[workspace]
-members = ["monty-core", "monty-engine", "monty-train"]
-resolver = "2"
-
 [profile.release]
 panic = 'abort'
 strip = true
 lto = true
 codegen-units = 1
+
+[dependencies]
+goober = { git = 'https://github.com/jw1912/goober.git' }
+
+[workspace]
+members = ["datagen", "train"]
+resolver = "2"
