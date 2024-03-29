@@ -3,7 +3,7 @@ use super::moves::Move;
 use goober::{activation, layer, FeedForwardNetwork, Matrix, SparseVector, Vector};
 
 pub static POLICY_NETWORK: PolicyNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/ataxx-policy001.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/ataxx-policy002.bin")) };
 
 #[repr(C)]
 #[derive(Clone, Copy, FeedForwardNetwork)]
