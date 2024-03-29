@@ -9,7 +9,7 @@ pub enum GameState {
     Won,
 }
 
-pub trait GameRep: Clone + Default + Send + Sync {
+pub trait GameRep: Clone + Default + Send + Sync + std::fmt::Display {
     type Move: MoveType;
     const STARTPOS: &'static str;
 

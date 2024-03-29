@@ -98,6 +98,68 @@ impl GameRep for Ataxx {
     }
 }
 
+impl std::fmt::Display for Ataxx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut moves = self.gen_legal_moves();
+        self.set_policies(&mut moves);
+
+        let mut w = [0f32; 49];
+        let mut count = [0; 49];
+
+        for mov in moves.iter() {
+            let fr = mov.from();
+            let to = mov.to();
+
+            if fr != 63 {
+                w[fr] = w[fr].max(mov.policy());
+                count[fr] += 1;
+            }
+
+            if to != 63 {
+                w[to] = w[to].max(mov.policy());
+                count[to] += 1;
+            }
+        }
+
+        let bbs = self.board.bbs();
+
+        writeln!(f, "+---------------+")?;
+
+        for rank in (0..7).rev() {
+            write!(f, "|")?;
+
+            for file in 0..7 {
+                let sq = 7 * rank + file;
+                let bit = 1 << sq;
+
+                let add = if bit & bbs[0] > 0 {
+                    'x'
+                } else if bit & bbs[1] > 0 {
+                    'o'
+                } else if bit & bbs[2] > 0 {
+                    '-'
+                } else {
+                    '.'
+                };
+
+                if count[sq] > 0 {
+                    let g = (255.0 * (2.0 * w[sq]).min(1.0)) as u8;
+                    let r = 255 - g;
+                    write!(f, " \x1b[38;2;{r};{g};0m{add}\x1b[0m")?;
+                } else {
+                    write!(f, " \x1b[34m{add}\x1b[0m")?;
+                }
+            }
+
+            writeln!(f, " |")?;
+        }
+
+        writeln!(f, "+---------------+")?;
+
+        Ok(())
+    }
+}
+
 fn perft(board: &Board, depth: u8) -> u64 {
     if depth == 1 {
         return board.movegen_bulk(false);

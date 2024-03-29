@@ -1,6 +1,7 @@
 use crate::{
     game::GameRep,
     mcts::{Limits, Node, Searcher},
+    moves::MoveType,
     params::TunableParams,
 };
 
@@ -50,6 +51,17 @@ pub trait UciLike: Sized {
                 "perft" => run_perft::<Self::Game>(&commands, &pos),
                 "quit" => std::process::exit(0),
                 "eval" => println!("value: {}%", 100.0 * pos.get_value()),
+                "policy" => {
+                    let mut moves = pos.gen_legal_moves();
+                    pos.set_policies(&mut moves);
+
+                    for mov in moves.iter() {
+                        let s = pos.conv_mov_to_str(*mov);
+                        let p = mov.policy();
+                        println!("{s} -> {:.2}%", p * 100.0);
+                    }
+                }
+                "d" => println!("{pos}"),
                 _ => {
                     if cmd == Self::NAME {
                         preamble::<Self>();

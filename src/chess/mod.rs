@@ -143,6 +143,58 @@ impl GameRep for Chess {
     }
 }
 
+impl std::fmt::Display for Chess {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut moves = self.gen_legal_moves();
+        self.set_policies(&mut moves);
+
+        let mut w = [0f32; 64];
+        let mut count = [0; 64];
+
+        for mov in moves.iter() {
+            let fr = usize::from(mov.from());
+            let to = usize::from(mov.to());
+
+            w[fr] = w[fr].max(mov.policy());
+            w[to] = w[to].max(mov.policy());
+
+            count[fr] += 1;
+            count[to] += 1;
+        }
+
+        let pcs = [['p', 'n', 'b', 'r', 'q', 'k'], ['P', 'N', 'B', 'R', 'Q', 'K']];
+
+        writeln!(f, "+-----------------+")?;
+
+        for i in (0..8).rev() {
+            write!(f, "|")?;
+
+            for j in 0..8 {
+                let sq = 8 * i + j;
+                let pc = self.board.get_pc(1 << sq);
+                let ch = if pc != 0 {
+                    let is_white = self.board.piece(0) & (1 << sq) > 0;
+                    pcs[usize::from(is_white)][pc - 2]
+                } else {
+                    '.'
+                };
+
+                if count[sq] > 0 {
+                    let g = (255.0 * (2.0 * w[sq]).min(1.0)) as u8;
+                    let r = 255 - g;
+                    write!(f, " \x1b[38;2;{r};{g};0m{ch}\x1b[0m")?;
+                } else {
+                    write!(f, " \x1b[34m{ch}\x1b[0m")?;
+                }
+            }
+
+            writeln!(f, " |")?;
+        }
+
+        writeln!(f, "+-----------------+")
+    }
+}
+
 fn perft<const ROOT: bool, const BULK: bool>(pos: &Board, depth: u8, castling: &Castling) -> u64 {
     let moves = pos.gen::<true>(castling);
 
