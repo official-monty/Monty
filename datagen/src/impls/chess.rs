@@ -6,22 +6,24 @@ use monty::{
 
 use crate::{DatagenSupport, PolicyFormat};
 
+#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct ChessMoveInfo {
     pub mov: u16,
     pub visits: i16,
 }
 
+#[repr(C)]
 pub struct ChessPolicyData {
     pub board: Board,
     pub result: f32,
     pub score: f32,
-    pub moves: [ChessMoveInfo; 102],
+    pub moves: [ChessMoveInfo; 104],
     pub num: usize,
 }
 
 impl PolicyFormat<Chess> for ChessPolicyData {
-    const MAX_MOVES: usize = 102;
+    const MAX_MOVES: usize = 104;
 
     fn push(&mut self, mov: <Chess as GameRep>::Move, visits: i16) {
         let from = u16::from(mov.from()) << 10;
@@ -54,7 +56,7 @@ impl DatagenSupport for Chess {
             board: pos.board(),
             score,
             result: 0.5,
-            moves: [ChessMoveInfo::default(); 102],
+            moves: [ChessMoveInfo::default(); 104],
             num: 0,
         }
     }
