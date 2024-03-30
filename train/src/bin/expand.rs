@@ -50,11 +50,18 @@ fn transform<F: Fn(u64) -> u64>(data_path: &str, out_path: &str, f: F) {
             *bb = f(*bb);
         }
 
-        let score = pos.score();
-        let result = pos.result();
         let stm = pos.stm() > 0;
         let halfm = pos.halfm();
         let fullm = pos.fullm();
+
+        let mut score = pos.score();
+        let mut result = pos.result();
+
+        if stm {
+            bbs.swap(0, 1);
+            score = -score;
+            result = 1.0 - result;
+        }
 
         new.push(AtaxxBoard::from_raw(bbs, score, result, stm, fullm, halfm));
 
