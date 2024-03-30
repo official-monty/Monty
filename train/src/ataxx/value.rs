@@ -3,7 +3,7 @@ use bullet::{
     TrainingSchedule, WdlScheduler,
 };
 
-const HIDDEN_SIZE: usize = 32;
+const HIDDEN_SIZE: usize = 64;
 const PER_TUPLE: usize = 3usize.pow(4);
 const NUM_TUPLES: usize = 36;
 

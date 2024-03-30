@@ -1,13 +1,13 @@
 use super::board::Board;
 
-const HIDDEN: usize = 32;
+const HIDDEN: usize = 64;
 const SCALE: i32 = 400;
 const QA: i32 = 255;
 const QB: i32 = 64;
 const QAB: i32 = QA * QB;
 const PER_TUPLE: usize = 3usize.pow(4);
 
-#[repr(C, align(64))]
+#[repr(C)]
 pub struct ValueNetwork {
     l1_weights: [Accumulator; 2916],
     l1_bias: Accumulator,
@@ -16,7 +16,7 @@ pub struct ValueNetwork {
 }
 
 static NET: ValueNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/ataxx-value006.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/ataxx-value007.bin")) };
 
 impl ValueNetwork {
     pub fn eval(board: &Board) -> i32 {
@@ -79,7 +79,7 @@ fn screlu(x: i16) -> i32 {
 }
 
 #[derive(Clone, Copy)]
-#[repr(C)]
+#[repr(C, align(64))]
 struct Accumulator {
     vals: [i16; HIDDEN],
 }
