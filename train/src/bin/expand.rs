@@ -9,6 +9,10 @@ fn main() {
     let data_path = args.next().unwrap();
 
     transform(data_path.as_str(), "p1.data", |bb| flip_hor(flip_vert(bb)));
+
+    transform(data_path.as_str(), "p2.data", flip_hor);
+
+    transform(data_path.as_str(), "p3.data", flip_vert);
 }
 
 fn flip_vert(bb: u64) -> u64 {

@@ -19,11 +19,11 @@ pub fn train_value() {
         .build();
 
     let schedule = TrainingSchedule {
-        net_id: "ataxx-value011".to_string(),
+        net_id: "ataxx-value012".to_string(),
         eval_scale: 400.0,
         ft_regularisation: 0.0,
         batch_size: 16_384,
-        batches_per_superbatch: 1024,
+        batches_per_superbatch: 2048,
         start_superbatch: 1,
         end_superbatch: 40,
         wdl_scheduler: WdlScheduler::Constant { value: 0.5 },
@@ -33,7 +33,7 @@ pub fn train_value() {
 
     let settings = LocalSettings {
         threads: 4,
-        data_file_paths: vec!["data/ataxx/ataxx-value005-enhanced.data"],
+        data_file_paths: vec!["data/ataxx/ataxx-value005-enhanced2.data"],
         output_directory: "checkpoints",
     };
 
