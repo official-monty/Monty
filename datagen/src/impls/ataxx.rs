@@ -64,7 +64,7 @@ impl DatagenSupport for Ataxx {
         let stm = board.stm();
         let bbs = board.bbs();
 
-        let mut score = -(400.0 * (1.0 / score.clamp(0.03, 0.97) - 1.0).ln()) as i16;
+        let mut score = -(400.0 * (1.0 / score - 1.0).ln()) as i16;
 
         if pos.stm() == 1 {
             score = -score;
