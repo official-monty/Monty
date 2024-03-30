@@ -21,6 +21,7 @@ pub fn train_value() {
     let schedule = TrainingSchedule {
         net_id: "ataxx-value009".to_string(),
         eval_scale: 400.0,
+        ft_regularisation: 0.0,
         batch_size: 16_384,
         batches_per_superbatch: 512,
         start_superbatch: 1,
