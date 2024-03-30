@@ -17,7 +17,12 @@ fn main() {
 
     loader.map_positions(|pos| {
         total += 1;
-        if pos.score().abs() < 5000 {
+        let score = 1.0 / (1.0 + (-f32::from(pos.score()) / 400.0).exp());
+        let result = pos.result();
+
+        let err = (score - result).abs();
+
+        if err < 0.5 {
             new.push(*pos);
         } else {
             filtered += 1;
