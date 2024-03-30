@@ -149,6 +149,10 @@ fn update_single_grad(
     grad: &mut PolicyNetwork,
     error: &mut f32,
 ) {
+    if pos.num == 1 && pos.moves[0].from == 63 {
+        return;
+    }
+
     let board = pos.board;
 
     let feats = board.get_features();
