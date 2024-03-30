@@ -1,6 +1,6 @@
 use super::board::Board;
 
-const HIDDEN: usize = 128;
+const HIDDEN: usize = 256;
 const SCALE: i32 = 400;
 const QA: i32 = 255;
 const QB: i32 = 64;
@@ -16,7 +16,7 @@ pub struct ValueNetwork {
 }
 
 static NET: ValueNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/ataxx-value012.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/ataxx-value013.bin")) };
 
 impl ValueNetwork {
     pub fn eval(board: &Board) -> i32 {
