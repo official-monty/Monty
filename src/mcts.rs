@@ -304,6 +304,29 @@ impl<T: GameRep> Searcher<T> {
         -1
     }
 
+    fn search_report(&self, depth: usize, seldepth: usize, timer: &Instant, nodes: usize) {
+        let (pv_line, score) = self.get_pv(depth);
+        let elapsed = timer.elapsed();
+        let nps = nodes as f32 / elapsed.as_secs_f32();
+        let pv = pv_line.iter().fold(String::new(), |mut pv_str, mov| {
+            write!(&mut pv_str, "{} ", self.root_position.conv_mov_to_str(*mov))
+                .unwrap();
+            pv_str
+        });
+
+        println!(
+            "info depth {depth} \
+            seldepth {seldepth} \
+            score cp {:.0} \
+            time {} \
+            nodes {nodes} \
+            nps {nps:.0} \
+            pv {pv}",
+            -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln(),
+            elapsed.as_millis(),
+        );
+    }
+
     pub fn search(
         &mut self,
         limits: Limits,
@@ -371,26 +394,7 @@ impl<T: GameRep> Searcher<T> {
                 depth = avg_depth;
 
                 if uci_output {
-                    let (pv_line, score) = self.get_pv(depth);
-                    let elapsed = timer.elapsed();
-                    let nps = nodes as f32 / elapsed.as_secs_f32();
-                    let pv = pv_line.iter().fold(String::new(), |mut pv_str, mov| {
-                        write!(&mut pv_str, "{} ", self.root_position.conv_mov_to_str(*mov))
-                            .unwrap();
-                        pv_str
-                    });
-
-                    println!(
-                        "info depth {depth} \
-                        seldepth {seldepth} \
-                        score cp {:.0} \
-                        time {} \
-                        nodes {nodes} \
-                        nps {nps:.0} \
-                        pv {pv}",
-                        -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln(),
-                        elapsed.as_millis(),
-                    );
+                    self.search_report(depth, seldepth, &timer, nodes);
                 }
 
                 if depth >= limits.max_depth {
@@ -402,6 +406,10 @@ impl<T: GameRep> Searcher<T> {
         }
 
         *total_nodes += nodes;
+
+        if uci_output {
+            self.search_report(depth, seldepth, &timer, nodes);
+        }
 
         if report_moves {
             self.get_bestmove::<true>(&self.tree[0])
