@@ -10,7 +10,7 @@ use super::{
 use std::{cmp::Ordering, fmt::Display};
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Board {
     bbs: [u64; 2],
     gaps: u64,

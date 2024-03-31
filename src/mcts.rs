@@ -75,6 +75,10 @@ impl<T: GameRep> Searcher<T> {
         self.tree
     }
 
+    pub fn tree_and_board(self) -> (Vec<Node<T>>, T) {
+        (self.tree, self.root_position)
+    }
+
     fn selected(&self) -> i32 {
         *self.selection.last().unwrap()
     }
@@ -274,16 +278,26 @@ impl<T: GameRep> Searcher<T> {
         }
     }
 
-    fn find_mov_ptr(&self, start: i32, mov: &T::Move) -> i32 {
-        if start == -1 {
+    fn recurse_find(&self, start: i32, this_board: &T, board: &T, depth: u8) -> i32 {
+        if this_board.is_same(board) {
+            return start;
+        }
+
+        if start == -1 || depth == 0 {
             return -1;
         }
 
         let node = &self.tree[start as usize];
 
         for child_mov in node.moves.iter() {
-            if child_mov.is_same_action(*mov) {
-                return child_mov.ptr();
+            let mut child_board = this_board.clone();
+            child_board.make_move(*child_mov);
+            let child = child_mov.ptr();
+
+            let found = self.recurse_find(child, &child_board, board, depth - 1);
+
+            if found != -1 {
+                return found;
             }
         }
 
@@ -296,21 +310,22 @@ impl<T: GameRep> Searcher<T> {
         report_moves: bool,
         uci_output: bool,
         total_nodes: &mut usize,
-        prevs: Option<(T::Move, T::Move)>,
+        prev_board: &Option<T>,
     ) -> (T::Move, f32) {
         let timer = Instant::now();
 
         // attempt to reuse the previous tree
         if !self.tree.is_empty() {
-            if let Some((prev_prev, prev)) = prevs {
-                let prev_prev_ptr = self.find_mov_ptr(0, &prev_prev);
-                let prev_ptr = self.find_mov_ptr(prev_prev_ptr, &prev);
-                if prev_ptr == -1 || self.tree[prev_ptr as usize].visits == 1 {
+            if let Some(board) = prev_board {
+                println!("info string searching for subtree");
+                let ptr = self.recurse_find(0, board, &self.root_position, 2);
+                if ptr == -1 || self.tree[ptr as usize].visits == 1 {
                     self.tree.clear();
                 } else {
                     let mut subtree = Vec::new();
-                    self.construct_subtree(prev_ptr, &mut subtree);
+                    self.construct_subtree(ptr, &mut subtree);
                     self.tree = subtree;
+                    println!("info string found subtree of size {} nodes", self.tree.len());
                 }
             } else {
                 self.tree.clear();

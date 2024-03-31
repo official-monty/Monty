@@ -72,6 +72,10 @@ impl GameRep for Chess {
 
     const STARTPOS: &'static str = STARTPOS;
 
+    fn is_same(&self, other: &Self) -> bool {
+        self.board == other.board
+    }
+
     fn conv_mov_to_str(&self, mov: Self::Move) -> String {
         mov.to_uci(&self.castling)
     }

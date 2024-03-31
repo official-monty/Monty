@@ -111,7 +111,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
                 self.params.clone(),
             );
 
-            let (bm, score) = searcher.search(limits, false, false, &mut 0, None);
+            let (bm, score) = searcher.search(limits, false, false, &mut 0, &None);
 
             let tree = searcher.tree();
             let root_moves = tree[0].moves();

@@ -36,6 +36,10 @@ impl GameRep for Ataxx {
     const STARTPOS: &'static str = STARTPOS;
     type Move = Move;
 
+    fn is_same(&self, other: &Self) -> bool {
+        self.board == other.board
+    }
+
     fn stm(&self) -> usize {
         self.board.stm()
     }

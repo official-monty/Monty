@@ -17,7 +17,7 @@ pub trait UciLike: Sized {
     fn options();
 
     fn run() {
-        let mut prevs = None;
+        let mut prev = None;
         let mut pos = Self::Game::default();
         let mut params = TunableParams::default();
         let mut tree = Vec::new();
@@ -37,16 +37,19 @@ pub trait UciLike: Sized {
             match cmd {
                 "isready" => println!("readyok"),
                 "setoption" => setoption(&commands, &mut params, &mut report_moves),
-                "position" => position(commands, &mut pos, &mut prevs),
+                "position" => position(commands, &mut pos),
                 "go" => {
-                    tree = go(
+                    let res = go(
                         &commands,
                         tree,
+                        prev,
                         &pos,
                         &params,
-                        report_moves,
-                        &mut prevs,
-                    )
+                        report_moves
+                    );
+
+                    tree = res.0;
+                    prev = Some(res.1);
                 }
                 "perft" => run_perft::<Self::Game>(&commands, &pos),
                 "quit" => std::process::exit(0),
@@ -66,7 +69,8 @@ pub trait UciLike: Sized {
                     if cmd == Self::NAME {
                         preamble::<Self>();
                     } else if cmd == Self::NEWGAME {
-                        prevs = None;
+                        prev = None;
+                        tree.clear();
                     }
                 }
             }
@@ -90,7 +94,7 @@ pub trait UciLike: Sized {
         for fen in bench_fens {
             let pos = Self::Game::from_fen(fen);
             let mut searcher = Searcher::new(pos, Vec::new(), params.clone());
-            searcher.search(limits, false, false, &mut total_nodes, None);
+            searcher.search(limits, false, false, &mut total_nodes, &None);
         }
 
         println!(
@@ -128,7 +132,7 @@ fn setoption(commands: &[&str], params: &mut TunableParams, report_moves: &mut b
     params.set(name, val as f32 / 100.0);
 }
 
-fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T, prevs: &mut Option<(T::Move, T::Move)>) {
+fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T) {
     let mut fen = String::new();
     let mut move_list = Vec::new();
     let mut moves = false;
@@ -150,20 +154,12 @@ fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T, prevs: &mut Option<(T:
 
     *pos = T::from_fen(&fen);
 
-    let len = move_list.len();
-
-    for (i, &m) in move_list.iter().enumerate() {
+    for &m in move_list.iter() {
         let possible_moves = pos.gen_legal_moves();
 
         for mov in possible_moves.iter() {
             if m == pos.conv_mov_to_str(*mov) {
                 pos.make_move(*mov);
-
-                if i == len - 1 {
-                    if let Some((_, y)) = prevs.as_mut() {
-                        *y = *mov;
-                    }
-                }
             }
         }
     }
@@ -173,11 +169,11 @@ fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T, prevs: &mut Option<(T:
 fn go<T: GameRep>(
     commands: &[&str],
     tree: Vec<Node<T>>,
+    prev: Option<T>,
     pos: &T,
     params: &TunableParams,
     report_moves: bool,
-    prevs: &mut Option<(T::Move, T::Move)>,
-) -> Vec<Node<T>> {
+) -> (Vec<Node<T>>, T) {
     let mut max_nodes = 10_000_000;
     let mut max_time = None;
     let mut max_depth = 256;
@@ -244,13 +240,11 @@ fn go<T: GameRep>(
         max_nodes,
     };
 
-    let (mov, _) = searcher.search(limits, report_moves, true, &mut 0, *prevs);
-
-    *prevs = Some((mov, T::Move::default()));
+    let (mov, _) = searcher.search(limits, report_moves, true, &mut 0, &prev);
 
     println!("bestmove {}", pos.conv_mov_to_str(mov));
 
-    searcher.tree()
+    searcher.tree_and_board()
 }
 
 fn run_perft<T: GameRep>(commands: &[&str], pos: &T) {

@@ -11,7 +11,7 @@ use super::{
 };
 
 #[repr(C)]
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, PartialEq, Eq)]
 pub struct Board {
     bb: [u64; 8],
     hash: u64,

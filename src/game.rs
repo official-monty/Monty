@@ -13,6 +13,8 @@ pub trait GameRep: Clone + Default + Send + Sync + std::fmt::Display {
     type Move: MoveType;
     const STARTPOS: &'static str;
 
+    fn is_same(&self, other: &Self) -> bool;
+
     fn stm(&self) -> usize;
 
     /// For games where black goes first.
