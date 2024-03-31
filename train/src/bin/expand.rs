@@ -13,6 +13,10 @@ fn main() {
     transform(data_path.as_str(), "p2.data", flip_hor);
 
     transform(data_path.as_str(), "p3.data", flip_vert);
+
+    transform(data_path.as_str(), "p4.data", flip_diag);
+
+    transform(data_path.as_str(), "p5.data", |bb| flip_hor(flip_vert(flip_diag(bb))));
 }
 
 fn flip_vert(bb: u64) -> u64 {
@@ -34,6 +38,25 @@ fn flip_hor(bb: u64) -> u64 {
     for file in 0..7 {
         let iso = (bb >> file) & FILE;
         out |= iso << (6 - file);
+    }
+
+    out
+}
+
+fn flip_diag(bb: u64) -> u64 {
+    const RANK: u64 = 127;
+    let mut out = 0;
+
+    for rank in 0..7 {
+        let mut iso = (bb >> (7 * rank)) & RANK;
+        let mut file = 0;
+
+        while iso > 0 {
+            file |= 1 << (iso.trailing_zeros() * 7);
+            iso &= iso - 1;
+        }
+
+        out |= file << rank;
     }
 
     out
@@ -102,7 +125,7 @@ fn display(bb: u64) {
 
 #[test]
 fn t() {
-    let x = 14221;
+    let x = 14000221;
     display(x);
     println!();
     display(flip_vert(x));
@@ -110,4 +133,8 @@ fn t() {
     display(flip_hor(x));
     println!();
     display(flip_hor(flip_vert(x)));
+    println!();
+    display(flip_diag(x));
+    println!();
+    display(flip_hor(flip_vert(flip_diag(x))));
 }
