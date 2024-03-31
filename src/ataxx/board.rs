@@ -164,6 +164,50 @@ impl Board {
         moves
     }
 
+    pub fn value_features_map<F: FnMut(usize)>(&self, mut f: F) {
+        const PER_TUPLE: usize = 3usize.pow(4);
+        const POWERS: [usize; 4] = [1, 3, 9, 27];
+        const MASK: u64 = 0b0001_1000_0011;
+
+        let boys = self.boys();
+        let opps = self.opps();
+
+        for i in 0..6 {
+            for j in 0..6 {
+                let tuple = 6 * i + j;
+                let mut feat = PER_TUPLE * tuple;
+
+                let offset = 7 * i + j;
+                let mut b = (boys >> offset) & MASK;
+                let mut o = (opps >> offset) & MASK;
+
+                while b > 0 {
+                    let mut sq = b.trailing_zeros() as usize;
+                    if sq > 6 {
+                        sq -= 5;
+                    }
+
+                    feat += POWERS[sq];
+
+                    b &= b - 1;
+                }
+
+                while o > 0 {
+                    let mut sq = o.trailing_zeros() as usize;
+                    if sq > 6 {
+                        sq -= 5;
+                    }
+
+                    feat += 2 * POWERS[sq];
+
+                    o &= o - 1;
+                }
+
+                f(feat);
+            }
+        }
+    }
+
     pub fn get_features(&self) -> SparseVector {
         let mut feats = SparseVector::with_capacity(49);
 
