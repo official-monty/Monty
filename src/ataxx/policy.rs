@@ -3,12 +3,12 @@ use super::moves::Move;
 use goober::{activation, layer, FeedForwardNetwork, Matrix, SparseVector, Vector};
 
 pub static POLICY_NETWORK: PolicyNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/ataxx-policy003.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/ataxx-policy004.bin")) };
 
 #[repr(C)]
 #[derive(Clone, Copy, FeedForwardNetwork)]
 pub struct SubNet {
-    ft: layer::SparseConnected<activation::ReLU, 98, 4>,
+    ft: layer::SparseConnected<activation::ReLU, 2916, 4>,
 }
 
 impl SubNet {

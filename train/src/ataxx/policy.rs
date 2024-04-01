@@ -8,8 +8,8 @@ use std::{
 };
 
 const BATCH_SIZE: usize = 16_384;
-const EPOCHS: usize = 10;
-const LR_DROP: usize = 7;
+const EPOCHS: usize = 4;
+const LR_DROP: usize = 3;
 
 pub fn train_policy(threads: usize, data_path: &str) {
     let file = File::open(data_path).unwrap();
