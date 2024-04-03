@@ -41,44 +41,7 @@ pub struct PolicyNetwork {
     pub hce: [f32; 4],
 }
 
-impl std::ops::AddAssign<&PolicyNetwork> for PolicyNetwork {
-    fn add_assign(&mut self, rhs: &PolicyNetwork) {
-        for (i, j) in self.weights.iter_mut().zip(rhs.weights.iter()) {
-            *i += j;
-        }
-
-        for (i, j) in self.hce.iter_mut().zip(rhs.hce.iter()) {
-            *i += *j;
-        }
-    }
-}
-
 impl PolicyNetwork {
-    pub fn boxed_and_zeroed() -> Box<Self> {
-        unsafe {
-            let layout = std::alloc::Layout::new::<Self>();
-            let ptr = std::alloc::alloc_zeroed(layout);
-            if ptr.is_null() {
-                std::alloc::handle_alloc_error(layout);
-            }
-            Box::from_raw(ptr.cast())
-        }
-    }
-
-    pub fn write_to_bin(&self, path: &str) {
-        use std::io::Write;
-        const SIZEOF: usize = std::mem::size_of::<PolicyNetwork>();
-
-        let mut file = std::fs::File::create(path).unwrap();
-
-        unsafe {
-            let ptr: *const Self = self;
-            let slice_ptr: *const u8 = std::mem::transmute(ptr);
-            let slice = std::slice::from_raw_parts(slice_ptr, SIZEOF);
-            file.write_all(slice).unwrap();
-        }
-    }
-
     fn get_neuron(&self, mov: &Move, feats: &SparseVector, flip: u8) -> f32 {
         let from_subnet = &self.weights[usize::from(mov.from() ^ flip)];
         let from_vec = from_subnet.out(feats);

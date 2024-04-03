@@ -58,11 +58,7 @@ pub struct Searcher<T: GameRep> {
 }
 
 impl<T: GameRep> Searcher<T> {
-    pub fn new(
-        root_position: T,
-        tree: Vec<Node<T>>,
-        params: TunableParams,
-    ) -> Self {
+    pub fn new(root_position: T, tree: Vec<Node<T>>, params: TunableParams) -> Self {
         Self {
             root_position,
             tree,
@@ -309,8 +305,7 @@ impl<T: GameRep> Searcher<T> {
         let elapsed = timer.elapsed();
         let nps = nodes as f32 / elapsed.as_secs_f32();
         let pv = pv_line.iter().fold(String::new(), |mut pv_str, mov| {
-            write!(&mut pv_str, "{} ", self.root_position.conv_mov_to_str(*mov))
-                .unwrap();
+            write!(&mut pv_str, "{} ", self.root_position.conv_mov_to_str(*mov)).unwrap();
             pv_str
         });
 
@@ -348,7 +343,10 @@ impl<T: GameRep> Searcher<T> {
                     let mut subtree = Vec::new();
                     self.construct_subtree(ptr, &mut subtree);
                     self.tree = subtree;
-                    println!("info string found subtree of size {} nodes", self.tree.len());
+                    println!(
+                        "info string found subtree of size {} nodes",
+                        self.tree.len()
+                    );
                 }
             } else {
                 self.tree.clear();

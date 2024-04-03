@@ -10,7 +10,12 @@ pub struct Move {
 
 impl Default for Move {
     fn default() -> Self {
-        Self { from: 0, to: 0, ptr: -1, policy: 0.0 }
+        Self {
+            from: 0,
+            to: 0,
+            ptr: -1,
+            policy: 0.0,
+        }
     }
 }
 
@@ -38,15 +43,30 @@ impl MoveType for Move {
 
 impl Move {
     pub fn new_single(to: u8) -> Self {
-        Self { from: 63, to, ptr: -1, policy: 0.0 }
+        Self {
+            from: 63,
+            to,
+            ptr: -1,
+            policy: 0.0,
+        }
     }
 
     pub fn new_double(from: u8, to: u8) -> Self {
-        Self { from, to, ptr: -1, policy: 0.0 }
+        Self {
+            from,
+            to,
+            ptr: -1,
+            policy: 0.0,
+        }
     }
 
     pub fn new_pass() -> Self {
-        Self { from: 63, to: 63, ptr: -1, policy: 0.0 }
+        Self {
+            from: 63,
+            to: 63,
+            ptr: -1,
+            policy: 0.0,
+        }
     }
 
     pub fn is_single(&self) -> bool {
@@ -54,7 +74,12 @@ impl Move {
     }
 
     pub fn new_null() -> Self {
-        Self { from: 0, to: 0, ptr: -1, policy: 0.0 }
+        Self {
+            from: 0,
+            to: 0,
+            ptr: -1,
+            policy: 0.0,
+        }
     }
 
     #[cfg(feature = "datagen")]

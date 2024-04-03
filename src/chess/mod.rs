@@ -166,7 +166,10 @@ impl std::fmt::Display for Chess {
             count[to] += 1;
         }
 
-        let pcs = [['p', 'n', 'b', 'r', 'q', 'k'], ['P', 'N', 'B', 'R', 'Q', 'K']];
+        let pcs = [
+            ['p', 'n', 'b', 'r', 'q', 'k'],
+            ['P', 'N', 'B', 'R', 'Q', 'K'],
+        ];
 
         writeln!(f, "+-----------------+")?;
 

@@ -1,6 +1,6 @@
 use std::{fs::File, io::BufWriter};
 
-use bullet::format::{DataLoader, AtaxxBoard, BulletFormat};
+use bullet::format::{AtaxxBoard, BulletFormat, DataLoader};
 
 fn main() {
     let mut args = std::env::args();

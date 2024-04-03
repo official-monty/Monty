@@ -17,5 +17,5 @@ ataxx = []
 goober = { git = 'https://github.com/jw1912/goober.git' }
 
 [workspace]
-members = ["datagen", "train"]
+members = ["datagen", "train/policy", "train/value"]
 resolver = "2"

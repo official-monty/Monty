@@ -6,7 +6,11 @@ mod value;
 
 use crate::{GameRep, MoveType, UciLike};
 
-pub use self::{board::Board, moves::Move, policy::{PolicyNetwork, SubNet, POLICY_NETWORK}};
+pub use self::{
+    board::Board,
+    moves::Move,
+    policy::{PolicyNetwork, SubNet, POLICY_NETWORK},
+};
 
 const STARTPOS: &str = "x5o/7/7/7/7/7/o5x x 0 1";
 
@@ -53,7 +57,9 @@ impl GameRep for Ataxx {
     }
 
     fn from_fen(fen: &str) -> Self {
-        Self { board: Board::from_fen(fen) }
+        Self {
+            board: Board::from_fen(fen),
+        }
     }
 
     fn game_state(&self) -> crate::GameState {

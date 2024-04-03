@@ -1,6 +1,6 @@
 use std::{fs::File, io::BufWriter};
 
-use bullet::format::{DataLoader, AtaxxBoard, BulletFormat};
+use bullet::format::{AtaxxBoard, BulletFormat, DataLoader};
 
 fn main() {
     let mut args = std::env::args();
@@ -16,7 +16,9 @@ fn main() {
 
     transform(data_path.as_str(), "p4.data", flip_diag);
 
-    transform(data_path.as_str(), "p5.data", |bb| flip_hor(flip_vert(flip_diag(bb))));
+    transform(data_path.as_str(), "p5.data", |bb| {
+        flip_hor(flip_vert(flip_diag(bb)))
+    });
 }
 
 fn flip_vert(bb: u64) -> u64 {
@@ -110,11 +112,7 @@ fn display(bb: u64) {
             let sq = 7 * rank + file;
             let bit = 1 << sq;
 
-            let add = if bit & bb > 0 {
-                " x"
-            } else {
-                " ."
-            };
+            let add = if bit & bb > 0 { " x" } else { " ." };
 
             print!("{add}");
         }

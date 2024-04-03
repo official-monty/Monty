@@ -1,4 +1,4 @@
-use monty::{UciLike, TunableParams};
+use monty::{TunableParams, UciLike};
 
 #[cfg(feature = "ataxx")]
 use monty::ataxx;

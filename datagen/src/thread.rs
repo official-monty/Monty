@@ -22,11 +22,7 @@ pub struct DatagenThread<'a, T: DatagenSupport> {
 }
 
 impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
-    pub fn new(
-        id: u32,
-        params: TunableParams,
-        stop: &'a AtomicBool,
-    ) -> Self {
+    pub fn new(id: u32, params: TunableParams, stop: &'a AtomicBool) -> Self {
         Self {
             id,
             rng: Rand::with_seed(),
@@ -105,11 +101,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
 
         // play out game
         loop {
-            let mut searcher = Searcher::new(
-                position.clone(),
-                Vec::new(),
-                self.params.clone(),
-            );
+            let mut searcher = Searcher::new(position.clone(), Vec::new(), self.params.clone());
 
             let (bm, score) = searcher.search(limits, false, false, &mut 0, &None);
 

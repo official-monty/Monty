@@ -4,7 +4,8 @@ use goober::SparseVector;
 
 use super::{
     moves::Move,
-    util::{Bitboard, Side}, STARTPOS,
+    util::{Bitboard, Side},
+    STARTPOS,
 };
 
 use std::{cmp::Ordering, fmt::Display};

@@ -49,7 +49,7 @@ checksum = "cf4b9d6a944f767f8e5e0db018570623c85f3d925ac718db4e06d0187adb21c1"
 [[package]]
 name = "bullet_lib"
 version = "1.0.0"
-source = "git+https://github.com/jw1912/bullet#ca18ea46d60253b641808c3482c795a35aab361f"
+source = "git+https://github.com/jw1912/bullet#09cff2f16be2bb500589b499894249a9d924df66"
 dependencies = [
  "bindgen",
  "bulletformat",
@@ -277,6 +277,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
 
 [[package]]
+name = "policy"
+version = "0.1.0"
+dependencies = [
+ "datagen",
+ "goober",
+ "monty",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -406,9 +415,9 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "syn"
-version = "2.0.57"
+version = "2.0.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11a6ae1e52eb25aab8f3fb9fca13be982a373b8f1157ca14b897a825ba4a2d35"
+checksum = "44cfb93f38070beee36b3fef7d4f5a16f27751d94b187b666a5cc5e9b0d30687"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -416,20 +425,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "train"
-version = "0.1.0"
-dependencies = [
- "bullet_lib",
- "datagen",
- "goober",
- "monty",
-]
-
-[[package]]
 name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
+
+[[package]]
+name = "value"
+version = "0.1.0"
+dependencies = [
+ "bullet_lib",
+ "datagen",
+ "monty",
+]
 
 [[package]]
 name = "wasi"

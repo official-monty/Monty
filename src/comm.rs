@@ -39,14 +39,7 @@ pub trait UciLike: Sized {
                 "setoption" => setoption(&commands, &mut params, &mut report_moves),
                 "position" => position(commands, &mut pos),
                 "go" => {
-                    let res = go(
-                        &commands,
-                        tree,
-                        prev,
-                        &pos,
-                        &params,
-                        report_moves
-                    );
+                    let res = go(&commands, tree, prev, &pos, &params, report_moves);
 
                     tree = res.0;
                     prev = Some(res.1);
@@ -77,10 +70,7 @@ pub trait UciLike: Sized {
         }
     }
 
-    fn bench(
-        depth: usize,
-        params: &TunableParams,
-    ) {
+    fn bench(depth: usize, params: &TunableParams) {
         let mut total_nodes = 0;
         let bench_fens = Self::FEN_STRING.split('\n').collect::<Vec<&str>>();
         let timer = Instant::now();
