@@ -50,6 +50,11 @@ impl Board {
     }
 
     #[must_use]
+    pub fn halfm(&self) -> u8 {
+        self.halfm
+    }
+
+    #[must_use]
     pub fn hash(&self) -> u64 {
         let mut hash = self.hash;
 
