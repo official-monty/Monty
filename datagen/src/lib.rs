@@ -42,7 +42,7 @@ pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {
     unsafe { std::slice::from_raw_parts(slice.as_ptr().cast(), len) }
 }
 
-pub fn run_datagen<T: DatagenSupport>(nodes: usize, threads: usize) {
+pub fn run_datagen<T: DatagenSupport>(nodes: usize, threads: usize, policy: bool) {
     let params = TunableParams::default();
     let stop_base = AtomicBool::new(false);
     let stop = &stop_base;
@@ -53,7 +53,7 @@ pub fn run_datagen<T: DatagenSupport>(nodes: usize, threads: usize) {
             std::thread::sleep(Duration::from_millis(10));
             s.spawn(move || {
                 let mut thread = DatagenThread::<T>::new(i as u32, params.clone(), stop);
-                thread.run(nodes);
+                thread.run(nodes, policy);
             });
         }
 

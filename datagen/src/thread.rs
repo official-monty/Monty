@@ -35,13 +35,16 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
         }
     }
 
-    pub fn run(&mut self, node_limit: usize) {
+    pub fn run(&mut self, node_limit: usize, policy: bool) {
         let pout_path = format!("monty-policy-{}.data", self.rng.rand_int());
         let vout_path = format!("monty-value-{}.data", self.rng.rand_int());
         let mut vout =
             BufWriter::new(File::create(vout_path.as_str()).expect("Provide a correct path!"));
-        let mut pout =
-            BufWriter::new(File::create(pout_path.as_str()).expect("Provide a correct path!"));
+        let mut pout = if policy {
+            Some(BufWriter::new(File::create(pout_path.as_str()).expect("Provide a correct path!")))
+        } else {
+            None
+        };
 
         let mut prev = 0;
 
@@ -68,7 +71,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
     fn run_game(
         &mut self,
         node_limit: usize,
-        pout: &mut BufWriter<File>,
+        pout: &mut Option<BufWriter<File>>,
         vout: &mut BufWriter<File>,
     ) {
         let mut position = T::from_fen(T::STARTPOS);
@@ -174,8 +177,11 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
             values.push(value);
         }
 
-        write(&policies, pout);
-        write(&values, vout)
+        if let Some(out) = pout {
+            write(&policies, out);
+        }
+
+        write(&values, vout);
     }
 }
 
