@@ -67,10 +67,6 @@ impl<T: GameRep> Searcher<T> {
         }
     }
 
-    pub fn tree(self) -> Vec<Node<T>> {
-        self.tree
-    }
-
     pub fn tree_and_board(self) -> (Vec<Node<T>>, T) {
         (self.tree, self.root_position)
     }
@@ -300,26 +296,21 @@ impl<T: GameRep> Searcher<T> {
         -1
     }
 
-    fn search_report(&self, depth: usize, seldepth: usize, timer: &Instant, nodes: usize) {
+    fn search_report(&self, depth: usize, timer: &Instant, nodes: usize) {
         let (pv_line, score) = self.get_pv(depth);
+
         let elapsed = timer.elapsed();
         let nps = nodes as f32 / elapsed.as_secs_f32();
+        let ms = elapsed.as_millis();
+
+        let cp = -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln();
+
         let pv = pv_line.iter().fold(String::new(), |mut pv_str, mov| {
             write!(&mut pv_str, "{} ", self.root_position.conv_mov_to_str(*mov)).unwrap();
             pv_str
         });
 
-        println!(
-            "info depth {depth} \
-            seldepth {seldepth} \
-            score cp {:.0} \
-            time {} \
-            nodes {nodes} \
-            nps {nps:.0} \
-            pv {pv}",
-            -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln(),
-            elapsed.as_millis(),
-        );
+        println!("info depth {depth} score cp {cp:.0} time {ms} nodes {nodes} nps {nps:.0} pv {pv}");
     }
 
     pub fn search(
@@ -332,7 +323,7 @@ impl<T: GameRep> Searcher<T> {
     ) -> (T::Move, f32) {
         let timer = Instant::now();
 
-        // attempt to reuse the previous tree
+        // attempt to reuse the current tree
         if !self.tree.is_empty() {
             if let Some(board) = prev_board {
                 println!("info string searching for subtree");
@@ -359,12 +350,13 @@ impl<T: GameRep> Searcher<T> {
             self.tree.push(root_node);
         }
 
-        let mut nodes = 1;
+        let mut nodes = 0;
         let mut depth = 0;
-        let mut seldepth = 0;
         let mut cumulative_depth = 0;
 
-        while nodes <= limits.max_nodes {
+        while nodes < limits.max_nodes {
+            nodes += 1;
+
             let mut pos = self.root_position.clone();
 
             self.select_leaf(&mut pos);
@@ -372,7 +364,6 @@ impl<T: GameRep> Searcher<T> {
             let this_depth = self.selection.len();
             cumulative_depth += this_depth;
             let avg_depth = cumulative_depth / nodes;
-            seldepth = seldepth.max(this_depth);
 
             if !self.tree[self.selected() as usize].is_terminal() {
                 self.expand_node(&mut pos);
@@ -392,21 +383,19 @@ impl<T: GameRep> Searcher<T> {
                 depth = avg_depth;
 
                 if uci_output {
-                    self.search_report(depth, seldepth, &timer, nodes);
+                    self.search_report(depth, &timer, nodes);
                 }
 
                 if depth >= limits.max_depth {
                     break;
                 }
             }
-
-            nodes += 1;
         }
 
         *total_nodes += nodes;
 
         if uci_output {
-            self.search_report(depth, seldepth, &timer, nodes);
+            self.search_report(depth, &timer, nodes);
         }
 
         if report_moves {
