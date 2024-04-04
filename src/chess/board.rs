@@ -134,7 +134,7 @@ impl Board {
         self.map_legal_moves(castling, |_| count += 1);
 
         if count > 0 {
-            return GameState::Ongoing
+            return GameState::Ongoing;
         }
 
         if self.in_check() {
@@ -490,16 +490,19 @@ impl Board {
         pos
     }
 
-    pub fn map_legal_moves<F: FnMut(Move)>(&self, castling: &Castling, mut f: F,) {
+    pub fn map_legal_moves<F: FnMut(Move)>(&self, castling: &Castling, mut f: F) {
         self.map_legal_moves_internal::<true, F>(castling, &mut f);
     }
 
-    pub fn map_legal_captures<F: FnMut(Move)>(&self, castling: &Castling, mut f: F,) {
+    pub fn map_legal_captures<F: FnMut(Move)>(&self, castling: &Castling, mut f: F) {
         self.map_legal_moves_internal::<false, F>(castling, &mut f);
     }
 
-    fn map_legal_moves_internal<const QUIETS: bool, F: FnMut(Move)>(&self, castling: &Castling, f: &mut F) {
-
+    fn map_legal_moves_internal<const QUIETS: bool, F: FnMut(Move)>(
+        &self,
+        castling: &Castling,
+        f: &mut F,
+    ) {
         let pinned = self.pinned();
         let king_sq = self.king_index();
         let threats = self.threats();
@@ -663,7 +666,12 @@ impl Board {
         self.piece_moves_internal::<QUIETS, PC, true, F>(f, check_mask, attackers & pinned);
     }
 
-    fn piece_moves_internal<const QUIETS: bool, const PC: usize, const PINNED: bool, F: FnMut(Move)>(
+    fn piece_moves_internal<
+        const QUIETS: bool,
+        const PC: usize,
+        const PINNED: bool,
+        F: FnMut(Move),
+    >(
         &self,
         f: &mut F,
         check_mask: u64,

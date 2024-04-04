@@ -173,7 +173,7 @@ pub struct Node<T: GameRep> {
     next_sibling: i32,
 }
 
-impl<T: GameRep>  Default for Node<T> {
+impl<T: GameRep> Default for Node<T> {
     fn default() -> Self {
         Node {
             mov: T::Move::default(),
@@ -226,4 +226,3 @@ impl<T: GameRep> Node<T> {
         self.state = GameState::Ongoing;
     }
 }
-

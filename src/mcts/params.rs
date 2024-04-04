@@ -1,5 +1,5 @@
 #[derive(Clone)]
-pub struct TunableParams {
+pub struct MctsParams {
     cpuct: Param,
     mate_bonus: Param,
 }
@@ -31,7 +31,7 @@ impl Param {
     }
 }
 
-impl Default for TunableParams {
+impl Default for MctsParams {
     fn default() -> Self {
         Self {
             cpuct: Param::new(1.41, 0.1, 5.0),
@@ -40,7 +40,7 @@ impl Default for TunableParams {
     }
 }
 
-impl TunableParams {
+impl MctsParams {
     pub fn cpuct(&self) -> f32 {
         self.cpuct.val
     }

@@ -232,7 +232,7 @@ fn perft<const ROOT: bool, const BULK: bool>(pos: &Board, depth: u8, castling: &
             if ROOT {
                 println!("{}: {num}", mov.to_uci(castling));
             }
-    });
+        });
     }
 
     count

@@ -14,24 +14,15 @@ impl MoveType for Move {
 
 impl Move {
     pub fn new_single(to: u8) -> Self {
-        Self {
-            from: 63,
-            to,
-        }
+        Self { from: 63, to }
     }
 
     pub fn new_double(from: u8, to: u8) -> Self {
-        Self {
-            from,
-            to,
-        }
+        Self { from, to }
     }
 
     pub fn new_pass() -> Self {
-        Self {
-            from: 63,
-            to: 63,
-        }
+        Self { from: 63, to: 63 }
     }
 
     pub fn is_single(&self) -> bool {
@@ -39,10 +30,7 @@ impl Move {
     }
 
     pub fn new_null() -> Self {
-        Self {
-            from: 0,
-            to: 0,
-        }
+        Self { from: 0, to: 0 }
     }
 
     #[cfg(feature = "datagen")]

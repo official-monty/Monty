@@ -1,5 +1,6 @@
 use crate::{
-    game::GameRep, mcts::{Limits, Searcher, Tree}, params::TunableParams
+    game::GameRep,
+    mcts::{Limits, MctsParams, Searcher, Tree},
 };
 
 use std::time::Instant;
@@ -16,7 +17,7 @@ pub trait UciLike: Sized {
     fn run() {
         let mut prev = None;
         let mut pos = Self::Game::default();
-        let mut params = TunableParams::default();
+        let mut params = MctsParams::default();
         let mut tree = Tree::default();
         let mut report_moves = false;
 
@@ -65,7 +66,7 @@ pub trait UciLike: Sized {
         }
     }
 
-    fn bench(depth: usize, params: &TunableParams) {
+    fn bench(depth: usize, params: &MctsParams) {
         let mut total_nodes = 0;
         let bench_fens = Self::FEN_STRING.split('\n').collect::<Vec<&str>>();
         let timer = Instant::now();
@@ -94,11 +95,11 @@ fn preamble<T: UciLike>() {
     println!("id author Jamie Whiting");
     println!("option name report_moves type button");
     T::options();
-    TunableParams::info();
+    MctsParams::info();
     println!("{}", T::OK);
 }
 
-fn setoption(commands: &[&str], params: &mut TunableParams, report_moves: &mut bool) {
+fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool) {
     if let ["setoption", "name", "report_moves"] = commands {
         *report_moves = !*report_moves;
         return;
@@ -158,7 +159,7 @@ fn go<T: GameRep>(
     tree: Tree<T>,
     prev: Option<T>,
     pos: &T,
-    params: &TunableParams,
+    params: &MctsParams,
     _: bool,
 ) -> (Tree<T>, T) {
     let mut max_nodes = 10_000_000;

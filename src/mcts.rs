@@ -1,10 +1,10 @@
+mod params;
 mod tree;
 
+pub use params::MctsParams;
 pub use tree::{Node, Tree};
 
-use crate::{
-    game::{GameRep, GameState}, params::TunableParams
-};
+use crate::game::{GameRep, GameState};
 
 use std::{fmt::Write, time::Instant};
 
@@ -19,11 +19,11 @@ pub struct Searcher<T: GameRep> {
     root_position: T,
     tree: Tree<T>,
     selection: Vec<i32>,
-    params: TunableParams,
+    params: MctsParams,
 }
 
 impl<T: GameRep> Searcher<T> {
-    pub fn new(root_position: T, tree: Tree<T>, params: TunableParams) -> Self {
+    pub fn new(root_position: T, tree: Tree<T>, params: MctsParams) -> Self {
         Self {
             root_position,
             tree,
@@ -153,7 +153,9 @@ impl<T: GameRep> Searcher<T> {
             pv_str
         });
 
-        println!("info depth {depth} score cp {cp:.0} time {ms} nodes {nodes} nps {nps:.0} pv {pv}");
+        println!(
+            "info depth {depth} score cp {cp:.0} time {ms} nodes {nodes} nps {nps:.0} pv {pv}"
+        );
     }
 
     pub fn search(

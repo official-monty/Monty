@@ -1,7 +1,7 @@
 use crate::{to_slice_with_lifetime, DatagenSupport, PolicyFormat, Rand};
 
 use bulletformat::BulletFormat;
-use monty::{GameState, Limits, Searcher, Tree, TunableParams};
+use monty::{GameState, Limits, MctsParams, Searcher, Tree};
 
 use std::{
     fs::File,
@@ -13,7 +13,7 @@ use std::{
 pub struct DatagenThread<'a, T: DatagenSupport> {
     id: u32,
     rng: Rand,
-    params: TunableParams,
+    params: MctsParams,
     skipped: usize,
     total: usize,
     timer: Instant,
@@ -22,7 +22,7 @@ pub struct DatagenThread<'a, T: DatagenSupport> {
 }
 
 impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
-    pub fn new(id: u32, params: TunableParams, stop: &'a AtomicBool) -> Self {
+    pub fn new(id: u32, params: MctsParams, stop: &'a AtomicBool) -> Self {
         Self {
             id,
             rng: Rand::with_seed(),
@@ -41,7 +41,9 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
         let mut vout =
             BufWriter::new(File::create(vout_path.as_str()).expect("Provide a correct path!"));
         let mut pout = if policy {
-            Some(BufWriter::new(File::create(pout_path.as_str()).expect("Provide a correct path!")))
+            Some(BufWriter::new(
+                File::create(pout_path.as_str()).expect("Provide a correct path!"),
+            ))
         } else {
             None
         };

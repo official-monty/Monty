@@ -1,4 +1,4 @@
-use monty::{TunableParams, UciLike};
+use monty::{MctsParams, UciLike};
 
 #[cfg(feature = "ataxx")]
 use monty::ataxx;
@@ -10,7 +10,7 @@ fn main() {
     let mut args = std::env::args();
     let arg1 = args.nth(1);
 
-    let params = TunableParams::default();
+    let params = MctsParams::default();
 
     #[cfg(not(feature = "ataxx"))]
     {
