@@ -1,43 +1,14 @@
 use crate::MoveType;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Move {
     from: u8,
     to: u8,
-    ptr: i32,
-    policy: f32,
-}
-
-impl Default for Move {
-    fn default() -> Self {
-        Self {
-            from: 0,
-            to: 0,
-            ptr: -1,
-            policy: 0.0,
-        }
-    }
 }
 
 impl MoveType for Move {
     fn is_same_action(self, other: Self) -> bool {
         self.from == other.from && self.to == other.to
-    }
-
-    fn policy(&self) -> f32 {
-        self.policy
-    }
-
-    fn ptr(&self) -> i32 {
-        self.ptr
-    }
-
-    fn set_policy(&mut self, val: f32) {
-        self.policy = val;
-    }
-
-    fn set_ptr(&mut self, val: i32) {
-        self.ptr = val;
     }
 }
 
@@ -46,8 +17,6 @@ impl Move {
         Self {
             from: 63,
             to,
-            ptr: -1,
-            policy: 0.0,
         }
     }
 
@@ -55,8 +24,6 @@ impl Move {
         Self {
             from,
             to,
-            ptr: -1,
-            policy: 0.0,
         }
     }
 
@@ -64,8 +31,6 @@ impl Move {
         Self {
             from: 63,
             to: 63,
-            ptr: -1,
-            policy: 0.0,
         }
     }
 
@@ -77,8 +42,6 @@ impl Move {
         Self {
             from: 0,
             to: 0,
-            ptr: -1,
-            policy: 0.0,
         }
     }
 

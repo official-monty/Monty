@@ -4,7 +4,9 @@ mod policy;
 mod util;
 mod value;
 
-use crate::{GameRep, MoveType, UciLike};
+use goober::SparseVector;
+
+use crate::{GameRep, UciLike};
 
 pub use self::{
     board::Board,
@@ -20,7 +22,7 @@ impl UciLike for Uai {
     const NAME: &'static str = "uai";
     const NEWGAME: &'static str = "uainewgame";
     const OK: &'static str = "uaiok";
-    const FEN_STRING: &'static str = include_str!("../../resources/ataxx-fens.txt");
+    const FEN_STRING: &'static str = include_str!("../resources/ataxx-fens.txt");
 
     fn options() {}
 }
@@ -66,8 +68,8 @@ impl GameRep for Ataxx {
         self.board.game_state()
     }
 
-    fn gen_legal_moves(&self) -> crate::MoveList<Self::Move> {
-        self.board.movegen()
+    fn map_legal_moves<F: FnMut(Self::Move)>(&self, f: F) {
+        self.board.map_legal_moves(f);
     }
 
     fn get_value(&self) -> f32 {
@@ -76,27 +78,12 @@ impl GameRep for Ataxx {
         1.0 / (1.0 + (-out as f32 / 400.0).exp())
     }
 
-    fn set_policies(&self, moves: &mut crate::MoveList<Self::Move>) {
-        let mut total = 0.0;
-        let mut max = -1000.0;
-        let mut floats = [0.0; 256];
-        let feats = self.board.get_features();
+    fn get_policy_feats(&self) -> SparseVector {
+        self.board.get_features()
+    }
 
-        for (i, mov) in moves.iter_mut().enumerate() {
-            floats[i] = PolicyNetwork::get(mov, &feats);
-            if floats[i] > max {
-                max = floats[i];
-            }
-        }
-
-        for (i, _) in moves.iter_mut().enumerate() {
-            floats[i] = (floats[i] - max).exp();
-            total += floats[i];
-        }
-
-        for (i, mov) in moves.iter_mut().enumerate() {
-            mov.set_policy(floats[i] / total);
-        }
+    fn get_policy(&self, mov: Self::Move, feats: &SparseVector) -> f32 {
+        PolicyNetwork::get(&mov, feats)
     }
 
     fn make_move(&mut self, mov: Self::Move) {
@@ -110,23 +97,43 @@ impl GameRep for Ataxx {
 
 impl std::fmt::Display for Ataxx {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut moves = self.gen_legal_moves();
-        self.set_policies(&mut moves);
+        let feats = self.get_policy_feats();
+        let mut moves = Vec::new();
+        let mut max = f32::NEG_INFINITY;
+        self.map_legal_moves(|mov| {
+            let policy = self.get_policy(mov, &feats);
+            moves.push((mov, policy));
+
+            if policy > max {
+                max = policy;
+            }
+        });
+
+        let mut total = 0.0;
+
+        for (_, policy) in moves.iter_mut() {
+            *policy = (*policy - max).exp();
+            total += *policy;
+        }
+
+        for (_, policy) in moves.iter_mut() {
+            *policy /= total;
+        }
 
         let mut w = [0f32; 49];
         let mut count = [0; 49];
 
-        for mov in moves.iter() {
+        for &(mov, policy) in moves.iter() {
             let fr = mov.from();
             let to = mov.to();
 
             if fr != 63 {
-                w[fr] = w[fr].max(mov.policy());
+                w[fr] = w[fr].max(policy);
                 count[fr] += 1;
             }
 
             if to != 63 {
-                w[to] = w[to].max(mov.policy());
+                w[to] = w[to].max(policy);
                 count[to] += 1;
             }
         }
@@ -175,19 +182,16 @@ fn perft(board: &Board, depth: u8) -> u64 {
         return board.movegen_bulk(false);
     }
 
-    let moves = board.movegen();
     let mut nodes = 0;
 
-    for &mov in moves.iter() {
+    board.map_legal_moves(|mov| {
         let mut new = *board;
 
-        if mov.is_pass() {
-            continue;
+        if !mov.is_pass() {
+            new.make(mov);
+            nodes += perft(&new, depth - 1);
         }
-
-        new.make(mov);
-        nodes += perft(&new, depth - 1);
-    }
+    });
 
     nodes
 }

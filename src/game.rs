@@ -1,4 +1,4 @@
-use crate::moves::{MoveList, MoveType};
+use goober::SparseVector;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum GameState {
@@ -7,6 +7,10 @@ pub enum GameState {
     Lost,
     Draw,
     Won,
+}
+
+pub trait MoveType: Copy + Default {
+    fn is_same_action(self, other: Self) -> bool;
 }
 
 pub trait GameRep: Clone + Default + Send + Sync + std::fmt::Display {
@@ -24,9 +28,11 @@ pub trait GameRep: Clone + Default + Send + Sync + std::fmt::Display {
 
     fn make_move(&mut self, mov: Self::Move);
 
-    fn gen_legal_moves(&self) -> MoveList<Self::Move>;
+    fn map_legal_moves<F: FnMut(Self::Move)>(&self, f: F);
 
-    fn set_policies(&self, moves: &mut MoveList<Self::Move>);
+    fn get_policy_feats(&self) -> SparseVector;
+
+    fn get_policy(&self, mov: Self::Move, feats: &SparseVector) -> f32;
 
     fn get_value(&self) -> f32;
 

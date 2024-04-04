@@ -1,7 +1,7 @@
 use crate::{to_slice_with_lifetime, DatagenSupport, PolicyFormat, Rand};
 
 use bulletformat::BulletFormat;
-use monty::{GameState, Limits, MoveType, Searcher, TunableParams};
+use monty::{GameState, Limits, Searcher, Tree, TunableParams};
 
 use std::{
     fs::File,
@@ -104,9 +104,9 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
 
         // play out game
         loop {
-            let mut searcher = Searcher::new(position.clone(), Vec::new(), self.params.clone());
+            let mut searcher = Searcher::new(position.clone(), Tree::new(), self.params.clone());
 
-            let (bm, score) = searcher.search(limits, false, false, &mut 0, &None);
+            let (bm, score) = searcher.search(limits, false, &mut 0, &None);
 
             let (tree, _) = searcher.tree_and_board();
             let root_moves = tree[0].moves();

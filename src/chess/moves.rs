@@ -1,4 +1,4 @@
-use crate::moves::{MoveList, MoveType};
+use crate::game::MoveType;
 
 use super::{consts::Flag, frc::Castling};
 
@@ -10,20 +10,12 @@ macro_rules! pop_lsb {
     };
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct Move {
     from: u8,
     to: u8,
     flag: u8,
     moved: u8,
-    ptr: i32,
-    policy: f32,
-}
-
-impl Default for Move {
-    fn default() -> Self {
-        Move::NULL
-    }
 }
 
 impl MoveType for Move {
@@ -33,22 +25,6 @@ impl MoveType for Move {
             && self.flag == other.flag
             && self.moved == other.moved
     }
-
-    fn ptr(&self) -> i32 {
-        self.ptr
-    }
-
-    fn policy(&self) -> f32 {
-        self.policy
-    }
-
-    fn set_ptr(&mut self, ptr: i32) {
-        self.ptr = ptr;
-    }
-
-    fn set_policy(&mut self, val: f32) {
-        self.policy = val;
-    }
 }
 
 impl Move {
@@ -57,8 +33,6 @@ impl Move {
         to: 0,
         flag: 0,
         moved: 0,
-        ptr: -1,
-        policy: 0.0,
     };
 
     pub fn from(&self) -> u8 {
@@ -99,8 +73,6 @@ impl Move {
             to,
             flag,
             moved: moved as u8,
-            ptr: -1,
-            policy: 0.0,
         }
     }
 
@@ -124,9 +96,9 @@ impl Move {
 }
 
 #[inline]
-pub fn serialise(moves: &mut MoveList<Move>, mut attacks: u64, from: u8, flag: u8, pc: usize) {
+pub fn serialise<F: FnMut(Move)>(f: &mut F, mut attacks: u64, from: u8, flag: u8, pc: usize) {
     while attacks > 0 {
         pop_lsb!(to, attacks);
-        moves.push(Move::new(from, to, flag, pc));
+        f(Move::new(from, to, flag, pc));
     }
 }

@@ -1,7 +1,9 @@
+mod tree;
+
+pub use tree::{Node, Tree};
+
 use crate::{
-    game::{GameRep, GameState},
-    moves::{MoveList, MoveType},
-    params::TunableParams,
+    game::{GameRep, GameState}, params::TunableParams
 };
 
 use std::{fmt::Write, time::Instant};
@@ -13,52 +15,15 @@ pub struct Limits {
     pub max_nodes: usize,
 }
 
-#[derive(Clone, Default)]
-pub struct Node<T: GameRep> {
-    visits: i32,
-    wins: f32,
-    left: usize,
-    state: GameState,
-    moves: MoveList<T::Move>,
-}
-
-impl<T: GameRep> Node<T> {
-    fn new(pos: &T) -> Self {
-        let state = pos.game_state();
-        Self {
-            state,
-            ..Default::default()
-        }
-    }
-
-    fn expand(&mut self, pos: &T) {
-        self.moves = pos.gen_legal_moves();
-        pos.set_policies(&mut self.moves);
-        self.left = self.moves.len();
-    }
-
-    fn is_terminal(&self) -> bool {
-        self.state != GameState::Ongoing
-    }
-
-    pub fn moves(&self) -> MoveList<T::Move> {
-        self.moves.clone()
-    }
-
-    pub fn visits(&self) -> i32 {
-        self.visits
-    }
-}
-
 pub struct Searcher<T: GameRep> {
     root_position: T,
-    tree: Vec<Node<T>>,
+    tree: Tree<T>,
     selection: Vec<i32>,
     params: TunableParams,
 }
 
 impl<T: GameRep> Searcher<T> {
-    pub fn new(root_position: T, tree: Vec<Node<T>>, params: TunableParams) -> Self {
+    pub fn new(root_position: T, tree: Tree<T>, params: TunableParams) -> Self {
         Self {
             root_position,
             tree,
@@ -67,7 +32,7 @@ impl<T: GameRep> Searcher<T> {
         }
     }
 
-    pub fn tree_and_board(self) -> (Vec<Node<T>>, T) {
+    pub fn tree_and_board(self) -> (Tree<T>, T) {
         (self.tree, self.root_position)
     }
 
@@ -75,35 +40,34 @@ impl<T: GameRep> Searcher<T> {
         *self.selection.last().unwrap()
     }
 
-    fn pick_child(&self, node: &Node<T>) -> usize {
-        let expl = self.params.cpuct() * (node.visits.max(1) as f32).sqrt();
+    fn pick_child(&self, ptr: i32) -> i32 {
+        let node = &self.tree[ptr];
+        let expl = self.params.cpuct() * (node.visits().max(1) as f32).sqrt();
 
-        let mut best_idx = 0;
-        let mut best_uct = 0.0;
+        let mut best_idx = -1;
+        let mut best_uct = f32::NEG_INFINITY;
 
-        let fpu = if node.visits > 0 {
-            1.0 - node.wins / node.visits as f32
+        let fpu = if node.visits() > 0 {
+            1.0 - node.q()
         } else {
             0.5
         };
 
-        for (idx, mov) in node.moves.iter().enumerate() {
-            let uct = if mov.ptr() == -1 {
-                fpu + expl * mov.policy()
+        self.tree.map_children(ptr, |child_idx, child| {
+            let uct = if child.visits() == 0 {
+                fpu + expl * child.policy()
             } else {
-                let child = &self.tree[mov.ptr() as usize];
-
-                let q = child.wins / child.visits as f32;
-                let u = expl * mov.policy() / (1 + child.visits) as f32;
+                let q = child.q();
+                let u = expl * child.policy() / (1 + child.visits()) as f32;
 
                 q + u
             };
 
             if uct > best_uct {
                 best_uct = uct;
-                best_idx = idx;
+                best_idx = child_idx;
             }
-        }
+        });
 
         best_idx
     }
@@ -115,71 +79,35 @@ impl<T: GameRep> Searcher<T> {
         let mut node_ptr = 0;
 
         loop {
-            let node = &mut self.tree[node_ptr as usize];
-
-            if node_ptr != 0 && node.visits == 1 {
-                node.expand(pos);
-            }
-
-            let node = &self.tree[node_ptr as usize];
+            let node = &self.tree[node_ptr];
 
             if node.is_terminal() {
                 break;
             }
 
-            if node.moves.is_empty() {
-                println!("visits {} ptr {}", node.visits, node_ptr);
+            if node.visits() == 1 && !node.has_children() {
+                self.tree.expand(node_ptr, pos);
             }
 
-            let mov_idx = self.pick_child(node);
-            let mov = node.moves[mov_idx];
-            let next = mov.ptr();
+            let next = self.pick_child(node_ptr);
 
             if next == -1 {
                 break;
             }
 
+            let mov = self.tree[next].mov();
             pos.make_move(mov);
+
             self.selection.push(next);
             node_ptr = next;
         }
     }
 
-    fn expand_node(&mut self, pos: &mut T) {
+    fn expand_and_simulate(&mut self, pos: &T) -> f32 {
         let node_ptr = self.selected();
-        let node = &self.tree[node_ptr as usize];
+        let state = self.tree[node_ptr].get_state(pos);
 
-        assert!(node.left > 0);
-
-        let new_idx = self.pick_child(node);
-
-        let node = &mut self.tree[node_ptr as usize];
-        node.left -= 1;
-
-        if node.left > 0 {
-            node.moves.swap(new_idx, node.left);
-        }
-
-        let mov = node.moves[node.left];
-        pos.make_move(mov);
-
-        let new_node = Node::new(pos);
-        self.tree.push(new_node);
-
-        let new_ptr = self.tree.len() as i32 - 1;
-        let node = &mut self.tree[node_ptr as usize];
-        let to_explore = &mut node.moves[node.left];
-        to_explore.set_ptr(new_ptr);
-
-        self.selection.push(to_explore.ptr());
-    }
-
-    fn simulate(&self, pos: &T) -> f32 {
-        let node_ptr = self.selected();
-
-        let node = &self.tree[node_ptr as usize];
-
-        match node.state {
+        match state {
             GameState::Ongoing => pos.get_value(),
             GameState::Draw => 0.5,
             GameState::Lost => -self.params.mate_bonus(),
@@ -189,111 +117,26 @@ impl<T: GameRep> Searcher<T> {
 
     fn backprop(&mut self, mut result: f32) {
         while let Some(node_ptr) = self.selection.pop() {
-            let node = &mut self.tree[node_ptr as usize];
-            node.visits += 1;
             result = 1.0 - result;
-            node.wins += result;
+            self.tree[node_ptr].update(1, result);
         }
-    }
-
-    fn get_bestmove<const REPORT: bool>(&self, root_node: &Node<T>) -> (T::Move, f32) {
-        let mut best_move = root_node.moves[0];
-        let mut best_score = 0.0;
-
-        for mov in root_node.moves.iter() {
-            if mov.ptr() == -1 {
-                continue;
-            }
-
-            let node = &self.tree[mov.ptr() as usize];
-            let score = node.wins / node.visits as f32;
-
-            if REPORT {
-                println!(
-                    "info move {} score wdl {:.2}% ({:.2} / {})",
-                    self.root_position.conv_mov_to_str(*mov),
-                    score * 100.0,
-                    node.wins,
-                    node.visits,
-                );
-            }
-
-            if score > best_score {
-                best_score = score;
-                best_move = *mov;
-            }
-        }
-
-        (best_move, best_score)
     }
 
     fn get_pv(&self, mut depth: usize) -> (Vec<T::Move>, f32) {
-        let mut node = &self.tree[0];
-
-        let (mut mov, score) = self.get_bestmove::<false>(node);
-
+        let mut idx = self.tree.get_best_child(0);
+        let score = self.tree[idx].q();
         let mut pv = Vec::new();
 
-        while depth > 0 && mov.ptr() != -1 {
+        while depth > 0 && idx != -1 {
+            let node = &self.tree[idx];
+            let mov = node.mov();
             pv.push(mov);
-            node = &self.tree[mov.ptr() as usize];
 
-            if node.moves.is_empty() {
-                break;
-            }
-
-            mov = self.get_bestmove::<false>(node).0;
+            idx = self.tree.get_best_child(idx);
             depth -= 1;
         }
 
         (pv, score)
-    }
-
-    fn construct_subtree(&self, node_ptr: i32, subtree: &mut Vec<Node<T>>) {
-        if node_ptr == -1 {
-            return;
-        }
-
-        let node = &self.tree[node_ptr as usize];
-        subtree.push(node.clone());
-
-        let idx = subtree.len() - 1;
-
-        for (i, mov) in node.moves.iter().enumerate() {
-            let new_ptr = mov.ptr();
-            let curr_len = subtree.len();
-
-            if new_ptr != -1 {
-                subtree[idx].moves[i].set_ptr(curr_len as i32);
-                self.construct_subtree(new_ptr, subtree);
-            }
-        }
-    }
-
-    fn recurse_find(&self, start: i32, this_board: &T, board: &T, depth: u8) -> i32 {
-        if this_board.is_same(board) {
-            return start;
-        }
-
-        if start == -1 || depth == 0 {
-            return -1;
-        }
-
-        let node = &self.tree[start as usize];
-
-        for child_mov in node.moves.iter() {
-            let mut child_board = this_board.clone();
-            child_board.make_move(*child_mov);
-            let child = child_mov.ptr();
-
-            let found = self.recurse_find(child, &child_board, board, depth - 1);
-
-            if found != -1 {
-                return found;
-            }
-        }
-
-        -1
     }
 
     fn search_report(&self, depth: usize, timer: &Instant, nodes: usize) {
@@ -316,7 +159,6 @@ impl<T: GameRep> Searcher<T> {
     pub fn search(
         &mut self,
         limits: Limits,
-        report_moves: bool,
         uci_output: bool,
         total_nodes: &mut usize,
         prev_board: &Option<T>,
@@ -327,13 +169,16 @@ impl<T: GameRep> Searcher<T> {
         if !self.tree.is_empty() {
             if let Some(board) = prev_board {
                 println!("info string searching for subtree");
-                let ptr = self.recurse_find(0, board, &self.root_position, 2);
-                if ptr == -1 || self.tree[ptr as usize].visits == 1 {
+                let ptr = self.tree.recurse_find(0, board, &self.root_position, 2);
+                if ptr == -1 || !self.tree[ptr].has_children() {
                     self.tree.clear();
                 } else {
-                    let mut subtree = Vec::new();
-                    self.construct_subtree(ptr, &mut subtree);
+                    let mut subtree = Tree::default();
+                    let root = self.tree.construct_subtree(ptr, &mut subtree);
+
                     self.tree = subtree;
+                    self.tree[root].make_root();
+
                     println!(
                         "info string found subtree of size {} nodes",
                         self.tree.len()
@@ -345,9 +190,8 @@ impl<T: GameRep> Searcher<T> {
         }
 
         if self.tree.is_empty() {
-            let mut root_node = Node::new(&self.root_position);
-            root_node.expand(&self.root_position);
-            self.tree.push(root_node);
+            self.tree.push(Node::default());
+            self.tree.expand(0, &self.root_position);
         }
 
         let mut nodes = 0;
@@ -361,15 +205,11 @@ impl<T: GameRep> Searcher<T> {
 
             self.select_leaf(&mut pos);
 
-            let this_depth = self.selection.len();
+            let this_depth = self.selection.len() - 1;
             cumulative_depth += this_depth;
             let avg_depth = cumulative_depth / nodes;
 
-            if !self.tree[self.selected() as usize].is_terminal() {
-                self.expand_node(&mut pos);
-            }
-
-            let result = self.simulate(&pos);
+            let result = self.expand_and_simulate(&pos);
 
             self.backprop(result);
 
@@ -398,10 +238,8 @@ impl<T: GameRep> Searcher<T> {
             self.search_report(depth, &timer, nodes);
         }
 
-        if report_moves {
-            self.get_bestmove::<true>(&self.tree[0])
-        } else {
-            self.get_bestmove::<false>(&self.tree[0])
-        }
+        let best_idx = self.tree.get_best_child(0);
+        let best_child = &self.tree[best_idx];
+        (best_child.mov(), best_child.q())
     }
 }

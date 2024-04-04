@@ -3,11 +3,9 @@ pub mod chess;
 mod comm;
 mod game;
 mod mcts;
-mod moves;
 mod params;
 
 pub use comm::UciLike;
-pub use game::{GameRep, GameState};
-pub use mcts::{Limits, Searcher};
-pub use moves::{MoveList, MoveType};
+pub use game::{GameRep, GameState, MoveType};
+pub use mcts::{Limits, Searcher, Tree};
 pub use params::TunableParams;

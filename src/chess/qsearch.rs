@@ -20,10 +20,17 @@ pub fn quiesce(
 
     alpha = alpha.max(eval);
 
-    let mut caps = pos.gen::<false>(castling);
-    caps.sort_by_cached_key(|cap| mvv_lva(cap, pos));
+    let mut caps = [(Move::default(), 0); 218];
+    let mut count = 0;
 
-    for &mov in caps.iter() {
+    pos.map_legal_captures(castling, |mov| {
+        caps[count] = (mov, mvv_lva(&mov, pos));
+        count += 1;
+    });
+
+    caps[..count].sort_by_key(|cap| cap.1);
+
+    for &(mov, _) in &caps[..count] {
         // static exchange eval pruning
         if !pos.see(&mov, 1) {
             continue;

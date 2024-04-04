@@ -1,6 +1,6 @@
 use goober::SparseVector;
 
-use crate::{game::GameState, moves::MoveList, pop_lsb};
+use crate::{game::GameState, pop_lsb};
 
 use super::{
     attacks::Attacks,
@@ -125,19 +125,22 @@ impl Board {
         false
     }
 
-    pub fn game_state(&self, moves: &MoveList<Move>, stack: &[u64]) -> GameState {
+    pub fn game_state(&self, castling: &Castling, stack: &[u64]) -> GameState {
         if self.draw() || self.repetition(stack) {
             return GameState::Draw;
         }
 
-        if moves.is_empty() {
-            if self.in_check() {
-                GameState::Lost
-            } else {
-                GameState::Draw
-            }
+        let mut count = 0;
+        self.map_legal_moves(castling, |_| count += 1);
+
+        if count > 0 {
+            return GameState::Ongoing
+        }
+
+        if self.in_check() {
+            GameState::Lost
         } else {
-            GameState::Ongoing
+            GameState::Draw
         }
     }
 
@@ -487,9 +490,15 @@ impl Board {
         pos
     }
 
-    #[must_use]
-    pub fn gen<const QUIETS: bool>(&self, castling: &Castling) -> MoveList<Move> {
-        let mut moves = MoveList::default();
+    pub fn map_legal_moves<F: FnMut(Move)>(&self, castling: &Castling, mut f: F,) {
+        self.map_legal_moves_internal::<true, F>(castling, &mut f);
+    }
+
+    pub fn map_legal_captures<F: FnMut(Move)>(&self, castling: &Castling, mut f: F,) {
+        self.map_legal_moves_internal::<false, F>(castling, &mut f);
+    }
+
+    fn map_legal_moves_internal<const QUIETS: bool, F: FnMut(Move)>(&self, castling: &Castling, f: &mut F) {
 
         let pinned = self.pinned();
         let king_sq = self.king_index();
@@ -500,23 +509,21 @@ impl Board {
             0
         };
 
-        self.king_moves::<QUIETS>(&mut moves, threats);
+        self.king_moves::<QUIETS, F>(f, threats);
 
         if checkers == 0 {
-            self.gen_pnbrq::<QUIETS>(&mut moves, u64::MAX, u64::MAX, pinned, castling);
+            self.gen_pnbrq::<QUIETS, F>(f, u64::MAX, u64::MAX, pinned, castling);
             if QUIETS {
-                self.castles(&mut moves, self.occ(), threats, castling, pinned);
+                self.castles(f, self.occ(), threats, castling, pinned);
             }
         } else if checkers & (checkers - 1) == 0 {
             let checker_sq = checkers.trailing_zeros() as usize;
             let free = IN_BETWEEN[king_sq][checker_sq];
-            self.gen_pnbrq::<QUIETS>(&mut moves, checkers, free, pinned, castling);
+            self.gen_pnbrq::<QUIETS, F>(f, checkers, free, pinned, castling);
         }
-
-        moves
     }
 
-    fn king_moves<const QUIETS: bool>(&self, moves: &mut MoveList<Move>, threats: u64) {
+    fn king_moves<const QUIETS: bool, F: FnMut(Move)>(&self, f: &mut F, threats: u64) {
         let king_sq = self.king_index();
         let attacks = Attacks::king(king_sq) & !threats;
         let occ = self.occ();
@@ -524,21 +531,21 @@ impl Board {
         let mut caps = attacks & self.opps();
         while caps > 0 {
             pop_lsb!(to, caps);
-            moves.push(Move::new(king_sq as u8, to, Flag::CAP, Piece::KING));
+            f(Move::new(king_sq as u8, to, Flag::CAP, Piece::KING));
         }
 
         if QUIETS {
             let mut quiets = attacks & !occ;
             while quiets > 0 {
                 pop_lsb!(to, quiets);
-                moves.push(Move::new(king_sq as u8, to, Flag::QUIET, Piece::KING));
+                f(Move::new(king_sq as u8, to, Flag::QUIET, Piece::KING));
             }
         }
     }
 
-    fn gen_pnbrq<const QUIETS: bool>(
+    fn gen_pnbrq<const QUIETS: bool, F: FnMut(Move)>(
         &self,
-        moves: &mut MoveList<Move>,
+        f: &mut F,
         checkers: u64,
         free: u64,
         pinned: u64,
@@ -553,30 +560,30 @@ impl Board {
 
         if QUIETS {
             if side == Side::WHITE {
-                self.pawn_pushes::<{ Side::WHITE }, false>(moves, free_pawns, free);
-                self.pawn_pushes::<{ Side::WHITE }, true>(moves, pinned_pawns, free);
+                self.pawn_pushes::<{ Side::WHITE }, false, F>(f, free_pawns, free);
+                self.pawn_pushes::<{ Side::WHITE }, true, F>(f, pinned_pawns, free);
             } else {
-                self.pawn_pushes::<{ Side::BLACK }, false>(moves, free_pawns, free);
-                self.pawn_pushes::<{ Side::BLACK }, true>(moves, pinned_pawns, free);
+                self.pawn_pushes::<{ Side::BLACK }, false, F>(f, free_pawns, free);
+                self.pawn_pushes::<{ Side::BLACK }, true, F>(f, pinned_pawns, free);
             }
         }
 
         if self.enp_sq() > 0 {
-            self.en_passants(moves, pawns, castling);
+            self.en_passants(f, pawns, castling);
         }
 
-        self.pawn_captures::<false>(moves, free_pawns, checkers);
-        self.pawn_captures::<true>(moves, pinned_pawns, checkers);
+        self.pawn_captures::<false, F>(f, free_pawns, checkers);
+        self.pawn_captures::<true, F>(f, pinned_pawns, checkers);
 
-        self.piece_moves::<QUIETS, { Piece::KNIGHT }>(moves, check_mask, pinned);
-        self.piece_moves::<QUIETS, { Piece::BISHOP }>(moves, check_mask, pinned);
-        self.piece_moves::<QUIETS, { Piece::ROOK }>(moves, check_mask, pinned);
-        self.piece_moves::<QUIETS, { Piece::QUEEN }>(moves, check_mask, pinned);
+        self.piece_moves::<QUIETS, { Piece::KNIGHT }, F>(f, check_mask, pinned);
+        self.piece_moves::<QUIETS, { Piece::BISHOP }, F>(f, check_mask, pinned);
+        self.piece_moves::<QUIETS, { Piece::ROOK }, F>(f, check_mask, pinned);
+        self.piece_moves::<QUIETS, { Piece::QUEEN }, F>(f, check_mask, pinned);
     }
 
-    fn castles(
+    fn castles<F: FnMut(Move)>(
         &self,
-        moves: &mut MoveList<Move>,
+        f: &mut F,
         occ: u64,
         threats: u64,
         castling: &Castling,
@@ -599,17 +606,17 @@ impl Board {
 
         if self.stm() == Side::BLACK {
             if can_castle(Right::BQS, 1 << 58, 1 << 59) {
-                moves.push(Move::new(ksq, 58, Flag::QS, Piece::KING));
+                f(Move::new(ksq, 58, Flag::QS, Piece::KING));
             }
             if can_castle(Right::BKS, 1 << 62, 1 << 61) {
-                moves.push(Move::new(ksq, 62, Flag::KS, Piece::KING));
+                f(Move::new(ksq, 62, Flag::KS, Piece::KING));
             }
         } else {
             if can_castle(Right::WQS, 1 << 2, 1 << 3) {
-                moves.push(Move::new(ksq, 2, Flag::QS, Piece::KING));
+                f(Move::new(ksq, 2, Flag::QS, Piece::KING));
             }
             if can_castle(Right::WKS, 1 << 6, 1 << 5) {
-                moves.push(Move::new(ksq, 6, Flag::KS, Piece::KING));
+                f(Move::new(ksq, 6, Flag::KS, Piece::KING));
             }
         }
     }
@@ -645,20 +652,20 @@ impl Board {
         pinned
     }
 
-    fn piece_moves<const QUIETS: bool, const PC: usize>(
+    fn piece_moves<const QUIETS: bool, const PC: usize, F: FnMut(Move)>(
         &self,
-        moves: &mut MoveList<Move>,
+        f: &mut F,
         check_mask: u64,
         pinned: u64,
     ) {
         let attackers = self.boys() & self.piece(PC);
-        self.piece_moves_internal::<QUIETS, PC, false>(moves, check_mask, attackers & !pinned);
-        self.piece_moves_internal::<QUIETS, PC, true>(moves, check_mask, attackers & pinned);
+        self.piece_moves_internal::<QUIETS, PC, false, F>(f, check_mask, attackers & !pinned);
+        self.piece_moves_internal::<QUIETS, PC, true, F>(f, check_mask, attackers & pinned);
     }
 
-    fn piece_moves_internal<const QUIETS: bool, const PC: usize, const PINNED: bool>(
+    fn piece_moves_internal<const QUIETS: bool, const PC: usize, const PINNED: bool, F: FnMut(Move)>(
         &self,
-        moves: &mut MoveList<Move>,
+        f: &mut F,
         check_mask: u64,
         mut attackers: u64,
     ) {
@@ -676,16 +683,16 @@ impl Board {
                 attacks &= LINE_THROUGH[king_sq][usize::from(from)];
             }
 
-            serialise(moves, attacks & self.opps(), from, Flag::CAP, PC);
+            serialise(f, attacks & self.opps(), from, Flag::CAP, PC);
             if QUIETS {
-                serialise(moves, attacks & !occ, from, Flag::QUIET, PC);
+                serialise(f, attacks & !occ, from, Flag::QUIET, PC);
             }
         }
     }
 
-    fn pawn_captures<const PINNED: bool>(
+    fn pawn_captures<const PINNED: bool, F: FnMut(Move)>(
         &self,
-        moves: &mut MoveList<Move>,
+        f: &mut F,
         mut attackers: u64,
         checkers: u64,
     ) {
@@ -704,7 +711,7 @@ impl Board {
                 attacks &= LINE_THROUGH[king_sq][usize::from(from)];
             }
 
-            serialise(moves, attacks, from, Flag::CAP, Piece::PAWN);
+            serialise(f, attacks, from, Flag::CAP, Piece::PAWN);
         }
 
         while promo_attackers > 0 {
@@ -719,17 +726,17 @@ impl Board {
             while attacks > 0 {
                 pop_lsb!(to, attacks);
 
-                moves.push(Move::new(from, to, Flag::QPC, Piece::PAWN));
-                moves.push(Move::new(from, to, Flag::NPC, Piece::PAWN));
-                moves.push(Move::new(from, to, Flag::BPC, Piece::PAWN));
-                moves.push(Move::new(from, to, Flag::RPC, Piece::PAWN));
+                f(Move::new(from, to, Flag::QPC, Piece::PAWN));
+                f(Move::new(from, to, Flag::NPC, Piece::PAWN));
+                f(Move::new(from, to, Flag::BPC, Piece::PAWN));
+                f(Move::new(from, to, Flag::RPC, Piece::PAWN));
             }
         }
     }
 
-    fn pawn_pushes<const SIDE: usize, const PINNED: bool>(
+    fn pawn_pushes<const SIDE: usize, const PINNED: bool, F: FnMut(Move)>(
         &self,
-        moves: &mut MoveList<Move>,
+        f: &mut F,
         pawns: u64,
         check_mask: u64,
     ) {
@@ -746,7 +753,7 @@ impl Board {
             let to = idx_shift::<SIDE, 8>(from);
 
             if !PINNED || (1 << to) & LINE_THROUGH[king_sq][usize::from(from)] > 0 {
-                moves.push(Move::new(from, to, Flag::QUIET, Piece::PAWN));
+                f(Move::new(from, to, Flag::QUIET, Piece::PAWN));
             }
         }
 
@@ -756,10 +763,10 @@ impl Board {
             let to = idx_shift::<SIDE, 8>(from);
 
             if !PINNED || (1 << to) & LINE_THROUGH[king_sq][usize::from(from)] > 0 {
-                moves.push(Move::new(from, to, Flag::QPR, Piece::PAWN));
-                moves.push(Move::new(from, to, Flag::NPR, Piece::PAWN));
-                moves.push(Move::new(from, to, Flag::BPR, Piece::PAWN));
-                moves.push(Move::new(from, to, Flag::RPR, Piece::PAWN));
+                f(Move::new(from, to, Flag::QPR, Piece::PAWN));
+                f(Move::new(from, to, Flag::NPR, Piece::PAWN));
+                f(Move::new(from, to, Flag::BPR, Piece::PAWN));
+                f(Move::new(from, to, Flag::RPR, Piece::PAWN));
             }
         }
 
@@ -772,12 +779,12 @@ impl Board {
             let to = idx_shift::<SIDE, 16>(from);
 
             if !PINNED || (1 << to) & LINE_THROUGH[king_sq][usize::from(from)] > 0 {
-                moves.push(Move::new(from, to, Flag::DBL, Piece::PAWN));
+                f(Move::new(from, to, Flag::DBL, Piece::PAWN));
             }
         }
     }
 
-    fn en_passants(&self, moves: &mut MoveList<Move>, pawns: u64, castling: &Castling) {
+    fn en_passants<F: FnMut(Move)>(&self, f: &mut F, pawns: u64, castling: &Castling) {
         let mut attackers = Attacks::pawn(usize::from(self.enp_sq()), self.stm() ^ 1) & pawns;
 
         while attackers > 0 {
@@ -789,7 +796,7 @@ impl Board {
 
             let king = (tmp.piece(Piece::KING) & tmp.opps()).trailing_zeros() as usize;
             if !tmp.is_square_attacked(king, self.stm(), tmp.occ()) {
-                moves.push(mov);
+                f(mov);
             }
         }
     }

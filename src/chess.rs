@@ -10,7 +10,6 @@ mod value;
 use crate::{
     comm::UciLike,
     game::{GameRep, GameState},
-    moves::{MoveList, MoveType},
 };
 
 use self::{frc::Castling, moves::Move, qsearch::quiesce};
@@ -28,7 +27,7 @@ impl UciLike for Uci {
     const NAME: &'static str = "uci";
     const NEWGAME: &'static str = "ucinewgame";
     const OK: &'static str = "uciok";
-    const FEN_STRING: &'static str = include_str!("../../resources/chess-fens.txt");
+    const FEN_STRING: &'static str = include_str!("../resources/chess-fens.txt");
 
     type Game = Chess;
 
@@ -91,13 +90,12 @@ impl GameRep for Chess {
         }
     }
 
-    fn gen_legal_moves(&self) -> MoveList<Move> {
-        self.board.gen::<true>(&self.castling)
+    fn map_legal_moves<F: FnMut(Self::Move)>(&self, f: F) {
+        self.board.map_legal_moves(&self.castling, f);
     }
 
     fn game_state(&self) -> GameState {
-        let moves = self.gen_legal_moves();
-        self.board.game_state(&moves, &self.stack)
+        self.board.game_state(&self.castling, &self.stack)
     }
 
     fn make_move(&mut self, mov: Self::Move) {
@@ -117,33 +115,18 @@ impl GameRep for Chess {
         self.stm()
     }
 
+    fn get_policy_feats(&self) -> goober::SparseVector {
+        self.board.get_features()
+    }
+
+    fn get_policy(&self, mov: Self::Move, feats: &goober::SparseVector) -> f32 {
+        PolicyNetwork::get(&mov, &self.board, &POLICY_NETWORK, feats)
+    }
+
     fn get_value(&self) -> f32 {
         let accs = self.board.get_accs();
         let qs = quiesce(&self.board, &self.castling, &accs, -30_000, 30_000);
         1.0 / (1.0 + (-(qs as f32) / (400.0)).exp())
-    }
-
-    fn set_policies(&self, moves: &mut MoveList<Move>) {
-        let mut total = 0.0;
-        let mut max = -1000.0;
-        let mut floats = [0.0; 256];
-        let feats = self.board.get_features();
-
-        for (i, mov) in moves.iter_mut().enumerate() {
-            floats[i] = PolicyNetwork::get(mov, &self.board, &POLICY_NETWORK, &feats);
-            if floats[i] > max {
-                max = floats[i];
-            }
-        }
-
-        for (i, _) in moves.iter_mut().enumerate() {
-            floats[i] = (floats[i] - max).exp();
-            total += floats[i];
-        }
-
-        for (i, mov) in moves.iter_mut().enumerate() {
-            mov.set_policy(floats[i] / total);
-        }
     }
 
     fn perft(&self, depth: usize) -> u64 {
@@ -153,18 +136,38 @@ impl GameRep for Chess {
 
 impl std::fmt::Display for Chess {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut moves = self.gen_legal_moves();
-        self.set_policies(&mut moves);
+        let feats = self.get_policy_feats();
+        let mut moves = Vec::new();
+        let mut max = f32::NEG_INFINITY;
+        self.map_legal_moves(|mov| {
+            let policy = self.get_policy(mov, &feats);
+            moves.push((mov, policy));
+
+            if policy > max {
+                max = policy;
+            }
+        });
+
+        let mut total = 0.0;
+
+        for (_, policy) in moves.iter_mut() {
+            *policy = (*policy - max).exp();
+            total += *policy;
+        }
+
+        for (_, policy) in moves.iter_mut() {
+            *policy /= total;
+        }
 
         let mut w = [0f32; 64];
         let mut count = [0; 64];
 
-        for mov in moves.iter() {
+        for &(mov, policy) in moves.iter() {
             let fr = usize::from(mov.from());
             let to = usize::from(mov.to());
 
-            w[fr] = w[fr].max(mov.policy());
-            w[to] = w[to].max(mov.policy());
+            w[fr] = w[fr].max(policy);
+            w[to] = w[to].max(policy);
 
             count[fr] += 1;
             count[to] += 1;
@@ -207,30 +210,30 @@ impl std::fmt::Display for Chess {
 }
 
 fn perft<const ROOT: bool, const BULK: bool>(pos: &Board, depth: u8, castling: &Castling) -> u64 {
-    let moves = pos.gen::<true>(castling);
+    let mut count = 0;
 
     if BULK && !ROOT && depth == 1 {
-        return moves.len() as u64;
+        pos.map_legal_moves(castling, |_| count += 1);
+    } else {
+        let leaf = depth == 1;
+
+        pos.map_legal_moves(castling, |mov| {
+            let mut tmp = *pos;
+            tmp.make(mov, None, castling);
+
+            let num = if !BULK && leaf {
+                1
+            } else {
+                perft::<false, BULK>(&tmp, depth - 1, castling)
+            };
+
+            count += num;
+
+            if ROOT {
+                println!("{}: {num}", mov.to_uci(castling));
+            }
+    });
     }
 
-    let mut positions = 0;
-    let leaf = depth == 1;
-
-    for m_idx in 0..moves.len() {
-        let mut tmp = *pos;
-        tmp.make(moves[m_idx], None, castling);
-
-        let num = if !BULK && leaf {
-            1
-        } else {
-            perft::<false, BULK>(&tmp, depth - 1, castling)
-        };
-        positions += num;
-
-        if ROOT {
-            println!("{}: {num}", moves[m_idx].to_uci(castling));
-        }
-    }
-
-    positions
+    count
 }

@@ -1,4 +1,4 @@
-use crate::{GameState, MoveList};
+use crate::GameState;
 
 use goober::SparseVector;
 
@@ -125,23 +125,23 @@ impl Board {
         [self.bbs[0], self.bbs[1], self.gaps]
     }
 
-    pub fn movegen(&self) -> MoveList<Move> {
-        let mut moves = MoveList::default();
-
+    pub fn map_legal_moves<F: FnMut(Move)>(&self, mut f: F) {
         if self.game_over() {
-            return moves;
+            return;
         }
 
         let occ = self.occ();
         let nocc = Bitboard::not(occ);
         let mut boys = self.boys();
-
         let mut singles = Bitboard::expand(boys) & nocc;
+
+        let mut num = singles.count_ones();
+
         while singles > 0 {
             let sq = singles.trailing_zeros();
             singles &= singles - 1;
 
-            moves.push(Move::new_single(sq as u8));
+            f(Move::new_single(sq as u8));
         }
 
         while boys > 0 {
@@ -154,15 +154,14 @@ impl Board {
                 let to = doubles.trailing_zeros();
                 doubles &= doubles - 1;
 
-                moves.push(Move::new_double(from as u8, to as u8));
+                num += 1;
+                f(Move::new_double(from as u8, to as u8));
             }
         }
 
-        if moves.is_empty() {
-            moves.push(Move::new_pass());
+        if num == 0 {
+            f(Move::new_pass());
         }
-
-        moves
     }
 
     pub fn value_features_map<F: FnMut(usize)>(&self, mut f: F) {

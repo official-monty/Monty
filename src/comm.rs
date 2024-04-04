@@ -1,8 +1,5 @@
 use crate::{
-    game::GameRep,
-    mcts::{Limits, Node, Searcher},
-    moves::MoveType,
-    params::TunableParams,
+    game::GameRep, mcts::{Limits, Searcher, Tree}, params::TunableParams
 };
 
 use std::time::Instant;
@@ -20,7 +17,7 @@ pub trait UciLike: Sized {
         let mut prev = None;
         let mut pos = Self::Game::default();
         let mut params = TunableParams::default();
-        let mut tree = Vec::new();
+        let mut tree = Tree::default();
         let mut report_moves = false;
 
         loop {
@@ -48,14 +45,12 @@ pub trait UciLike: Sized {
                 "quit" => std::process::exit(0),
                 "eval" => println!("value: {}%", 100.0 * pos.get_value()),
                 "policy" => {
-                    let mut moves = pos.gen_legal_moves();
-                    pos.set_policies(&mut moves);
-
-                    for mov in moves.iter() {
-                        let s = pos.conv_mov_to_str(*mov);
-                        let p = mov.policy();
+                    pos.map_legal_moves(|mov| {
+                        let s = pos.conv_mov_to_str(mov);
+                        let f = pos.get_policy_feats();
+                        let p = pos.get_policy(mov, &f);
                         println!("{s} -> {:.2}%", p * 100.0);
-                    }
+                    });
                 }
                 "d" => println!("{pos}"),
                 _ => {
@@ -83,8 +78,8 @@ pub trait UciLike: Sized {
 
         for fen in bench_fens {
             let pos = Self::Game::from_fen(fen);
-            let mut searcher = Searcher::new(pos, Vec::new(), params.clone());
-            searcher.search(limits, false, false, &mut total_nodes, &None);
+            let mut searcher = Searcher::new(pos, Tree::default(), params.clone());
+            searcher.search(limits, false, &mut total_nodes, &None);
         }
 
         println!(
@@ -145,25 +140,27 @@ fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T) {
     *pos = T::from_fen(&fen);
 
     for &m in move_list.iter() {
-        let possible_moves = pos.gen_legal_moves();
+        let mut this_mov = T::Move::default();
 
-        for mov in possible_moves.iter() {
-            if m == pos.conv_mov_to_str(*mov) {
-                pos.make_move(*mov);
+        pos.map_legal_moves(|mov| {
+            if m == pos.conv_mov_to_str(mov) {
+                this_mov = mov;
             }
-        }
+        });
+
+        pos.make_move(this_mov);
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn go<T: GameRep>(
     commands: &[&str],
-    tree: Vec<Node<T>>,
+    tree: Tree<T>,
     prev: Option<T>,
     pos: &T,
     params: &TunableParams,
-    report_moves: bool,
-) -> (Vec<Node<T>>, T) {
+    _: bool,
+) -> (Tree<T>, T) {
     let mut max_nodes = 10_000_000;
     let mut max_time = None;
     let mut max_depth = 256;
@@ -230,7 +227,7 @@ fn go<T: GameRep>(
         max_nodes,
     };
 
-    let (mov, _) = searcher.search(limits, report_moves, true, &mut 0, &prev);
+    let (mov, _) = searcher.search(limits, true, &mut 0, &prev);
 
     println!("bestmove {}", pos.conv_mov_to_str(mov));
 
