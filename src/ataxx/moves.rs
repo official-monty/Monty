@@ -1,15 +1,7 @@
-use crate::MoveType;
-
 #[derive(Clone, Copy, Default)]
 pub struct Move {
     from: u8,
     to: u8,
-}
-
-impl MoveType for Move {
-    fn is_same_action(self, other: Self) -> bool {
-        self.from == other.from && self.to == other.to
-    }
 }
 
 impl Move {

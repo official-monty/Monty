@@ -9,12 +9,8 @@ pub enum GameState {
     Won,
 }
 
-pub trait MoveType: Copy + Default {
-    fn is_same_action(self, other: Self) -> bool;
-}
-
 pub trait GameRep: Clone + Default + Send + Sync + std::fmt::Display {
-    type Move: MoveType;
+    type Move: Copy + Default;
     const STARTPOS: &'static str;
 
     fn is_same(&self, other: &Self) -> bool;

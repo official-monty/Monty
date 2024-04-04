@@ -1,5 +1,3 @@
-use crate::game::MoveType;
-
 use super::{consts::Flag, frc::Castling};
 
 #[macro_export]
@@ -16,15 +14,6 @@ pub struct Move {
     to: u8,
     flag: u8,
     moved: u8,
-}
-
-impl MoveType for Move {
-    fn is_same_action(self, other: Self) -> bool {
-        self.from == other.from
-            && self.to == other.to
-            && self.flag == other.flag
-            && self.moved == other.moved
-    }
 }
 
 impl Move {
