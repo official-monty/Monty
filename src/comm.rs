@@ -18,7 +18,7 @@ pub trait UciLike: Sized {
         let mut prev = None;
         let mut pos = Self::Game::default();
         let mut params = MctsParams::default();
-        let mut tree = Tree::default();
+        let mut tree = Tree::new(1_000_000);
         let mut report_moves = false;
 
         loop {
@@ -46,12 +46,33 @@ pub trait UciLike: Sized {
                 "quit" => std::process::exit(0),
                 "eval" => println!("value: {}%", 100.0 * pos.get_value()),
                 "policy" => {
+                    let f = pos.get_policy_feats();
+                    let mut max = f32::NEG_INFINITY;
+                    let mut moves = Vec::new();
+
                     pos.map_legal_moves(|mov| {
                         let s = pos.conv_mov_to_str(mov);
-                        let f = pos.get_policy_feats();
                         let p = pos.get_policy(mov, &f);
-                        println!("{s} -> {:.2}%", p * 100.0);
+
+                        if p > max {
+                            max = p;
+                        }
+
+                        moves.push((s, p));
                     });
+
+                    let mut total = 0.0;
+
+                    for (_, p) in &mut moves {
+                        *p = (*p - max).exp();
+                        total += *p;
+                    }
+
+                    moves.sort_by_key(|(_, p)| (p * 1000.0) as u32);
+
+                    for (s, p) in moves {
+                        println!("{s} -> {:.2}%", p / total * 100.0);
+                    }
                 }
                 "d" => println!("{pos}"),
                 _ => {
@@ -77,10 +98,14 @@ pub trait UciLike: Sized {
             max_nodes: 1_000_000,
         };
 
+        let mut tree = Tree::new(1_000_000);
+
         for fen in bench_fens {
             let pos = Self::Game::from_fen(fen);
-            let mut searcher = Searcher::new(pos, Tree::default(), params.clone());
+            let mut searcher = Searcher::new(pos, tree, params.clone());
             searcher.search(limits, false, &mut total_nodes, &None);
+            tree = searcher.tree_and_board().0;
+            tree.clear();
         }
 
         println!(
@@ -156,12 +181,12 @@ fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T) {
 #[allow(clippy::too_many_arguments)]
 fn go<T: GameRep>(
     commands: &[&str],
-    tree: Tree<T>,
+    tree: Tree,
     prev: Option<T>,
     pos: &T,
     params: &MctsParams,
     _: bool,
-) -> (Tree<T>, T) {
+) -> (Tree, T) {
     let mut max_nodes = 10_000_000;
     let mut max_time = None;
     let mut max_depth = 256;

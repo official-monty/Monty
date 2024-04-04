@@ -12,10 +12,11 @@ use crate::{
     game::{GameRep, GameState},
 };
 
-use self::{frc::Castling, moves::Move, qsearch::quiesce};
+use self::{frc::Castling, qsearch::quiesce};
 
 pub use self::{
     board::Board,
+    moves::Move,
     policy::{PolicyNetwork, SubNet, POLICY_NETWORK},
     value::{ValueNetwork, NNUE},
 };
@@ -70,6 +71,8 @@ impl GameRep for Chess {
     type Move = Move;
 
     const STARTPOS: &'static str = STARTPOS;
+
+    const MAX_MOVES: usize = 512;
 
     fn is_same(&self, other: &Self) -> bool {
         self.board == other.board

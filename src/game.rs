@@ -10,8 +10,9 @@ pub enum GameState {
 }
 
 pub trait GameRep: Clone + Default + Send + Sync + std::fmt::Display {
-    type Move: Copy + Default;
+    type Move: Copy + Default + From<u16> + Into<u16>;
     const STARTPOS: &'static str;
+    const MAX_MOVES: usize;
 
     fn is_same(&self, other: &Self) -> bool;
 

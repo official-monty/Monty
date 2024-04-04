@@ -1,7 +1,7 @@
 use super::{board::Board, frc::Castling, moves::Move, value::Accumulator};
 
 fn mvv_lva(mov: &Move, pos: &Board) -> i32 {
-    8 * pos.get_pc(1 << mov.to()) as i32 - mov.moved() as i32
+    8 * pos.get_pc(1 << mov.to()) as i32 - pos.get_pc(1 << mov.from()) as i32
 }
 
 pub fn quiesce(

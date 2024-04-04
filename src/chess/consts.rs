@@ -20,20 +20,20 @@ impl Piece {
 
 pub struct Flag;
 impl Flag {
-    pub const QUIET: u8 = 0;
-    pub const DBL: u8 = 1;
-    pub const KS: u8 = 2;
-    pub const QS: u8 = 3;
-    pub const CAP: u8 = 4;
-    pub const ENP: u8 = 5;
-    pub const NPR: u8 = 8;
-    pub const BPR: u8 = 9;
-    pub const RPR: u8 = 10;
-    pub const QPR: u8 = 11;
-    pub const NPC: u8 = 12;
-    pub const BPC: u8 = 13;
-    pub const RPC: u8 = 14;
-    pub const QPC: u8 = 15;
+    pub const QUIET: u16 = 0;
+    pub const DBL: u16 = 1;
+    pub const KS: u16 = 2;
+    pub const QS: u16 = 3;
+    pub const CAP: u16 = 4;
+    pub const ENP: u16 = 5;
+    pub const NPR: u16 = 8;
+    pub const BPR: u16 = 9;
+    pub const RPR: u16 = 10;
+    pub const QPR: u16 = 11;
+    pub const NPC: u16 = 12;
+    pub const BPC: u16 = 13;
+    pub const RPC: u16 = 14;
+    pub const QPC: u16 = 15;
 }
 
 // castle rights

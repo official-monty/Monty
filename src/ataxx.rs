@@ -40,6 +40,7 @@ impl Ataxx {
 
 impl GameRep for Ataxx {
     const STARTPOS: &'static str = STARTPOS;
+    const MAX_MOVES: usize = 256;
     type Move = Move;
 
     fn is_same(&self, other: &Self) -> bool {

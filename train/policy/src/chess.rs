@@ -1,6 +1,6 @@
 use datagen::{impls::chess::ChessPolicyData, Rand};
 use goober::{FeedForwardNetwork, OutputLayer};
-use monty::chess::{consts::Flag, PolicyNetwork, SubNet};
+use monty::chess::{consts::Flag, PolicyNetwork, SubNet, Move};
 
 use crate::TrainablePolicy;
 
@@ -52,7 +52,7 @@ impl TrainablePolicy for PolicyNetwork {
         let flip = board.flip_val();
 
         for training_mov in &pos.moves[..pos.num] {
-            let mov = board.move_from_u16(training_mov.mov);
+            let mov = Move::from(training_mov.mov);
 
             let visits = training_mov.visits;
             let from = usize::from(mov.from() ^ flip);

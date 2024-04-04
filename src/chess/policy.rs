@@ -42,7 +42,7 @@ pub struct PolicyNetwork {
 }
 
 impl PolicyNetwork {
-    fn get_neuron(&self, mov: &Move, feats: &SparseVector, flip: u8) -> f32 {
+    fn get_neuron(&self, mov: &Move, feats: &SparseVector, flip: u16) -> f32 {
         let from_subnet = &self.weights[usize::from(mov.from() ^ flip)];
         let from_vec = from_subnet.out(feats);
 
@@ -66,7 +66,7 @@ impl PolicyNetwork {
         if mov.is_capture() {
             score += self.hce[2];
 
-            let diff = pos.get_pc(1 << mov.to()) as i32 - i32::from(mov.moved());
+            let diff = pos.get_pc(1 << mov.to()) as i32 - pos.get_pc(1 << mov.from()) as i32;
             score += self.hce[3] * diff as f32;
         }
 

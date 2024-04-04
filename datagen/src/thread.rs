@@ -80,7 +80,8 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
 
         // play 8 or 9 random moves
         for _ in 0..(8 + (self.rng.rand_int() % 2)) {
-            let moves = position.gen_legal_moves();
+            let mut moves = Vec::new();
+            position.map_legal_moves(|mov| moves.push(mov));
 
             if moves.is_empty() {
                 return;
@@ -91,7 +92,10 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
             position.make_move(mov);
         }
 
-        if position.gen_legal_moves().is_empty() {
+        let mut moves = Vec::new();
+        position.map_legal_moves(|mov| moves.push(mov));
+
+        if moves.is_empty() {
             return;
         }
 
@@ -106,28 +110,23 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
 
         // play out game
         loop {
-            let mut searcher = Searcher::new(position.clone(), Tree::new(), self.params.clone());
+            let mut searcher = Searcher::new(position.clone(), Tree::new(10_000_000), self.params.clone());
 
             let (bm, score) = searcher.search(limits, false, &mut 0, &None);
 
             let (tree, _) = searcher.tree_and_board();
-            let root_moves = tree[0].moves();
+
+            let mut root_count = 0;
+            position.map_legal_moves(|_| root_count += 1);
 
             // disallow positions with >106 moves and moves when in check
-            if root_moves.len() <= T::PolicyData::MAX_MOVES {
+            if root_count <= T::PolicyData::MAX_MOVES {
                 let mut policy_pos = T::into_policy(&position, score);
                 let value_pos = T::into_value(&position, score);
 
-                for mov in root_moves.iter() {
-                    if mov.ptr() == -1 {
-                        continue;
-                    }
-
-                    let child = &tree[mov.ptr() as usize];
-                    let visits = child.visits();
-
-                    policy_pos.push(*mov, visits as i16);
-                }
+                tree.map_children(tree.root_node(), |_, child| {
+                    policy_pos.push(child.mov().into(), child.visits() as i16);
+                });
 
                 records.push((policy_pos, value_pos, position.stm()));
                 self.total += 1;

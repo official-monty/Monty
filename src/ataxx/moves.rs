@@ -4,6 +4,22 @@ pub struct Move {
     to: u8,
 }
 
+impl From<Move> for u16 {
+    fn from(value: Move) -> Self {
+        unsafe {
+            std::mem::transmute(value)
+        }
+    }
+}
+
+impl From<u16> for Move {
+    fn from(value: u16) -> Self {
+        unsafe {
+            std::mem::transmute(value)
+        }
+    }
+}
+
 impl Move {
     pub fn new_single(to: u8) -> Self {
         Self { from: 63, to }

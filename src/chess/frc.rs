@@ -29,8 +29,8 @@ impl Castling {
         self.castle_mask[sq]
     }
 
-    pub fn rook_file(&self, side: usize, ks: usize) -> u8 {
-        self.rook_files[side][ks]
+    pub fn rook_file(&self, side: usize, ks: usize) -> u16 {
+        u16::from(self.rook_files[side][ks])
     }
 
     pub fn parse(&mut self, pos: &Board, rights_str: &str) -> u8 {

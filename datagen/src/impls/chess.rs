@@ -26,11 +26,8 @@ impl PolicyFormat<Chess> for ChessPolicyData {
     const MAX_MOVES: usize = 104;
 
     fn push(&mut self, mov: <Chess as GameRep>::Move, visits: i16) {
-        let from = u16::from(mov.from()) << 10;
-        let to = u16::from(mov.to()) << 4;
-
         self.moves[self.num] = ChessMoveInfo {
-            mov: from | to | u16::from(mov.flag()),
+            mov: u16::from(mov),
             visits,
         };
 

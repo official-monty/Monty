@@ -192,15 +192,6 @@ impl Board {
         feats
     }
 
-    pub fn move_from_u16(&self, mov: u16) -> Move {
-        let from = mov >> 10;
-        let to = (mov >> 4) & 63;
-        let flag = mov & 15;
-        let moved = self.get_pc(1 << from);
-
-        Move::new(from as u8, to as u8, flag as u8, moved)
-    }
-
     pub fn eval_from_acc(&self, accs: &[Accumulator; 2]) -> i32 {
         ValueNetwork::out(&accs[self.stm()], &accs[self.stm() ^ 1])
     }
@@ -235,7 +226,7 @@ impl Board {
         0
     }
 
-    pub fn flip_val(&self) -> u8 {
+    pub fn flip_val(&self) -> u16 {
         if self.stm() == Side::BLACK {
             56
         } else {
@@ -306,7 +297,7 @@ impl Board {
         let mut next = if mov.is_promo() {
             mov.promo_pc()
         } else {
-            usize::from(mov.moved())
+            self.get_pc(1 << mov.from())
         };
         let mut score = self.gain(mov) - threshold - SEE_VALS[next];
 
@@ -373,7 +364,7 @@ impl Board {
         accs: &mut Option<&mut [Accumulator; 2]>,
         side: usize,
         piece: usize,
-        sq: u8,
+        sq: u16,
     ) {
         let bit = 1 << sq;
         self.bb[piece] ^= bit;
@@ -395,6 +386,7 @@ impl Board {
         // extracting move info
         let side = usize::from(self.stm);
         let bb_to = 1 << mov.to();
+        let moved = self.get_pc(1 << mov.from());
         let captured = if !mov.is_capture() {
             Piece::EMPTY
         } else {
@@ -408,13 +400,13 @@ impl Board {
             castling.mask(usize::from(mov.to())) & castling.mask(usize::from(mov.from()));
         self.halfm += 1;
 
-        if mov.moved() == Piece::PAWN as u8 || mov.is_capture() {
+        if moved == Piece::PAWN || mov.is_capture() {
             self.halfm = 0;
         }
 
         // move piece
-        self.toggle::<false>(&mut acc, side, usize::from(mov.moved()), mov.from());
-        self.toggle::<true>(&mut acc, side, usize::from(mov.moved()), mov.to());
+        self.toggle::<false>(&mut acc, side, moved, mov.from());
+        self.toggle::<true>(&mut acc, side, moved, mov.to());
 
         // captures
         if captured != Piece::EMPTY {
@@ -424,10 +416,10 @@ impl Board {
 
         // more complex moves
         match mov.flag() {
-            Flag::DBL => self.enp_sq = mov.to() ^ 8,
+            Flag::DBL => self.enp_sq = mov.to() as u8 ^ 8,
             Flag::KS | Flag::QS => {
                 let ks = usize::from(mov.flag() == Flag::KS);
-                let sf = 56 * side as u8;
+                let sf = 56 * side as u16;
                 let rfr = sf + castling.rook_file(side, ks);
                 let rto = sf + [3, 5][ks];
                 self.toggle::<false>(&mut acc, side, Piece::ROOK, rfr);
@@ -467,7 +459,7 @@ impl Board {
                     .unwrap_or(6);
                 let colour = usize::from(idx > 5);
                 let pc = idx + 2 - 6 * colour;
-                pos.toggle::<true>(&mut None, colour, pc, (8 * row + col) as u8);
+                pos.toggle::<true>(&mut None, colour, pc, (8 * row + col) as u16);
                 pos.phase += PHASE_VALS[pc];
                 col += 1;
             }
@@ -534,14 +526,14 @@ impl Board {
         let mut caps = attacks & self.opps();
         while caps > 0 {
             pop_lsb!(to, caps);
-            f(Move::new(king_sq as u8, to, Flag::CAP, Piece::KING));
+            f(Move::new(king_sq as u16, to, Flag::CAP));
         }
 
         if QUIETS {
             let mut quiets = attacks & !occ;
             while quiets > 0 {
                 pop_lsb!(to, quiets);
-                f(Move::new(king_sq as u8, to, Flag::QUIET, Piece::KING));
+                f(Move::new(king_sq as u16, to, Flag::QUIET));
             }
         }
     }
@@ -593,7 +585,7 @@ impl Board {
         pinned: u64,
     ) {
         let kbb = self.bb[Piece::KING] & self.bb[self.stm()];
-        let ksq = kbb.trailing_zeros() as u8;
+        let ksq = kbb.trailing_zeros() as u16;
 
         let can_castle = |right: u8, kto: u64, rto: u64| {
             let side = self.stm();
@@ -609,17 +601,17 @@ impl Board {
 
         if self.stm() == Side::BLACK {
             if can_castle(Right::BQS, 1 << 58, 1 << 59) {
-                f(Move::new(ksq, 58, Flag::QS, Piece::KING));
+                f(Move::new(ksq, 58, Flag::QS));
             }
             if can_castle(Right::BKS, 1 << 62, 1 << 61) {
-                f(Move::new(ksq, 62, Flag::KS, Piece::KING));
+                f(Move::new(ksq, 62, Flag::KS));
             }
         } else {
             if can_castle(Right::WQS, 1 << 2, 1 << 3) {
-                f(Move::new(ksq, 2, Flag::QS, Piece::KING));
+                f(Move::new(ksq, 2, Flag::QS));
             }
             if can_castle(Right::WKS, 1 << 6, 1 << 5) {
-                f(Move::new(ksq, 6, Flag::KS, Piece::KING));
+                f(Move::new(ksq, 6, Flag::KS));
             }
         }
     }
@@ -691,9 +683,9 @@ impl Board {
                 attacks &= LINE_THROUGH[king_sq][usize::from(from)];
             }
 
-            serialise(f, attacks & self.opps(), from, Flag::CAP, PC);
+            serialise(f, attacks & self.opps(), from, Flag::CAP);
             if QUIETS {
-                serialise(f, attacks & !occ, from, Flag::QUIET, PC);
+                serialise(f, attacks & !occ, from, Flag::QUIET);
             }
         }
     }
@@ -719,7 +711,7 @@ impl Board {
                 attacks &= LINE_THROUGH[king_sq][usize::from(from)];
             }
 
-            serialise(f, attacks, from, Flag::CAP, Piece::PAWN);
+            serialise(f, attacks, from, Flag::CAP);
         }
 
         while promo_attackers > 0 {
@@ -734,10 +726,10 @@ impl Board {
             while attacks > 0 {
                 pop_lsb!(to, attacks);
 
-                f(Move::new(from, to, Flag::QPC, Piece::PAWN));
-                f(Move::new(from, to, Flag::NPC, Piece::PAWN));
-                f(Move::new(from, to, Flag::BPC, Piece::PAWN));
-                f(Move::new(from, to, Flag::RPC, Piece::PAWN));
+                f(Move::new(from, to, Flag::QPC));
+                f(Move::new(from, to, Flag::NPC));
+                f(Move::new(from, to, Flag::BPC));
+                f(Move::new(from, to, Flag::RPC));
             }
         }
     }
@@ -761,7 +753,7 @@ impl Board {
             let to = idx_shift::<SIDE, 8>(from);
 
             if !PINNED || (1 << to) & LINE_THROUGH[king_sq][usize::from(from)] > 0 {
-                f(Move::new(from, to, Flag::QUIET, Piece::PAWN));
+                f(Move::new(from, to, Flag::QUIET));
             }
         }
 
@@ -771,10 +763,10 @@ impl Board {
             let to = idx_shift::<SIDE, 8>(from);
 
             if !PINNED || (1 << to) & LINE_THROUGH[king_sq][usize::from(from)] > 0 {
-                f(Move::new(from, to, Flag::QPR, Piece::PAWN));
-                f(Move::new(from, to, Flag::NPR, Piece::PAWN));
-                f(Move::new(from, to, Flag::BPR, Piece::PAWN));
-                f(Move::new(from, to, Flag::RPR, Piece::PAWN));
+                f(Move::new(from, to, Flag::QPR));
+                f(Move::new(from, to, Flag::NPR));
+                f(Move::new(from, to, Flag::BPR));
+                f(Move::new(from, to, Flag::RPR));
             }
         }
 
@@ -787,7 +779,7 @@ impl Board {
             let to = idx_shift::<SIDE, 16>(from);
 
             if !PINNED || (1 << to) & LINE_THROUGH[king_sq][usize::from(from)] > 0 {
-                f(Move::new(from, to, Flag::DBL, Piece::PAWN));
+                f(Move::new(from, to, Flag::DBL));
             }
         }
     }
@@ -799,7 +791,7 @@ impl Board {
             pop_lsb!(from, attackers);
 
             let mut tmp = *self;
-            let mov = Move::new(from, self.enp_sq(), Flag::ENP, Piece::PAWN);
+            let mov = Move::new(from, u16::from(self.enp_sq()), Flag::ENP);
             tmp.make(mov, None, castling);
 
             let king = (tmp.piece(Piece::KING) & tmp.opps()).trailing_zeros() as usize;
@@ -907,7 +899,7 @@ fn shift<const SIDE: usize>(bb: u64) -> u64 {
     }
 }
 
-fn idx_shift<const SIDE: usize, const AMOUNT: u8>(idx: u8) -> u8 {
+fn idx_shift<const SIDE: usize, const AMOUNT: u16>(idx: u16) -> u16 {
     if SIDE == Side::WHITE {
         idx + AMOUNT
     } else {

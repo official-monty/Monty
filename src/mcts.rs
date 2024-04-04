@@ -17,13 +17,13 @@ pub struct Limits {
 
 pub struct Searcher<T: GameRep> {
     root_position: T,
-    tree: Tree<T>,
+    tree: Tree,
     selection: Vec<i32>,
     params: MctsParams,
 }
 
 impl<T: GameRep> Searcher<T> {
-    pub fn new(root_position: T, tree: Tree<T>, params: MctsParams) -> Self {
+    pub fn new(root_position: T, tree: Tree, params: MctsParams) -> Self {
         Self {
             root_position,
             tree,
@@ -48,15 +48,17 @@ impl<T: GameRep> Searcher<T> {
         // we failed to reuse a tree, push the root node to
         // the tree and expand it
         if self.tree.is_empty() {
-            self.tree.push(Node::default());
-            self.tree.expand(0, &self.root_position);
+            let node = self.tree.push(Node::default());
+            self.tree.make_root_node(node);
+            self.tree.expand(node, &self.root_position);
         }
 
         let mut nodes = 0;
         let mut depth = 0;
         let mut cumulative_depth = 0;
 
-        while nodes < limits.max_nodes {
+        // search until a further iteration may overflow the tree
+        while self.tree.remaining() > T::MAX_MOVES {
             nodes += 1;
 
             // start from the root
@@ -78,6 +80,11 @@ impl<T: GameRep> Searcher<T> {
 
             // step 4: backpropogate the result to the root
             self.backprop(result);
+
+            // check if hit node limit
+            if nodes >= limits.max_nodes {
+                break;
+            }
 
             // check for timeup
             if let Some(time) = limits.max_time {
@@ -107,17 +114,17 @@ impl<T: GameRep> Searcher<T> {
             self.search_report(depth, &timer, nodes);
         }
 
-        let best_idx = self.tree.get_best_child(0);
+        let best_idx = self.tree.get_best_child(self.tree.root_node());
         let best_child = &self.tree[best_idx];
-        (best_child.mov(), best_child.q())
+        (T::Move::from(best_child.mov()), best_child.q())
     }
 
     fn select_leaf(&mut self, pos: &mut T) {
-        self.selection.clear();
-        self.selection.push(0);
-
         // always start from the root
-        let mut node_ptr = 0;
+        let mut node_ptr = self.tree.root_node();
+
+        self.selection.clear();
+        self.selection.push(node_ptr);
 
         loop {
             let node = &self.tree[node_ptr];
@@ -147,7 +154,7 @@ impl<T: GameRep> Searcher<T> {
 
             // descend down the tree
             let mov = self.tree[next].mov();
-            pos.make_move(mov);
+            pos.make_move(T::Move::from(mov));
             self.selection.push(next);
             node_ptr = next;
         }
@@ -239,14 +246,14 @@ impl<T: GameRep> Searcher<T> {
     }
 
     fn get_pv(&self, mut depth: usize) -> (Vec<T::Move>, f32) {
-        let mut idx = self.tree.get_best_child(0);
+        let mut idx = self.tree.get_best_child(self.tree.root_node());
         let score = self.tree[idx].q();
         let mut pv = Vec::new();
 
         while depth > 0 && idx != -1 {
             let node = &self.tree[idx];
             let mov = node.mov();
-            pv.push(mov);
+            pv.push(T::Move::from(mov));
 
             idx = self.tree.get_best_child(idx);
             depth -= 1;
@@ -255,7 +262,7 @@ impl<T: GameRep> Searcher<T> {
         (pv, score)
     }
 
-    pub fn tree_and_board(self) -> (Tree<T>, T) {
+    pub fn tree_and_board(self) -> (Tree, T) {
         (self.tree, self.root_position)
     }
 
