@@ -6,7 +6,7 @@ pub use tree::{Node, Tree};
 
 use crate::game::{GameRep, GameState};
 
-use std::{fmt::Write, time::Instant};
+use std::time::Instant;
 
 #[derive(Clone, Copy)]
 pub struct Limits {
@@ -228,21 +228,22 @@ impl<T: GameRep> Searcher<T> {
 
     fn search_report(&self, depth: usize, timer: &Instant, nodes: usize) {
         let (pv_line, score) = self.get_pv(depth);
+        let cp = -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln();
+
+        print!("info depth {depth} score cp {cp:.0} ");
 
         let elapsed = timer.elapsed();
         let nps = nodes as f32 / elapsed.as_secs_f32();
         let ms = elapsed.as_millis();
+        let hf = self.tree.len() * 1000 / self.tree.cap();
 
-        let cp = -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln();
+        print!("time {ms} nodes {nodes} nps {nps:.0} hashfull {hf}");
 
-        let pv = pv_line.iter().fold(String::new(), |mut pv_str, mov| {
-            write!(&mut pv_str, "{} ", self.root_position.conv_mov_to_str(*mov)).unwrap();
-            pv_str
-        });
+        for mov in pv_line {
+            print!(" {}", self.root_position.conv_mov_to_str(mov));
+        }
 
-        println!(
-            "info depth {depth} score cp {cp:.0} time {ms} nodes {nodes} nps {nps:.0} pv {pv}"
-        );
+        println!();
     }
 
     fn get_pv(&self, mut depth: usize) -> (Vec<T::Move>, f32) {

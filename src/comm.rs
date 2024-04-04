@@ -18,7 +18,7 @@ pub trait UciLike: Sized {
         let mut prev = None;
         let mut pos = Self::Game::default();
         let mut params = MctsParams::default();
-        let mut tree = Tree::new(1_000_000);
+        let mut tree = Tree::new_mb(64);
         let mut report_moves = false;
 
         loop {
@@ -34,7 +34,7 @@ pub trait UciLike: Sized {
             let cmd = *commands.first().unwrap_or(&"oops");
             match cmd {
                 "isready" => println!("readyok"),
-                "setoption" => setoption(&commands, &mut params, &mut report_moves),
+                "setoption" => setoption(&commands, &mut params, &mut report_moves, &mut tree),
                 "position" => position(commands, &mut pos),
                 "go" => {
                     let res = go(&commands, tree, prev, &pos, &params, report_moves);
@@ -74,6 +74,11 @@ pub trait UciLike: Sized {
                         println!("{s} -> {:.2}%", p / total * 100.0);
                     }
                 }
+                "tree" => {
+                    let u = tree.len();
+                    let c = tree.cap();
+                    println!("info string filled {u}/{c} ({:.2}%)", u as f32 * 100.0 / c as f32);
+                }
                 "d" => println!("{pos}"),
                 _ => {
                     if cmd == Self::NAME {
@@ -98,7 +103,7 @@ pub trait UciLike: Sized {
             max_nodes: 1_000_000,
         };
 
-        let mut tree = Tree::new(1_000_000);
+        let mut tree = Tree::new_mb(4);
 
         for fen in bench_fens {
             let pos = Self::Game::from_fen(fen);
@@ -118,13 +123,14 @@ pub trait UciLike: Sized {
 fn preamble<T: UciLike>() {
     println!("id name monty {}", env!("CARGO_PKG_VERSION"));
     println!("id author Jamie Whiting");
+    println!("option name Hash type spin default 64 min 1 max 8192");
     println!("option name report_moves type button");
     T::options();
     MctsParams::info();
     println!("{}", T::OK);
 }
 
-fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool) {
+fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool, tree: &mut Tree) {
     if let ["setoption", "name", "report_moves"] = commands {
         *report_moves = !*report_moves;
         return;
@@ -140,7 +146,11 @@ fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool
         return;
     };
 
-    params.set(name, val as f32 / 100.0);
+    if name == "Hash" {
+        *tree = Tree::new_mb(val as usize);
+    } else {
+        params.set(name, val as f32 / 100.0);
+    }
 }
 
 fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T) {

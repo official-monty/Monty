@@ -23,7 +23,12 @@ impl std::ops::IndexMut<i32> for Tree {
 }
 
 impl Tree {
-    pub fn new(cap: usize) -> Self {
+    pub fn new_mb(mb: usize) -> Self {
+        let cap = mb * 1024 * 1024 / std::mem::size_of::<Node>();
+        Self::new(cap)
+    }
+
+    fn new(cap: usize) -> Self {
         let mut tree = Self {
             tree: vec![Node::default(); cap],
             root: -1,
