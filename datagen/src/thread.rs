@@ -108,7 +108,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
 
             let (bm, score) = searcher.search(limits, false, false, &mut 0, &None);
 
-            let tree = searcher.tree();
+            let (tree, _) = searcher.tree_and_board();
             let root_moves = tree[0].moves();
 
             // disallow positions with >106 moves and moves when in check
