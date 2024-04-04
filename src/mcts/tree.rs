@@ -80,12 +80,39 @@ impl<T: GameRep> Tree<T> {
             total += child.policy;
         });
 
-        self.map_children_mut(ptr, |_, child| {
-            child.policy /= total;
-        });
+        self.map_children_mut(ptr, |_, child| child.policy /= total);
     }
 
-    pub fn recurse_find(&self, start: i32, this_board: &T, board: &T, depth: u8) -> i32 {
+    pub fn try_use_subtree(&mut self, root: &T, prev_board: &Option<T>) {
+        if self.is_empty() {
+            return;
+        }
+
+        if let Some(board) = prev_board {
+            println!("info string searching for subtree");
+
+            let ptr = self.recurse_find(0, board, root, 2);
+
+            if ptr == -1 || !self[ptr].has_children() {
+                self.clear();
+            } else {
+                let mut subtree = Tree::default();
+                let root = self.construct_subtree(ptr, &mut subtree);
+
+                *self = subtree;
+                self[root].make_root();
+
+                println!(
+                    "info string found subtree of size {} nodes",
+                    self.len()
+                );
+            }
+        } else {
+            self.clear();
+        }
+    }
+
+    fn recurse_find(&self, start: i32, this_board: &T, board: &T, depth: u8) -> i32 {
         if this_board.is_same(board) {
             return start;
         }
@@ -116,7 +143,7 @@ impl<T: GameRep> Tree<T> {
         -1
     }
 
-    pub fn construct_subtree(&self, node_ptr: i32, subtree: &mut Tree<T>) -> i32 {
+    fn construct_subtree(&self, node_ptr: i32, subtree: &mut Tree<T>) -> i32 {
         let node = &self.tree[node_ptr as usize];
         let new_ptr = subtree.push(node.clone());
 
