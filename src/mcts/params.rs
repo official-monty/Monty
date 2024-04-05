@@ -1,12 +1,4 @@
 #[derive(Clone)]
-pub struct MctsParams {
-    root_pst: Param,
-    root_cpuct: Param,
-    cpuct: Param,
-    mate_bonus: Param,
-}
-
-#[derive(Clone)]
 struct Param {
     val: f32,
     min: f32,
@@ -33,48 +25,45 @@ impl Param {
     }
 }
 
-impl Default for MctsParams {
-    fn default() -> Self {
-        Self {
-            root_pst: Param::new(1.0, 1.0, 2.5),
-            root_cpuct: Param::new(1.41, 0.1, 5.0),
-            cpuct: Param::new(1.41, 0.1, 5.0),
-            mate_bonus: Param::new(1.0, 0.0, 10.0),
+macro_rules! make_mcts_params {
+    ($($name:ident: $val:expr, $min:expr, $max:expr,)*) => {
+        #[derive(Clone)]
+        pub struct MctsParams {
+            $($name: Param,)*
         }
-    }
+
+        impl Default for MctsParams {
+            fn default() -> Self {
+                Self {
+                    $($name: Param::new($val, $min, $max),)*
+                }
+            }
+        }
+
+        impl MctsParams {
+        $(
+            pub fn $name(&self) -> f32 {
+                self.$name.val
+            }
+        )*
+
+            pub fn info(self) {
+                $(self.$name.info(stringify!($name));)*
+            }
+
+            pub fn set(&mut self, name: &str, val: f32) {
+                match name {
+                    $(stringify!($name) => self.$name.set(val),)*
+                    _ => println!("unknown option!"),
+                }
+            }
+        }
+    };
 }
 
-impl MctsParams {
-    pub fn root_pst(&self) -> f32 {
-        self.root_pst.val
-    }
-
-    pub fn root_cpuct(&self) -> f32 {
-        self.root_cpuct.val
-    }
-
-    pub fn cpuct(&self) -> f32 {
-        self.cpuct.val
-    }
-
-    pub fn mate_bonus(&self) -> f32 {
-        self.mate_bonus.val
-    }
-
-    pub fn info(self) {
-        self.root_pst.info("root_pst");
-        self.root_cpuct.info("root_cpuct");
-        self.cpuct.info("cpuct");
-        self.mate_bonus.info("mate_bonus");
-    }
-
-    pub fn set(&mut self, name: &str, val: f32) {
-        match name {
-            "root_pst" => self.root_pst.set(val),
-            "root_cpuct" => self.root_cpuct.set(val),
-            "cpuct" => self.cpuct.set(val),
-            "mate_bonus" => self.mate_bonus.set(val),
-            _ => println!("unknown option!"),
-        }
-    }
+make_mcts_params! {
+    root_pst: 1.0, 1.0, 2.5,
+    root_cpuct: 1.41, 0.1, 5.0,
+    cpuct: 1.41, 0.1, 5.0,
+    mate_bonus: 1.0, 0.0, 10.0,
 }
