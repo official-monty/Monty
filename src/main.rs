@@ -13,7 +13,7 @@ fn main() {
     #[cfg(not(feature = "ataxx"))]
     {
         if let Some("bench") = arg1.as_deref() {
-            chess::Uci::bench(5);
+            chess::Uci::bench(6);
             return;
         }
 

@@ -15,13 +15,13 @@ pub struct Move {
 
 impl From<Move> for u16 {
     fn from(value: Move) -> Self {
-        unsafe { std::mem::transmute(value) }
+        value.mov
     }
 }
 
 impl From<u16> for Move {
     fn from(value: u16) -> Self {
-        unsafe { std::mem::transmute(value) }
+        Self { mov: value }
     }
 }
 

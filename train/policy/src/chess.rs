@@ -52,7 +52,7 @@ impl TrainablePolicy for PolicyNetwork {
         let flip = board.flip_val();
 
         for training_mov in &pos.moves[..pos.num] {
-            let mov = Move::from(training_mov.mov);
+            let mov = <Move as From<u16>>::from(training_mov.mov);
 
             let visits = training_mov.visits;
             let from = usize::from(mov.from() ^ flip);
@@ -116,7 +116,7 @@ impl TrainablePolicy for PolicyNetwork {
             if mov.is_capture() {
                 grad.hce[2] += factor;
 
-                let diff = board.get_pc(1 << mov.to()) as i32 - i32::from(mov.moved());
+                let diff = board.get_pc(1 << mov.to()) as i32 - board.get_pc(1 << mov.from()) as i32;
                 grad.hce[3] += factor * diff as f32;
             }
         }

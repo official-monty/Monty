@@ -100,7 +100,7 @@ pub trait UciLike: Sized {
         let params = Self::Game::default_mcts_params();
         let mut total_nodes = 0;
         let bench_fens = Self::FEN_STRING.split('\n').collect::<Vec<&str>>();
-        let timer = Instant::now();
+        let mut time = 0.0;
 
         let limits = Limits {
             max_time: None,
@@ -108,20 +108,19 @@ pub trait UciLike: Sized {
             max_nodes: 1_000_000,
         };
 
-        let mut tree = Tree::new_mb(4);
+        let mut tree = Tree::new_mb(32);
 
         for fen in bench_fens {
             let pos = Self::Game::from_fen(fen);
             let mut searcher = Searcher::new(pos, tree, params.clone());
+            let timer = Instant::now();
             searcher.search(limits, false, &mut total_nodes, &None);
+            time += timer.elapsed().as_secs_f32();
             tree = searcher.tree_and_board().0;
             tree.clear();
         }
 
-        println!(
-            "Bench: {total_nodes} nodes {:.0} nps",
-            total_nodes as f32 / timer.elapsed().as_secs_f32()
-        );
+        println!("Bench: {total_nodes} nodes {:.0} nps", total_nodes as f32 / time);
     }
 }
 
