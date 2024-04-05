@@ -1,5 +1,68 @@
 use crate::game::{GameRep, GameState};
 
+#[derive(Clone)]
+pub struct Node {
+    mov: u16,
+    mark: bool,
+    state: GameState,
+    policy: f32,
+    visits: i32,
+    wins: f32,
+    first_child: i32,
+    next_sibling: i32,
+}
+
+impl Default for Node {
+    fn default() -> Self {
+        Node {
+            mov: 0,
+            mark: false,
+            state: GameState::Ongoing,
+            policy: 0.0,
+            visits: 0,
+            wins: 0.0,
+            first_child: -1,
+            next_sibling: -1,
+        }
+    }
+}
+
+impl Node {
+    pub fn is_terminal(&self) -> bool {
+        self.state != GameState::Ongoing
+    }
+
+    pub fn mov(&self) -> u16 {
+        self.mov
+    }
+
+    pub fn get_state<T: GameRep>(&mut self, pos: &T) -> GameState {
+        self.state = pos.game_state();
+        self.state
+    }
+
+    pub fn policy(&self) -> f32 {
+        self.policy
+    }
+
+    pub fn visits(&self) -> i32 {
+        self.visits
+    }
+
+    pub fn q(&self) -> f32 {
+        self.wins / self.visits as f32
+    }
+
+    pub fn has_children(&self) -> bool {
+        self.first_child != -1
+    }
+
+    pub fn update(&mut self, visits: i32, result: f32) {
+        self.visits += visits;
+        self.wins += result;
+    }
+}
+
 pub struct Tree {
     tree: Vec<Node>,
     root: i32,
@@ -256,68 +319,5 @@ impl Tree {
         });
 
         best_child
-    }
-}
-
-#[derive(Clone)]
-pub struct Node {
-    mov: u16,
-    mark: bool,
-    state: GameState,
-    policy: f32,
-    visits: i32,
-    wins: f32,
-    first_child: i32,
-    next_sibling: i32,
-}
-
-impl Default for Node {
-    fn default() -> Self {
-        Node {
-            mov: 0,
-            mark: false,
-            state: GameState::Ongoing,
-            policy: 0.0,
-            visits: 0,
-            wins: 0.0,
-            first_child: -1,
-            next_sibling: -1,
-        }
-    }
-}
-
-impl Node {
-    pub fn is_terminal(&self) -> bool {
-        self.state != GameState::Ongoing
-    }
-
-    pub fn mov(&self) -> u16 {
-        self.mov
-    }
-
-    pub fn get_state<T: GameRep>(&mut self, pos: &T) -> GameState {
-        self.state = pos.game_state();
-        self.state
-    }
-
-    pub fn policy(&self) -> f32 {
-        self.policy
-    }
-
-    pub fn visits(&self) -> i32 {
-        self.visits
-    }
-
-    pub fn q(&self) -> f32 {
-        self.wins / self.visits as f32
-    }
-
-    pub fn has_children(&self) -> bool {
-        self.first_child != -1
-    }
-
-    pub fn update(&mut self, visits: i32, result: f32) {
-        self.visits += visits;
-        self.wins += result;
     }
 }
