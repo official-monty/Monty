@@ -270,4 +270,12 @@ impl<T: GameRep> Searcher<T> {
     fn selected(&self) -> i32 {
         *self.selection.last().unwrap()
     }
+
+    pub fn display_moves(&self) {
+        self.tree.map_children(self.tree.root_node(), |_, child| {
+            let mov = self.root_position.conv_mov_to_str(child.mov().into());
+            let q = child.q() * 100.0;
+            println!("{mov} -> {q:.2}%");
+        });
+    }
 }

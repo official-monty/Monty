@@ -195,7 +195,7 @@ fn go<T: GameRep>(
     prev: Option<T>,
     pos: &T,
     params: &MctsParams,
-    _: bool,
+    report_moves: bool,
 ) -> (Tree, T) {
     let mut max_nodes = 10_000_000;
     let mut max_time = None;
@@ -266,6 +266,10 @@ fn go<T: GameRep>(
     let (mov, _) = searcher.search(limits, true, &mut 0, &prev);
 
     println!("bestmove {}", pos.conv_mov_to_str(mov));
+
+    if report_moves {
+        searcher.display_moves();
+    }
 
     searcher.tree_and_board()
 }
