@@ -78,7 +78,7 @@ pub trait UciLike: Sized {
                     let u = tree.len();
                     let c = tree.cap();
                     let pct = u as f32 * 100.0 / c as f32;
-                    println!("info string filled {u}/{c} ({pct:.2}%)");
+                    println!("filled {u}/{c} ({pct:.2}%)");
 
                     let depth = commands.get(1).unwrap_or(&"5").parse().unwrap_or(5);
                     tree.display::<Self::Game>(tree.root_node(), depth);

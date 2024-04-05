@@ -6,7 +6,7 @@ use crate::{
 #[derive(Clone)]
 pub struct Node {
     mov: u16,
-    mark: bool,
+    mark: Mark,
     state: GameState,
     policy: f32,
     visits: i32,
@@ -15,11 +15,11 @@ pub struct Node {
     next_sibling: i32,
 }
 
-impl Default for Node {
-    fn default() -> Self {
+impl Node {
+    pub fn new(mark: Mark) -> Self {
         Node {
             mov: 0,
-            mark: false,
+            mark,
             state: GameState::Ongoing,
             policy: 0.0,
             visits: 0,
@@ -28,9 +28,7 @@ impl Default for Node {
             next_sibling: -1,
         }
     }
-}
 
-impl Node {
     pub fn is_terminal(&self) -> bool {
         self.state != GameState::Ongoing
     }
@@ -66,12 +64,29 @@ impl Node {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Mark {
+    Var1,
+    Var2,
+    Empty,
+}
+
+impl Mark {
+    fn flip(&self) -> Self {
+        match *self {
+            Mark::Empty => Mark::Empty,
+            Mark::Var1 => Mark::Var2,
+            Mark::Var2 => Mark::Var1,
+        }
+    }
+}
+
 pub struct Tree {
     tree: Vec<Node>,
     root: i32,
     empty: i32,
     used: usize,
-    mark: bool,
+    mark: Mark,
 }
 
 impl std::ops::Index<i32> for Tree {
@@ -96,11 +111,11 @@ impl Tree {
 
     fn new(cap: usize) -> Self {
         let mut tree = Self {
-            tree: vec![Node::default(); cap],
+            tree: vec![Node::new(Mark::Empty); cap],
             root: -1,
             empty: 0,
             used: 0,
-            mark: false,
+            mark: Mark::Empty,
         };
 
         tree.clear();
@@ -121,6 +136,7 @@ impl Tree {
     }
 
     pub fn delete(&mut self, ptr: i32) {
+        self[ptr].mark = Mark::Empty;
         self[ptr].visits = 0;
         self[ptr].first_child = self.empty;
         self.empty = ptr;
@@ -152,13 +168,13 @@ impl Tree {
         self.root = -1;
         self.empty = 0;
         self.used = 0;
-        self.mark = false;
+        self.mark = Mark::Empty;
 
         let end = self.cap() as i32 - 1;
 
         for i in 0..end {
             self[i].visits = 0;
-            self[i].mark = false;
+            self[i].mark = Mark::Empty;
             self[i].first_child = i + 1;
         }
 
@@ -317,7 +333,7 @@ impl Tree {
     }
 
     fn mark_subtree(&mut self, ptr: i32) {
-        self[ptr].mark = !self[ptr].mark;
+        self[ptr].mark = self[ptr].mark.flip();
 
         let mut child = self[ptr].first_child;
         while child != -1 {
@@ -327,10 +343,10 @@ impl Tree {
     }
 
     fn clear_unmarked(&mut self) {
-        let mark = self.mark;
+        let bad_mark = self.mark.flip();
 
         for i in 0..self.cap() as i32 {
-            if self[i].visits > 0 && self[i].mark != mark {
+            if self[i].mark == bad_mark {
                 self.delete(i);
             }
         }

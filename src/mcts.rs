@@ -2,7 +2,7 @@ mod params;
 mod tree;
 
 pub use params::MctsParams;
-pub use tree::{Node, Tree};
+pub use tree::{Node, Tree, Mark};
 
 use crate::game::{GameRep, GameState};
 
@@ -48,7 +48,7 @@ impl<T: GameRep> Searcher<T> {
         // we failed to reuse a tree, push the root node to
         // the tree and expand it
         if self.tree.is_empty() {
-            let node = self.tree.push(Node::default());
+            let node = self.tree.push(Node::new(Mark::Var1));
             self.tree.make_root_node(node);
             self.tree
                 .expand::<T, true>(node, &self.root_position, &self.params);
