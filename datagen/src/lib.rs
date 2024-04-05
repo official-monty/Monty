@@ -11,7 +11,7 @@ use bulletformat::BulletFormat;
 pub use rng::Rand;
 pub use thread::{write, DatagenThread};
 
-use monty::{GameRep, MctsParams};
+use monty::GameRep;
 
 pub trait PolicyFormat<T: GameRep> {
     const MAX_MOVES: usize;
@@ -43,7 +43,7 @@ pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {
 }
 
 pub fn run_datagen<T: DatagenSupport>(nodes: usize, threads: usize, policy: bool) {
-    let params = MctsParams::default();
+    let params = T::default_mcts_params();
     let stop_base = AtomicBool::new(false);
     let stop = &stop_base;
 

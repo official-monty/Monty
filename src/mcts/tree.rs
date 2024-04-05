@@ -1,4 +1,4 @@
-use crate::game::{GameRep, GameState};
+use crate::{game::{GameRep, GameState}, MctsParams};
 
 #[derive(Clone)]
 pub struct Node {
@@ -190,7 +190,7 @@ impl Tree {
         }
     }
 
-    pub fn expand<T: GameRep>(&mut self, ptr: i32, pos: &T) {
+    pub fn expand<T: GameRep, const IS_ROOT: bool>(&mut self, ptr: i32, pos: &T, params: &MctsParams) {
         let feats = pos.get_policy_feats();
         let mut next_sibling = -1;
         let mut max = f32::NEG_INFINITY;
@@ -220,7 +220,33 @@ impl Tree {
         let mut total = 0.0;
 
         self.map_children_mut(ptr, |_, child| {
-            child.policy = (child.policy - max).exp();
+            child.policy = if IS_ROOT {
+                ((child.policy - max) / params.root_pst()).exp()
+            } else {
+                (child.policy - max).exp()
+            };
+            total += child.policy;
+        });
+
+        self.map_children_mut(ptr, |_, child| child.policy /= total);
+    }
+
+    pub fn relabel_policy<T: GameRep>(&mut self, ptr: i32, pos: &T, params: &MctsParams) {
+        let feats = pos.get_policy_feats();
+        let mut max = f32::NEG_INFINITY;
+
+        self.map_children_mut(ptr, |_, child| {
+            child.policy = pos.get_policy(child.mov().into(), &feats);
+
+            if child.policy > max {
+                max = child.policy;
+            }
+        });
+
+        let mut total = 0.0;
+
+        self.map_children_mut(ptr, |_, child| {
+            child.policy = ((child.policy - max) / params.root_pst()).exp();
             total += child.policy;
         });
 

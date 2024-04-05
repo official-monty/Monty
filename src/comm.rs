@@ -17,7 +17,7 @@ pub trait UciLike: Sized {
     fn run() {
         let mut prev = None;
         let mut pos = Self::Game::default();
-        let mut params = MctsParams::default();
+        let mut params = Self::Game::default_mcts_params();
         let mut tree = Tree::new_mb(64);
         let mut report_moves = false;
 
@@ -95,7 +95,8 @@ pub trait UciLike: Sized {
         }
     }
 
-    fn bench(depth: usize, params: &MctsParams) {
+    fn bench(depth: usize) {
+        let params = Self::Game::default_mcts_params();
         let mut total_nodes = 0;
         let bench_fens = Self::FEN_STRING.split('\n').collect::<Vec<&str>>();
         let timer = Instant::now();
@@ -129,7 +130,7 @@ fn preamble<T: UciLike>() {
     println!("option name Hash type spin default 64 min 1 max 8192");
     println!("option name report_moves type button");
     T::options();
-    MctsParams::info();
+    MctsParams::info(T::Game::default_mcts_params());
     println!("{}", T::OK);
 }
 

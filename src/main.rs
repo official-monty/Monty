@@ -1,4 +1,4 @@
-use monty::{MctsParams, UciLike};
+use monty::UciLike;
 
 #[cfg(feature = "ataxx")]
 use monty::ataxx;
@@ -10,12 +10,10 @@ fn main() {
     let mut args = std::env::args();
     let arg1 = args.nth(1);
 
-    let params = MctsParams::default();
-
     #[cfg(not(feature = "ataxx"))]
     {
         if let Some("bench") = arg1.as_deref() {
-            chess::Uci::bench(5, &params);
+            chess::Uci::bench(5);
             return;
         }
 
@@ -25,7 +23,7 @@ fn main() {
     #[cfg(feature = "ataxx")]
     {
         if let Some("bench") = arg1.as_deref() {
-            ataxx::Uai::bench(5, &params);
+            ataxx::Uai::bench(5);
             return;
         }
 

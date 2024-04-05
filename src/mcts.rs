@@ -50,7 +50,9 @@ impl<T: GameRep> Searcher<T> {
         if self.tree.is_empty() {
             let node = self.tree.push(Node::default());
             self.tree.make_root_node(node);
-            self.tree.expand(node, &self.root_position);
+            self.tree.expand::<T, true>(node, &self.root_position, &self.params);
+        } else {
+            self.tree.relabel_policy(self.tree.root_node(), &self.root_position, &self.params);
         }
 
         let mut nodes = 0;
@@ -140,7 +142,7 @@ impl<T: GameRep> Searcher<T> {
             // massively reduce memory usage, it also is a
             // large speedup (avoids many policy net calculations)
             if node.visits() == 1 && !node.has_children() {
-                self.tree.expand(node_ptr, pos);
+                self.tree.expand::<T, false>(node_ptr, pos, &self.params);
             }
 
             // pick the next child based on PUCT score
@@ -190,10 +192,16 @@ impl<T: GameRep> Searcher<T> {
     }
 
     fn pick_child(&self, ptr: i32) -> i32 {
+        let is_root = ptr == self.tree.root_node();
+        let cpuct = if is_root {
+            self.params.root_cpuct()
+        } else {
+            self.params.cpuct()
+        };
         let node = &self.tree[ptr];
 
         // exploration factor to apply
-        let expl = self.params.cpuct() * (node.visits().max(1) as f32).sqrt();
+        let expl = cpuct * (node.visits().max(1) as f32).sqrt();
 
         // first play urgency - choose a Q value for
         // moves which have no been played yet

@@ -6,7 +6,7 @@ mod value;
 
 use goober::SparseVector;
 
-use crate::{GameRep, UciLike};
+use crate::{GameRep, UciLike, MctsParams};
 
 pub use self::{
     board::Board,
@@ -42,6 +42,13 @@ impl GameRep for Ataxx {
     const STARTPOS: &'static str = STARTPOS;
     const MAX_MOVES: usize = 256;
     type Move = Move;
+
+    fn default_mcts_params() -> MctsParams {
+        let mut params = MctsParams::default();
+        params.set("root_pst", 1.0);
+        params.set("root_cpuct", 1.41);
+        params
+    }
 
     fn is_same(&self, other: &Self) -> bool {
         self.board == other.board

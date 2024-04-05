@@ -10,6 +10,7 @@ mod value;
 use crate::{
     comm::UciLike,
     game::{GameRep, GameState},
+    MctsParams,
 };
 
 use self::{frc::Castling, qsearch::quiesce};
@@ -73,6 +74,10 @@ impl GameRep for Chess {
     const STARTPOS: &'static str = STARTPOS;
 
     const MAX_MOVES: usize = 512;
+
+    fn default_mcts_params() -> MctsParams {
+        MctsParams::default()
+    }
 
     fn is_same(&self, other: &Self) -> bool {
         self.board == other.board
