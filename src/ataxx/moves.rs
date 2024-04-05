@@ -16,6 +16,12 @@ impl From<u16> for Move {
     }
 }
 
+impl std::fmt::Display for Move {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.uai())
+    }
+}
+
 impl Move {
     pub fn new_single(to: u8) -> Self {
         Self { from: 63, to }

@@ -50,9 +50,11 @@ impl<T: GameRep> Searcher<T> {
         if self.tree.is_empty() {
             let node = self.tree.push(Node::default());
             self.tree.make_root_node(node);
-            self.tree.expand::<T, true>(node, &self.root_position, &self.params);
+            self.tree
+                .expand::<T, true>(node, &self.root_position, &self.params);
         } else {
-            self.tree.relabel_policy(self.tree.root_node(), &self.root_position, &self.params);
+            self.tree
+                .relabel_policy(self.tree.root_node(), &self.root_position, &self.params);
         }
 
         let mut nodes = 0;

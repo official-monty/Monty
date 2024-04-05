@@ -6,7 +6,7 @@ mod value;
 
 use goober::SparseVector;
 
-use crate::{GameRep, UciLike, MctsParams};
+use crate::{GameRep, MctsParams, UciLike};
 
 pub use self::{
     board::Board,

@@ -25,6 +25,12 @@ impl From<u16> for Move {
     }
 }
 
+impl std::fmt::Display for Move {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_uci(&Castling::default()))
+    }
+}
+
 impl Move {
     pub const NULL: Move = Move { mov: 0 };
 
