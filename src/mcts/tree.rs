@@ -244,10 +244,7 @@ impl Tree {
                 self.make_root_node(root);
                 self.clear_unmarked();
 
-                println!(
-                    "info string found subtree of size {} nodes",
-                    self.len()
-                );
+                println!("info string found subtree of size {} nodes", self.len());
             }
         } else {
             self.clear();
@@ -305,12 +302,12 @@ impl Tree {
         }
     }
 
-    pub fn get_best_child(&self, ptr: i32) -> i32 {
+    pub fn get_best_child_by_key<F: Fn(&Node) -> f32>(&self, ptr: i32, key: F) -> i32 {
         let mut best_child = -1;
-        let mut best_score = -100.0;
+        let mut best_score = f32::NEG_INFINITY;
 
         self.map_children(ptr, |child_idx, child| {
-            let score = child.q();
+            let score = key(child);
 
             if score > best_score {
                 best_score = score;
@@ -319,5 +316,9 @@ impl Tree {
         });
 
         best_child
+    }
+
+    pub fn get_best_child(&self, ptr: i32) -> i32 {
+        self.get_best_child_by_key(ptr, |child| child.q())
     }
 }

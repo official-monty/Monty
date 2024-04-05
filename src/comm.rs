@@ -77,7 +77,10 @@ pub trait UciLike: Sized {
                 "tree" => {
                     let u = tree.len();
                     let c = tree.cap();
-                    println!("info string filled {u}/{c} ({:.2}%)", u as f32 * 100.0 / c as f32);
+                    println!(
+                        "info string filled {u}/{c} ({:.2}%)",
+                        u as f32 * 100.0 / c as f32
+                    );
                 }
                 "d" => println!("{pos}"),
                 _ => {

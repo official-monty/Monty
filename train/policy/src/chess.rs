@@ -1,6 +1,6 @@
 use datagen::{impls::chess::ChessPolicyData, Rand};
 use goober::{FeedForwardNetwork, OutputLayer};
-use monty::chess::{consts::Flag, PolicyNetwork, SubNet, Move};
+use monty::chess::{consts::Flag, Move, PolicyNetwork, SubNet};
 
 use crate::TrainablePolicy;
 

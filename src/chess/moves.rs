@@ -15,24 +15,18 @@ pub struct Move {
 
 impl From<Move> for u16 {
     fn from(value: Move) -> Self {
-        unsafe {
-            std::mem::transmute(value)
-        }
+        unsafe { std::mem::transmute(value) }
     }
 }
 
 impl From<u16> for Move {
     fn from(value: u16) -> Self {
-        unsafe {
-            std::mem::transmute(value)
-        }
+        unsafe { std::mem::transmute(value) }
     }
 }
 
 impl Move {
-    pub const NULL: Move = Move {
-        mov: 0,
-    };
+    pub const NULL: Move = Move { mov: 0 };
 
     pub fn from(&self) -> u16 {
         self.mov >> 10

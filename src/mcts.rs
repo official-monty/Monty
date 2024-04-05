@@ -195,9 +195,6 @@ impl<T: GameRep> Searcher<T> {
         // exploration factor to apply
         let expl = self.params.cpuct() * (node.visits().max(1) as f32).sqrt();
 
-        let mut best_idx = -1;
-        let mut best_puct = f32::NEG_INFINITY;
-
         // first play urgency - choose a Q value for
         // moves which have no been played yet
         let fpu = if node.visits() > 0 {
@@ -206,24 +203,12 @@ impl<T: GameRep> Searcher<T> {
             0.5
         };
 
-        self.tree.map_children(ptr, |child_idx, child| {
-            // calculate PUCT for this child
-            let puct = if child.visits() == 0 {
-                fpu + expl * child.policy()
-            } else {
-                let q = child.q();
-                let u = expl * child.policy() / (1 + child.visits()) as f32;
-
-                q + u
-            };
-
-            if puct > best_puct {
-                best_puct = puct;
-                best_idx = child_idx;
-            }
-        });
-
-        best_idx
+        // return child with highest PUCT score
+        self.tree.get_best_child_by_key(ptr, |child| {
+            let q = if child.visits() == 0 { fpu } else { child.q() };
+            let u = expl * child.policy() / (1 + child.visits()) as f32;
+            q + u
+        })
     }
 
     fn search_report(&self, depth: usize, timer: &Instant, nodes: usize) {
