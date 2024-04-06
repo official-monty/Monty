@@ -118,7 +118,13 @@ impl Tree {
             mark: Mark::Empty,
         };
 
-        tree.clear();
+        let end = tree.cap() as i32 - 1;
+
+        for i in 0..end {
+            tree[i].first_child = i + 1;
+        }
+
+        tree[end].first_child = -1;
 
         tree
     }
@@ -165,20 +171,29 @@ impl Tree {
     }
 
     pub fn clear(&mut self) {
-        self.root = -1;
-        self.empty = 0;
-        self.used = 0;
-        self.mark = Mark::Empty;
-
-        let end = self.cap() as i32 - 1;
-
-        for i in 0..end {
-            self[i].visits = 0;
-            self[i].mark = Mark::Empty;
-            self[i].first_child = i + 1;
+        if self.used == 0 {
+            return;
         }
 
-        self[end].first_child = -1;
+        let root = self.root_node();
+        self.delete_subtree(root, self[root].mark);
+        assert_eq!(self.used, 0);
+        assert_eq!(self.empty, root);
+        self.root = -1;
+        self.mark = Mark::Empty;
+    }
+
+    fn delete_subtree(&mut self, ptr: i32, bad_mark: Mark) {
+        if self[ptr].mark == bad_mark {
+            let mut cptr = self[ptr].first_child;
+
+            while cptr != -1 {
+                self.delete_subtree(cptr, bad_mark);
+                cptr = self[cptr].next_sibling;
+            }
+
+            self.delete(ptr);
+        }
     }
 
     pub fn make_root_node(&mut self, node: i32) {
@@ -289,12 +304,15 @@ impl Tree {
 
             if root == -1 || !self[root].has_children() {
                 self.clear();
-            } else {
+            } else if root != self.root_node() {
+                let old_root = self.root_node();
                 self.mark_subtree(root);
                 self.make_root_node(root);
-                self.clear_unmarked();
+                self.delete_subtree(old_root, self[old_root].mark);
 
                 println!("info string found subtree of size {} nodes", self.len());
+            } else {
+                println!("info string using current tree of size {} nodes", self.len());
             }
         } else {
             self.clear();
@@ -339,16 +357,6 @@ impl Tree {
         while child != -1 {
             self.mark_subtree(child);
             child = self[child].next_sibling;
-        }
-    }
-
-    fn clear_unmarked(&mut self) {
-        let bad_mark = self.mark.flip();
-
-        for i in 0..self.cap() as i32 {
-            if self[i].mark == bad_mark {
-                self.delete(i);
-            }
         }
     }
 

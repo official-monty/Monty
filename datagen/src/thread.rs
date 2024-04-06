@@ -108,14 +108,16 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
         let mut records = Vec::new();
         let mut result = 0.5;
 
+        let mut tree = Tree::new_mb(8);
+
         // play out game
         loop {
             let mut searcher =
-                Searcher::new(position.clone(), Tree::new_mb(8), self.params.clone());
+                Searcher::new(position.clone(), tree, self.params.clone());
 
             let (bm, score) = searcher.search(limits, false, &mut 0, &None);
 
-            let (tree, _) = searcher.tree_and_board();
+            tree = searcher.tree_and_board().0;
 
             let mut root_count = 0;
             position.map_legal_moves(|_| root_count += 1);
@@ -158,6 +160,8 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
                     break;
                 }
             }
+
+            tree.clear();
         }
 
         let mut policies = Vec::new();
