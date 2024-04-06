@@ -112,8 +112,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
 
         // play out game
         loop {
-            let mut searcher =
-                Searcher::new(position.clone(), tree, self.params.clone());
+            let mut searcher = Searcher::new(position.clone(), tree, self.params.clone());
 
             let (bm, score) = searcher.search(limits, false, &mut 0, &None);
 

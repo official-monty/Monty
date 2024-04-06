@@ -7,7 +7,6 @@ use super::{
     consts::*,
     frc::Castling,
     moves::{serialise, Move},
-    value::{Accumulator, ValueNetwork},
 };
 
 #[repr(C)]
@@ -144,25 +143,6 @@ impl Board {
         }
     }
 
-    pub fn get_accs(&self) -> [Accumulator; 2] {
-        let mut accs = [Accumulator::default(); 2];
-
-        for side in [Side::WHITE, Side::BLACK] {
-            for piece in Piece::PAWN..=Piece::KING {
-                let mut bb = self.piece(piece) & self.bb[side];
-                let pc = 64 * (piece - 2);
-
-                while bb > 0 {
-                    pop_lsb!(sq, bb);
-                    accs[0].add_feature(384 * side + pc + sq as usize);
-                    accs[1].add_feature(384 * (side ^ 1) + pc + (sq as usize ^ 56));
-                }
-            }
-        }
-
-        accs
-    }
-
     pub fn get_features(&self) -> SparseVector {
         let flip = self.stm() == Side::BLACK;
         let mut feats = SparseVector::with_capacity(32);
@@ -190,15 +170,6 @@ impl Board {
         }
 
         feats
-    }
-
-    pub fn eval_from_acc(&self, accs: &[Accumulator; 2]) -> i32 {
-        ValueNetwork::out(&accs[self.stm()], &accs[self.stm() ^ 1])
-    }
-
-    pub fn eval_cp(&self) -> i32 {
-        let accs = self.get_accs();
-        self.eval_from_acc(&accs)
     }
 
     #[must_use]
@@ -359,30 +330,14 @@ impl Board {
 
     // MODIFY POSITION
 
-    pub fn toggle<const ADD: bool>(
-        &mut self,
-        accs: &mut Option<&mut [Accumulator; 2]>,
-        side: usize,
-        piece: usize,
-        sq: u16,
-    ) {
+    pub fn toggle(&mut self, side: usize, piece: usize, sq: u16) {
         let bit = 1 << sq;
         self.bb[piece] ^= bit;
         self.bb[side] ^= bit;
         self.hash ^= ZVALS.pcs[side][piece][usize::from(sq)];
-
-        if let Some(acc) = accs.as_mut() {
-            let pc = 64 * (piece - 2);
-
-            let start = 384 * side + pc + sq as usize;
-            acc[0].update::<ADD>(start);
-
-            let start = 384 * (side ^ 1) + pc + (sq ^ 56) as usize;
-            acc[1].update::<ADD>(start);
-        }
     }
 
-    pub fn make(&mut self, mov: Move, mut acc: Option<&mut [Accumulator; 2]>, castling: &Castling) {
+    pub fn make(&mut self, mov: Move, castling: &Castling) {
         // extracting move info
         let side = usize::from(self.stm);
         let bb_to = 1 << mov.to();
@@ -405,12 +360,12 @@ impl Board {
         }
 
         // move piece
-        self.toggle::<false>(&mut acc, side, moved, mov.from());
-        self.toggle::<true>(&mut acc, side, moved, mov.to());
+        self.toggle(side, moved, mov.from());
+        self.toggle(side, moved, mov.to());
 
         // captures
         if captured != Piece::EMPTY {
-            self.toggle::<false>(&mut acc, side ^ 1, captured, mov.to());
+            self.toggle(side ^ 1, captured, mov.to());
             self.phase -= PHASE_VALS[captured];
         }
 
@@ -422,15 +377,15 @@ impl Board {
                 let sf = 56 * side as u16;
                 let rfr = sf + castling.rook_file(side, ks);
                 let rto = sf + [3, 5][ks];
-                self.toggle::<false>(&mut acc, side, Piece::ROOK, rfr);
-                self.toggle::<true>(&mut acc, side, Piece::ROOK, rto);
+                self.toggle(side, Piece::ROOK, rfr);
+                self.toggle(side, Piece::ROOK, rto);
             }
-            Flag::ENP => self.toggle::<false>(&mut acc, side ^ 1, Piece::PAWN, mov.to() ^ 8),
+            Flag::ENP => self.toggle(side ^ 1, Piece::PAWN, mov.to() ^ 8),
             Flag::NPR.. => {
                 let promo = usize::from((mov.flag() & 3) + 3);
                 self.phase += PHASE_VALS[promo];
-                self.toggle::<false>(&mut acc, side, Piece::PAWN, mov.to());
-                self.toggle::<true>(&mut acc, side, promo, mov.to());
+                self.toggle(side, Piece::PAWN, mov.to());
+                self.toggle(side, promo, mov.to());
             }
             _ => {}
         }
@@ -459,7 +414,7 @@ impl Board {
                     .unwrap_or(6);
                 let colour = usize::from(idx > 5);
                 let pc = idx + 2 - 6 * colour;
-                pos.toggle::<true>(&mut None, colour, pc, (8 * row + col) as u16);
+                pos.toggle(colour, pc, (8 * row + col) as u16);
                 pos.phase += PHASE_VALS[pc];
                 col += 1;
             }
@@ -792,7 +747,7 @@ impl Board {
 
             let mut tmp = *self;
             let mov = Move::new(from, u16::from(self.enp_sq()), Flag::ENP);
-            tmp.make(mov, None, castling);
+            tmp.make(mov, castling);
 
             let king = (tmp.piece(Piece::KING) & tmp.opps()).trailing_zeros() as usize;
             if !tmp.is_square_attacked(king, self.stm(), tmp.occ()) {

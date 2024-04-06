@@ -4,8 +4,6 @@ pub mod consts;
 mod frc;
 mod moves;
 mod policy;
-mod qsearch;
-mod value;
 
 use crate::{
     comm::UciLike,
@@ -13,13 +11,12 @@ use crate::{
     MctsParams,
 };
 
-use self::{frc::Castling, qsearch::quiesce};
+use self::frc::Castling;
 
 pub use self::{
     board::Board,
     moves::Move,
-    policy::{PolicyNetwork, SubNet, POLICY_NETWORK},
-    value::{ValueNetwork, NNUE},
+    policy::{PolicyNetwork, SubNet},
 };
 
 const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -110,7 +107,7 @@ impl GameRep for Chess {
 
     fn make_move(&mut self, mov: Self::Move) {
         self.stack.push(self.board.hash());
-        self.board.make(mov, None, &self.castling);
+        self.board.make(mov, &self.castling);
 
         if self.board.halfm() == 0 {
             self.stack.clear();
@@ -129,14 +126,24 @@ impl GameRep for Chess {
         self.board.get_features()
     }
 
-    fn get_policy(&self, mov: Self::Move, feats: &goober::SparseVector) -> f32 {
-        PolicyNetwork::get(&mov, &self.board, &POLICY_NETWORK, feats)
+    fn get_policy(&self, _: Self::Move, _: &goober::SparseVector) -> f32 {
+        0.0
     }
 
-    fn get_value(&self) -> f32 {
-        let accs = self.board.get_accs();
-        let qs = quiesce(&self.board, &self.castling, &accs, -30_000, 30_000);
-        1.0 / (1.0 + (-(qs as f32) / (400.0)).exp())
+    fn get_value(&self) -> i32 {
+        const VALS: [i32; 5] = [100, 300, 300, 500, 900];
+        let boys = self.board.boys();
+        let opps = self.board.opps();
+
+        let mut mat = 0;
+
+        for (bb, val) in self.bbs().iter().skip(2).zip(VALS).take(5) {
+            let b = (bb & boys).count_ones();
+            let o = (bb & opps).count_ones();
+            mat += val * (b as i32 - o as i32);
+        }
+
+        mat
     }
 
     fn perft(&self, depth: usize) -> u64 {
@@ -229,7 +236,7 @@ fn perft<const ROOT: bool, const BULK: bool>(pos: &Board, depth: u8, castling: &
 
         pos.map_legal_moves(castling, |mov| {
             let mut tmp = *pos;
-            tmp.make(mov, None, castling);
+            tmp.make(mov, castling);
 
             let num = if !BULK && leaf {
                 1

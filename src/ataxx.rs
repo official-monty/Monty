@@ -2,11 +2,13 @@ mod board;
 mod moves;
 mod policy;
 mod util;
-mod value;
 
 use goober::SparseVector;
 
-use crate::{GameRep, MctsParams, UciLike};
+use crate::{
+    value::{ValueFeatureMap, ValueNetwork},
+    GameRep, MctsParams, UciLike,
+};
 
 pub use self::{
     board::Board,
@@ -15,6 +17,15 @@ pub use self::{
 };
 
 const STARTPOS: &str = "x5o/7/7/7/7/7/o5x x 0 1";
+
+static NET: ValueNetwork<2916, 256> =
+    unsafe { std::mem::transmute(*include_bytes!("../resources/ataxx-value015.bin")) };
+
+impl ValueFeatureMap for Board {
+    fn value_feature_map<F: FnMut(usize)>(&self, f: F) {
+        self.value_features_map(f);
+    }
+}
 
 pub struct Uai;
 impl UciLike for Uai {
@@ -77,10 +88,8 @@ impl GameRep for Ataxx {
         self.board.map_legal_moves(f);
     }
 
-    fn get_value(&self) -> f32 {
-        let out = value::ValueNetwork::eval(&self.board);
-
-        1.0 / (1.0 + (-out as f32 / 400.0).exp())
+    fn get_value(&self) -> i32 {
+        NET.eval(&self.board)
     }
 
     fn get_policy_feats(&self) -> SparseVector {

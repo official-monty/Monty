@@ -318,13 +318,19 @@ impl Tree {
 
                 println!("info string found subtree of size {} nodes", self.len());
             } else {
-                println!("info string using current tree of size {} nodes", self.len());
+                println!(
+                    "info string using current tree of size {} nodes",
+                    self.len()
+                );
             }
         } else {
             self.clear();
         }
 
-        println!("info string tree processing took {} microseconds", t.elapsed().as_micros());
+        println!(
+            "info string tree processing took {} microseconds",
+            t.elapsed().as_micros()
+        );
     }
 
     fn recurse_find<T: GameRep>(&self, start: i32, this_board: &T, board: &T, depth: u8) -> i32 {

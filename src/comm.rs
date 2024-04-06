@@ -44,7 +44,10 @@ pub trait UciLike: Sized {
                 }
                 "perft" => run_perft::<Self::Game>(&commands, &pos),
                 "quit" => std::process::exit(0),
-                "eval" => println!("value: {}%", 100.0 * pos.get_value()),
+                "eval" => {
+                    println!("cp: {}%", pos.get_value());
+                    println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl());
+                }
                 "policy" => {
                     let f = pos.get_policy_feats();
                     let mut max = f32::NEG_INFINITY;

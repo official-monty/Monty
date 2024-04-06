@@ -174,7 +174,7 @@ impl<T: GameRep> Searcher<T> {
 
         // simulate the game outcome
         match state {
-            GameState::Ongoing => pos.get_value(),
+            GameState::Ongoing => pos.get_value_wdl(),
             GameState::Draw => 0.5,
             GameState::Lost => -self.params.mate_bonus(),
             GameState::Won => 1.0 + self.params.mate_bonus(),

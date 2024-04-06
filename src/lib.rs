@@ -4,6 +4,7 @@ mod comm;
 mod game;
 mod mcts;
 pub mod shatranj;
+mod value;
 
 pub use comm::UciLike;
 pub use game::{GameRep, GameState};

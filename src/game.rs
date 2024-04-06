@@ -35,7 +35,11 @@ pub trait GameRep: Clone + Default + Send + Sync + std::fmt::Display {
 
     fn get_policy(&self, mov: Self::Move, feats: &SparseVector) -> f32;
 
-    fn get_value(&self) -> f32;
+    fn get_value(&self) -> i32;
+
+    fn get_value_wdl(&self) -> f32 {
+        1.0 / (1.0 + (-(self.get_value() as f32) / 400.0).exp())
+    }
 
     fn from_fen(fen: &str) -> Self;
 

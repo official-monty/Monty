@@ -9,7 +9,7 @@ fn main() {
         #[cfg(not(feature = "shatranj"))]
         {
             if let Some("bench") = arg1.as_deref() {
-                monty::chess::Uci::bench(6);
+                monty::chess::Uci::bench(4);
                 return;
             }
 

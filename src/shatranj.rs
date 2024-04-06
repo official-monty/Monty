@@ -2,7 +2,6 @@ mod attacks;
 mod board;
 mod consts;
 mod moves;
-mod value;
 
 pub use board::Board;
 pub use moves::Move;
@@ -10,10 +9,20 @@ pub use moves::Move;
 use crate::{
     comm::UciLike,
     game::{GameRep, GameState},
+    value::{ValueFeatureMap, ValueNetwork},
     MctsParams,
 };
 
 const STARTPOS: &str = "rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR w KQkq - 0 1";
+
+static NET: ValueNetwork<768, 8> =
+    unsafe { std::mem::transmute(*include_bytes!("../resources/shatranj-value002.bin")) };
+
+impl ValueFeatureMap for Board {
+    fn value_feature_map<F: FnMut(usize)>(&self, f: F) {
+        self.features_map(f);
+    }
+}
 
 pub struct Uci;
 impl UciLike for Uci {
@@ -115,9 +124,8 @@ impl GameRep for Shatranj {
         0.0
     }
 
-    fn get_value(&self) -> f32 {
-        let out = value::ValueNetwork::eval(&self.board);
-        1.0 / (1.0 + (-(out as f32) / 400.0).exp())
+    fn get_value(&self) -> i32 {
+        NET.eval(&self.board)
     }
 
     fn perft(&self, depth: usize) -> u64 {
