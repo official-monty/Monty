@@ -120,7 +120,10 @@ pub trait UciLike: Sized {
             tree.clear();
         }
 
-        println!("Bench: {total_nodes} nodes {:.0} nps", total_nodes as f32 / time);
+        println!(
+            "Bench: {total_nodes} nodes {:.0} nps",
+            total_nodes as f32 / time
+        );
     }
 }
 

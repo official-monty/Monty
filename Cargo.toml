@@ -12,6 +12,7 @@ codegen-units = 1
 
 [features]
 ataxx = []
+shatranj = []
 
 [dependencies]
 goober = { git = 'https://github.com/jw1912/goober.git' }

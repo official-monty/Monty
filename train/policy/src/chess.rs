@@ -116,7 +116,8 @@ impl TrainablePolicy for PolicyNetwork {
             if mov.is_capture() {
                 grad.hce[2] += factor;
 
-                let diff = board.get_pc(1 << mov.to()) as i32 - board.get_pc(1 << mov.from()) as i32;
+                let diff =
+                    board.get_pc(1 << mov.to()) as i32 - board.get_pc(1 << mov.from()) as i32;
                 grad.hce[3] += factor * diff as f32;
             }
         }

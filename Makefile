@@ -16,6 +16,9 @@ rule:
 ataxx:
 	cargo rustc --release --bin monty --features ataxx -- -C target-cpu=native --emit link=$(NAME)
 
+shatranj:
+	cargo rustc --release --bin monty --features shatranj -- -C target-cpu=native --emit link=$(NAME)
+
 release:
 	cargo rustc --release --bin monty -- --emit link=$(OLD)
 	cargo rustc --release --bin monty -- -C target-cpu=x86-64-v2 -C target-feature=+avx2 --emit link=$(AVX2)

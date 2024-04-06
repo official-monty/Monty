@@ -2,7 +2,7 @@ mod params;
 mod tree;
 
 pub use params::MctsParams;
-pub use tree::{Node, Tree, Mark};
+pub use tree::{Mark, Node, Tree};
 
 use crate::game::{GameRep, GameState};
 
