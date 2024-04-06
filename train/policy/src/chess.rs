@@ -1,5 +1,5 @@
 use datagen::{impls::chess::ChessPolicyData, Rand};
-use goober::{FeedForwardNetwork, OutputLayer};
+use goober::{FeedForwardNetwork, OutputLayer, SparseVector};
 use monty::chess::{Move, PolicyNetwork, SubNet};
 
 use crate::TrainablePolicy;
@@ -29,7 +29,8 @@ impl TrainablePolicy for PolicyNetwork {
     fn update_single_grad(pos: &Self::Data, policy: &Self, grad: &mut Self, error: &mut f32) {
         let board = pos.board;
 
-        let feats = board.get_features();
+        let mut feats = SparseVector::with_capacity(32);
+        board.map_features(|feat| feats.push(feat));
 
         let mut policies = Vec::with_capacity(pos.num);
         let mut total = 0.0;

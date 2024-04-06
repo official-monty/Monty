@@ -1,5 +1,3 @@
-use goober::SparseVector;
-
 use crate::{game::GameState, pop_lsb};
 
 use super::{
@@ -143,9 +141,8 @@ impl Board {
         }
     }
 
-    pub fn get_features(&self) -> SparseVector {
+    pub fn map_features<F: FnMut(usize)>(&self, mut f: F) {
         let flip = self.stm() == Side::BLACK;
-        let mut feats = SparseVector::with_capacity(32);
 
         for piece in Piece::PAWN..=Piece::KING {
             let pc = 64 * (piece - 2);
@@ -160,16 +157,14 @@ impl Board {
 
             while our_bb > 0 {
                 pop_lsb!(sq, our_bb);
-                feats.push(pc + usize::from(sq));
+                f(pc + usize::from(sq));
             }
 
             while opp_bb > 0 {
                 pop_lsb!(sq, opp_bb);
-                feats.push(384 + pc + usize::from(sq));
+                f(384 + pc + usize::from(sq));
             }
         }
-
-        feats
     }
 
     #[must_use]

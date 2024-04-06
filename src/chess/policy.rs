@@ -2,18 +2,19 @@ use super::moves::Move;
 
 use goober::{activation, layer, FeedForwardNetwork, Matrix, SparseVector, Vector};
 
+pub static POLICY: PolicyNetwork =
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/chess-policy001.bin")) };
+
 #[repr(C)]
 #[derive(Clone, Copy, FeedForwardNetwork)]
 pub struct SubNet {
-    ft: layer::SparseConnected<activation::ReLU, 768, 16>,
-    l2: layer::DenseConnected<activation::Identity, 16, 16>,
+    ft: layer::SparseConnected<activation::ReLU, 768, 4>,
 }
 
 impl SubNet {
     pub const fn zeroed() -> Self {
         Self {
             ft: layer::SparseConnected::zeroed(),
-            l2: layer::DenseConnected::zeroed(),
         }
     }
 
@@ -21,12 +22,8 @@ impl SubNet {
         let matrix = Matrix::from_fn(|_, _| f());
         let vector = Vector::from_fn(|_| f());
 
-        let matrix2 = Matrix::from_fn(|_, _| f());
-        let vector2 = Vector::from_fn(|_| f());
-
         Self {
             ft: layer::SparseConnected::from_raw(matrix, vector),
-            l2: layer::DenseConnected::from_raw(matrix2, vector2),
         }
     }
 }
