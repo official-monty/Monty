@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::{
     game::{GameRep, GameState},
     MctsParams,
@@ -293,9 +295,13 @@ impl Tree {
     }
 
     pub fn try_use_subtree<T: GameRep>(&mut self, root: &T, prev_board: &Option<T>) {
+        let t = Instant::now();
+
         if self.is_empty() {
             return;
         }
+
+        println!("info string attempting to reuse tree");
 
         if let Some(board) = prev_board {
             println!("info string searching for subtree");
@@ -317,6 +323,8 @@ impl Tree {
         } else {
             self.clear();
         }
+
+        println!("info string tree processing took {} microseconds", t.elapsed().as_micros());
     }
 
     fn recurse_find<T: GameRep>(&self, start: i32, this_board: &T, board: &T, depth: u8) -> i32 {

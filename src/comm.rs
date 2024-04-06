@@ -35,7 +35,7 @@ pub trait UciLike: Sized {
             match cmd {
                 "isready" => println!("readyok"),
                 "setoption" => setoption(&commands, &mut params, &mut report_moves, &mut tree),
-                "position" => position(commands, &mut pos),
+                "position" => position(commands, &mut pos, &mut prev, &mut tree),
                 "go" => {
                     let res = go(&commands, tree, prev, &pos, &params, report_moves);
 
@@ -160,7 +160,7 @@ fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool
     }
 }
 
-fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T) {
+fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T, prev: &mut Option<T>, tree: &mut Tree) {
     let mut fen = String::new();
     let mut move_list = Vec::new();
     let mut moves = false;
@@ -193,6 +193,9 @@ fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T) {
 
         pos.make_move(this_mov);
     }
+
+    tree.try_use_subtree(pos, prev);
+    *prev = Some(pos.clone());
 }
 
 #[allow(clippy::too_many_arguments)]
