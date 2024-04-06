@@ -76,7 +76,9 @@ impl GameRep for Chess {
     const MAX_MOVES: usize = 512;
 
     fn default_mcts_params() -> MctsParams {
-        MctsParams::default()
+        let mut params = MctsParams::default();
+        params.set("root_pst", 5.0);
+        params
     }
 
     fn is_same(&self, other: &Self) -> bool {

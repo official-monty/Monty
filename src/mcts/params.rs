@@ -62,7 +62,7 @@ macro_rules! make_mcts_params {
 }
 
 make_mcts_params! {
-    root_pst: 1.0, 1.0, 2.5,
+    root_pst: 1.0, 1.0, 10.0,
     root_cpuct: 1.41, 0.1, 5.0,
     cpuct: 1.41, 0.1, 5.0,
     mate_bonus: 1.0, 0.0, 10.0,

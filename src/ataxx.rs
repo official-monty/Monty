@@ -44,10 +44,7 @@ impl GameRep for Ataxx {
     type Move = Move;
 
     fn default_mcts_params() -> MctsParams {
-        let mut params = MctsParams::default();
-        params.set("root_pst", 1.0);
-        params.set("root_cpuct", 1.41);
-        params
+        MctsParams::default()
     }
 
     fn is_same(&self, other: &Self) -> bool {
