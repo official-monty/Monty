@@ -6,8 +6,12 @@ fn main() {
     let policy = args.next() != Some("--no-policy".to_string());
 
     #[cfg(not(feature = "ataxx"))]
+    #[cfg(not(feature = "shatranj"))]
     datagen::run_datagen::<monty::chess::Chess>(1_000, threads, policy);
 
     #[cfg(feature = "ataxx")]
     datagen::run_datagen::<monty::ataxx::Ataxx>(1_000, threads, policy);
+
+    #[cfg(feature = "shatranj")]
+    datagen::run_datagen::<monty::shatranj::Shatranj>(1_000, threads, policy);
 }
