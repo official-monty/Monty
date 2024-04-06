@@ -138,6 +138,33 @@ impl Board {
         }
     }
 
+    pub fn features_map<F: FnMut(usize)>(&self, mut f: F) {
+        let boys_occ = self.boys();
+        let opps_occ = self.opps();
+
+        for (pc, bb) in self.bb.iter().skip(Piece::PAWN).enumerate() {
+            assert!(pc < 6);
+
+            let mut boys = bb & boys_occ;
+            let mut opps = bb & opps_occ;
+
+            if self.stm {
+                boys = boys.swap_bytes();
+                opps = opps.swap_bytes();
+            }
+
+            while boys > 0 {
+                pop_lsb!(sq, boys);
+                f(64 * pc + usize::from(sq));
+            }
+
+            while opps > 0 {
+                pop_lsb!(sq, opps);
+                f(384 + 64 * pc + usize::from(sq));
+            }
+        }
+    }
+
     #[must_use]
     pub fn attackers_to_square(&self, sq: usize, side: usize, occ: u64) -> u64 {
         ((Attacks::knight(sq) & self.bb[Piece::KNIGHT])

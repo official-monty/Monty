@@ -58,15 +58,15 @@ impl DatagenSupport for Chess {
         }
     }
 
-    fn into_value(pos: &Self, score: f32) -> Self::ValueData {
+    fn into_value(pos: &Self, mut score: f32) -> Self::ValueData {
         let stm = pos.stm();
         let bbs = pos.bbs();
 
-        let mut score = -(400.0 * (1.0 / score - 1.0).ln()) as i16;
-
         if pos.stm() == 1 {
-            score = -score;
+            score = 1.0 - score;
         }
+
+        let score = -(400.0 * (1.0 / score - 1.0).ln()) as i16;
 
         ChessBoard::from_raw(bbs, stm, score, 0.5).unwrap()
     }

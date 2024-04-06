@@ -59,16 +59,16 @@ impl DatagenSupport for Ataxx {
         }
     }
 
-    fn into_value(pos: &Self, score: f32) -> Self::ValueData {
+    fn into_value(pos: &Self, mut score: f32) -> Self::ValueData {
         let board = pos.board();
         let stm = board.stm();
         let bbs = board.bbs();
 
-        let mut score = -(400.0 * (1.0 / score - 1.0).ln()) as i16;
-
         if pos.stm() == 1 {
-            score = -score;
+            score = 1.0 - score;
         }
+
+        let score = -(400.0 * (1.0 / score - 1.0).ln()) as i16;
 
         AtaxxBoard::from_raw(bbs, score, 0.5, stm > 0, board.fullm(), board.halfm())
     }

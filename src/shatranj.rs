@@ -2,6 +2,7 @@ mod attacks;
 mod board;
 mod consts;
 mod moves;
+mod value;
 
 pub use board::Board;
 pub use moves::Move;
@@ -115,20 +116,8 @@ impl GameRep for Shatranj {
     }
 
     fn get_value(&self) -> f32 {
-        const VALS: [i32; 5] = [1, 3, 2, 5, 2];
-
-        let bbs = self.bbs();
-        let boys = bbs[self.stm()];
-        let opps = bbs[self.stm() ^ 1];
-
-        let mut mat = 0;
-        for (bb, v) in bbs.iter().skip(2).zip(VALS).take(5) {
-            let b = (bb & boys).count_ones();
-            let o = (bb & opps).count_ones();
-            mat += v * (b as i32 - o as i32);
-        }
-
-        1.0 / (1.0 + (-(mat as f32) / 4.0).exp())
+        let out = value::ValueNetwork::eval(&self.board);
+        1.0 / (1.0 + (-(out as f32) / 400.0).exp())
     }
 
     fn perft(&self, depth: usize) -> u64 {
