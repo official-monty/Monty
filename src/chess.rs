@@ -20,11 +20,11 @@ pub use self::{
 const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 static VALUE: ValueNetwork<768, 16> =
-    unsafe { std::mem::transmute(*include_bytes!("../resources/chess-value001.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../resources/chess-value002.bin")) };
 
 impl ValueFeatureMap for Board {
     fn value_feature_map<F: FnMut(usize)>(&self, f: F) {
-        self.map_features(f);
+        self.map_value_features(f);
     }
 }
 
@@ -131,7 +131,7 @@ impl GameRep for Chess {
 
     fn get_policy_feats(&self) -> goober::SparseVector {
         let mut feats = goober::SparseVector::with_capacity(32);
-        self.board.map_features(|feat| feats.push(feat));
+        self.board.map_policy_features(|feat| feats.push(feat));
         feats
     }
 

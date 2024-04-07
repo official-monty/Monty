@@ -30,7 +30,7 @@ impl TrainablePolicy for PolicyNetwork {
         let board = pos.board;
 
         let mut feats = SparseVector::with_capacity(32);
-        board.map_features(|feat| feats.push(feat));
+        board.map_policy_features(|feat| feats.push(feat));
 
         let mut policies = Vec::with_capacity(pos.num);
         let mut total = 0.0;

@@ -19,6 +19,7 @@ and the executable will be located at `target/release/monty[.exe]`.
 ## Supported Games
 - Ataxx
 - Chess
+- Shatranj
 
 ## How it works
 
@@ -34,7 +35,7 @@ To begin with, only the root node is in the tree.
 Unfortunately, MCTS in its purest form (random selection and random simulation to the end of the game)
 is really bad.
 
-Instead **selection** is replaced with PUCT, a combination of a **policy network** which indicates the quality of the child nodes,
+Instead, **selection** is done via PUCT, a combination of a **policy network** which indicates the quality of the child nodes,
 and the PUCT formula to control exploration vs exploitation of these child nodes.
 
-And **simulation** is replaced with quiescence search of the node, backed by a neural network evaluation, called the **value network**.
+And **simulation** is replaced with a neural network evaluation, called the **value network**.
