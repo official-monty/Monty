@@ -12,9 +12,9 @@
 ## Compiling
 Run the following command
 ```
-cargo b -r
+make <name of game>
 ```
-and the executable will be located at `target/release/monty[.exe]`.
+to compile monty for the given game.
 
 ## Supported Games
 - Ataxx

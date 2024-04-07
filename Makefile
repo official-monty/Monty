@@ -10,7 +10,7 @@ else
 	AVX2 := monty-$(VER)-avx2
 endif
 
-rule:
+chess:
 	cargo rustc --release --bin monty -- -C target-cpu=native --emit link=$(NAME)
 
 ataxx:
