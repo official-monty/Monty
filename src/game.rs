@@ -11,6 +11,26 @@ pub enum GameState {
     Won,
 }
 
+impl GameState {
+    pub fn flip(self) -> Self {
+        match self {
+            GameState::Ongoing => GameState::Ongoing,
+            GameState::Lost => GameState::Won,
+            GameState::Won => GameState::Lost,
+            GameState::Draw => GameState::Draw,
+        }
+    }
+
+    pub fn to_char(self) -> char {
+        match self {
+            GameState::Ongoing => 'O',
+            GameState::Lost => 'L',
+            GameState::Won => 'W',
+            GameState::Draw => 'D',
+        }
+    }
+}
+
 pub trait GameRep: Clone + Default + Send + Sync + std::fmt::Display {
     type Move: Copy + Default + From<u16> + Into<u16> + std::fmt::Display;
     const STARTPOS: &'static str;

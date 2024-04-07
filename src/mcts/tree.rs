@@ -39,9 +39,12 @@ impl Node {
         self.mov
     }
 
-    pub fn get_state<T: GameRep>(&mut self, pos: &T) -> GameState {
-        self.state = pos.game_state();
+    pub fn state(&self) -> GameState {
         self.state
+    }
+
+    pub fn set_state(&mut self, state: GameState) {
+        self.state = state;
     }
 
     pub fn policy(&self) -> f32 {
@@ -53,7 +56,12 @@ impl Node {
     }
 
     pub fn q(&self) -> f32 {
-        self.wins / self.visits as f32
+        match self.state {
+            GameState::Won => 0.0,
+            GameState::Lost => 1.0,
+            GameState::Draw => 0.5,
+            GameState::Ongoing => self.wins / self.visits as f32,
+        }
     }
 
     pub fn has_children(&self) -> bool {
@@ -374,7 +382,7 @@ impl Tree {
         }
     }
 
-    pub fn get_best_child_by_key<F: Fn(&Node) -> f32>(&self, ptr: i32, key: F) -> i32 {
+    pub fn get_best_child_by_key<F: FnMut(&Node) -> f32>(&self, ptr: i32, mut key: F) -> i32 {
         let mut best_child = -1;
         let mut best_score = f32::NEG_INFINITY;
 
@@ -432,10 +440,11 @@ impl Tree {
         }
 
         println!(
-            "{mov} Q({:.2}%) N({}) P({:.2}%)",
+            "{mov} Q({:.2}%) N({}) P({:.2}%) S({})",
             q * 100.0,
             node.visits,
             node.policy * 100.0,
+            node.state.to_char(),
         );
 
         let mut active = Vec::new();
