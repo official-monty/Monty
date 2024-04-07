@@ -103,23 +103,23 @@ impl Board {
         }
 
         if self.opps().count_ones() == 1 {
-            return GameState::Won;
+            return GameState::Won(0);
         }
 
         if self.boys().count_ones() == 1 {
             return if self.opps().count_ones() > 2 {
-                GameState::Lost
+                GameState::Lost(0)
             } else {
                 let boy = self.ksq(self.stm());
                 let opp = self.ksq(self.stm() ^ 1);
                 let remaining = self.opps() & !self.bb[Piece::KING];
 
                 if Attacks::king(boy) & remaining == 0 {
-                    GameState::Lost
+                    GameState::Lost(0)
                 } else if Attacks::king(opp) & remaining == 0 {
                     GameState::Draw
                 } else {
-                    GameState::Lost
+                    GameState::Lost(0)
                 }
             };
         }
@@ -132,7 +132,7 @@ impl Board {
         }
 
         if self.in_check() {
-            GameState::Lost
+            GameState::Lost(0)
         } else {
             GameState::Draw
         }

@@ -142,7 +142,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
             match game_state {
                 GameState::Ongoing => {}
                 GameState::Draw => break,
-                GameState::Lost => {
+                GameState::Lost(_) => {
                     if position.stm() == 1 {
                         result = 1.0;
                     } else {
@@ -150,7 +150,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
                     }
                     break;
                 }
-                GameState::Won => {
+                GameState::Won(_) => {
                     if position.stm() == 1 {
                         result = 0.0;
                     } else {

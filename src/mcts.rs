@@ -138,8 +138,9 @@ impl<T: GameRep> Searcher<T> {
             let node = &self.tree[node_ptr];
 
             // if the node is terminal we can go no further,
-            // we simply backpropogate the terminal score
-            if node.is_terminal() {
+            // we simply backpropogate the terminal score,
+            // also limit maximum selection length
+            if node.is_terminal() || self.selection.len() > 192 {
                 break;
             }
 
@@ -186,8 +187,8 @@ impl<T: GameRep> Searcher<T> {
         match state {
             GameState::Ongoing => pos.get_value_wdl(),
             GameState::Draw => 0.5,
-            GameState::Lost => 0.0,
-            GameState::Won => 1.0,
+            GameState::Lost(_) => 0.0,
+            GameState::Won(_) => 1.0,
         }
     }
 
@@ -202,8 +203,8 @@ impl<T: GameRep> Searcher<T> {
             // simplicity when it is used
             self.tree[node_ptr].update(1, result);
 
-            if prev == GameState::Lost {
-                self.tree[node_ptr].set_state(GameState::Won);
+            if let GameState::Lost(n) = prev {
+                self.tree[node_ptr].set_state(GameState::Won(n + 1));
             }
 
             prev = self.tree[node_ptr].state();
@@ -235,10 +236,13 @@ impl<T: GameRep> Searcher<T> {
         };
 
         let mut proven_loss = true;
+        let mut win_len = 0;
 
         // return child with highest PUCT score
         let best = self.tree.get_best_child_by_key(ptr, |child| {
-            if child.state() != GameState::Won {
+            if let GameState::Won(n) = child.state() {
+                win_len = n.max(win_len);
+            } else {
                 proven_loss = false;
             }
 
@@ -250,7 +254,7 @@ impl<T: GameRep> Searcher<T> {
         });
 
         if proven_loss {
-            self.tree[ptr].set_state(GameState::Lost);
+            self.tree[ptr].set_state(GameState::Lost(win_len + 1));
             return -1;
         }
 
@@ -285,16 +289,33 @@ impl<T: GameRep> Searcher<T> {
     }
 
     fn get_pv(&self, mut depth: usize) -> (Vec<T::Move>, f32) {
-        let mut idx = self.tree.get_best_child(self.tree.root_node());
+        let key = |child: &Node| {
+            match child.state() {
+                GameState::Draw => 0.5,
+                GameState::Ongoing => child.q(),
+                GameState::Lost(n) => 1.0 + f32::from(n),
+                GameState::Won(n) => f32::from(n) - 256.0,
+            }
+
+            //if (s - 0.5).abs() > 0.5 {
+            //    println!("{}: {s}", T::Move::from(child.mov()));
+            //}
+
+            //s
+        };
+
+        let mate = self.tree[self.tree.root_node()].is_terminal();
+
+        let mut idx = self.tree.get_best_child_by_key(self.tree.root_node(), key);
         let score = self.tree[idx].q();
         let mut pv = Vec::new();
 
-        while depth > 0 && idx != -1 {
+        while (mate || depth > 0) && idx != -1 {
             let node = &self.tree[idx];
             let mov = node.mov();
             pv.push(T::Move::from(mov));
 
-            idx = self.tree.get_best_child(idx);
+            idx = self.tree.get_best_child_by_key(idx, key);
             depth -= 1;
         }
 

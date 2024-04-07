@@ -57,8 +57,8 @@ impl Node {
 
     pub fn q(&self) -> f32 {
         match self.state {
-            GameState::Won => 0.0,
-            GameState::Lost => 1.0,
+            GameState::Won(_) => 0.0,
+            GameState::Lost(_) => 1.0,
             GameState::Draw => 0.5,
             GameState::Ongoing => self.wins / self.visits as f32,
         }
@@ -444,7 +444,7 @@ impl Tree {
             q * 100.0,
             node.visits,
             node.policy * 100.0,
-            node.state.to_char(),
+            node.state,
         );
 
         let mut active = Vec::new();

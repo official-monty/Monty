@@ -105,14 +105,14 @@ impl Board {
 
         if socc + nocc == 49 {
             match socc.cmp(&nocc) {
-                Ordering::Greater => GameState::Won,
-                Ordering::Less => GameState::Lost,
+                Ordering::Greater => GameState::Won(0),
+                Ordering::Less => GameState::Lost(0),
                 Ordering::Equal => GameState::Draw,
             }
         } else if socc == 0 {
-            GameState::Lost
+            GameState::Lost(0)
         } else if nocc == 0 {
-            GameState::Won
+            GameState::Won(0)
         } else if self.is_hfm_draw(100) {
             GameState::Draw
         } else {

@@ -6,27 +6,18 @@ use crate::MctsParams;
 pub enum GameState {
     #[default]
     Ongoing,
-    Lost,
+    Lost(u8),
     Draw,
-    Won,
+    Won(u8),
 }
 
-impl GameState {
-    pub fn flip(self) -> Self {
+impl std::fmt::Display for GameState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GameState::Ongoing => GameState::Ongoing,
-            GameState::Lost => GameState::Won,
-            GameState::Won => GameState::Lost,
-            GameState::Draw => GameState::Draw,
-        }
-    }
-
-    pub fn to_char(self) -> char {
-        match self {
-            GameState::Ongoing => 'O',
-            GameState::Lost => 'L',
-            GameState::Won => 'W',
-            GameState::Draw => 'D',
+            GameState::Ongoing => write!(f, "O"),
+            GameState::Lost(n) => write!(f, "L{n}"),
+            GameState::Won(n) => write!(f, "W{n}"),
+            GameState::Draw => write!(f, "D"),
         }
     }
 }
