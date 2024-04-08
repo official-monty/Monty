@@ -136,7 +136,7 @@ impl GameRep for Chess {
     }
 
     fn get_policy(&self, mov: Self::Move, feats: &goober::SparseVector) -> f32 {
-        POLICY.get(&mov, feats, self.board.flip_val())
+        POLICY.get(&self.board, &mov, feats)
     }
 
     fn get_value(&self) -> i32 {

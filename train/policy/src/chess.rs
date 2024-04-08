@@ -1,5 +1,5 @@
 use datagen::{impls::chess::ChessPolicyData, Rand};
-use goober::{FeedForwardNetwork, OutputLayer, SparseVector};
+use goober::{FeedForwardNetwork, OutputLayer, SparseVector, Vector};
 use monty::chess::{Move, PolicyNetwork, SubNet};
 
 use crate::TrainablePolicy;
@@ -24,6 +24,8 @@ impl TrainablePolicy for PolicyNetwork {
                 lr,
             );
         }
+
+        policy.hce.adam(&grad.hce, &mut momentum.hce, &mut velocity.hce, adj, lr);
     }
 
     fn update_single_grad(pos: &Self::Data, policy: &Self, grad: &mut Self, error: &mut f32) {
@@ -48,23 +50,24 @@ impl TrainablePolicy for PolicyNetwork {
 
             let from_out = policy.subnets[from].out_with_layers(&feats);
             let to_out = policy.subnets[to].out_with_layers(&feats);
-
-            let score = from_out.output_layer().dot(&to_out.output_layer());
+            let hce_feats = PolicyNetwork::get_hce_feats(&board, &mov);
+            let hce_out = policy.hce.out_with_layers(&hce_feats);
+            let score = from_out.output_layer().dot(&to_out.output_layer()) + hce_out.output_layer()[0];
 
             if score > max {
                 max = score;
             }
 
             total_visits += visits;
-            policies.push((mov, visits, score, from_out, to_out));
+            policies.push((mov, visits, score, from_out, to_out, hce_out, hce_feats));
         }
 
-        for (_, _, score, _, _) in policies.iter_mut() {
+        for (_, _, score, _, _, _, _) in policies.iter_mut() {
             *score = (*score - max).exp();
             total += *score;
         }
 
-        for (mov, visits, score, from_out, to_out) in policies {
+        for (mov, visits, score, from_out, to_out, hce_out, hce_feats) in policies {
             let from = usize::from(mov.from() ^ flip);
             let to = 64 + usize::from(mov.to() ^ flip);
 
@@ -90,6 +93,13 @@ impl TrainablePolicy for PolicyNetwork {
                 factor * from_out.output_layer(),
                 &to_out,
             );
+
+            policy.hce.backprop(
+                &hce_feats,
+                &mut grad.hce,
+                Vector::from_raw([factor]),
+                &hce_out,
+            );
         }
     }
 
@@ -108,5 +118,7 @@ impl TrainablePolicy for PolicyNetwork {
         for (i, j) in self.subnets.iter_mut().zip(rhs.subnets.iter()) {
             *i += j;
         }
+
+        self.hce += &rhs.hce;
     }
 }
