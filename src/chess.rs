@@ -19,8 +19,8 @@ pub use self::{
 
 const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-static VALUE: ValueNetwork<768, 64> =
-    unsafe { std::mem::transmute(*include_bytes!("../resources/chess-value003.bin")) };
+static VALUE: ValueNetwork<768, 128> =
+    unsafe { std::mem::transmute(*include_bytes!("../resources/chess-value004.bin")) };
 
 impl ValueFeatureMap for Board {
     fn value_feature_map<F: FnMut(usize)>(&self, f: F) {

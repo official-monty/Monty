@@ -27,7 +27,7 @@ fn filter<T: BulletFormat>() {
 
         let err = (score - result).abs();
 
-        if err < 0.7 && raw_score.abs() < 1500 {
+        if err < 0.6 && (raw_score == i16::MIN || raw_score.abs() < 2000) {
             new.push(*pos);
         } else {
             filtered += 1;

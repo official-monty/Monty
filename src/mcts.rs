@@ -296,12 +296,6 @@ impl<T: GameRep> Searcher<T> {
                 GameState::Lost(n) => 1.0 + f32::from(n),
                 GameState::Won(n) => f32::from(n) - 256.0,
             }
-
-            //if (s - 0.5).abs() > 0.5 {
-            //    println!("{}: {s}", T::Move::from(child.mov()));
-            //}
-
-            //s
         };
 
         let mate = self.tree[self.tree.root_node()].is_terminal();
