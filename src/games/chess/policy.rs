@@ -3,7 +3,7 @@ use super::{moves::Move, Board};
 use goober::{activation, layer, FeedForwardNetwork, Matrix, SparseVector, Vector};
 
 pub static POLICY: PolicyNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/chess-policy004.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../../resources/chess-policy004.bin")) };
 
 #[repr(C)]
 #[derive(Clone, Copy, FeedForwardNetwork)]

@@ -1,12 +1,12 @@
 mod attacks;
 mod board;
-pub mod consts;
+mod consts;
 mod frc;
 mod moves;
 mod policy;
 
 use crate::{
-    comm::UciLike, game::{GameRep, GameState}, value::{ValueFeatureMap, ValueNetwork}, MctsParams
+    comm::UciLike, games::{GameRep, GameState}, value::{ValueFeatureMap, ValueNetwork}, MctsParams
 };
 
 use self::frc::Castling;
@@ -20,7 +20,7 @@ pub use self::{
 const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 static VALUE: ValueNetwork<768, 128> =
-    unsafe { std::mem::transmute(*include_bytes!("../resources/chess-value004.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/chess-value004.bin")) };
 
 impl ValueFeatureMap for Board {
     fn value_feature_map<F: FnMut(usize)>(&self, f: F) {
@@ -33,7 +33,7 @@ impl UciLike for Uci {
     const NAME: &'static str = "uci";
     const NEWGAME: &'static str = "ucinewgame";
     const OK: &'static str = "uciok";
-    const FEN_STRING: &'static str = include_str!("../resources/chess-fens.txt");
+    const FEN_STRING: &'static str = include_str!("../../resources/chess-fens.txt");
 
     type Game = Chess;
 

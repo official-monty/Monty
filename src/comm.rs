@@ -1,5 +1,5 @@
 use crate::{
-    game::GameRep,
+    games::GameRep,
     mcts::{Limits, MctsParams, Searcher, Tree},
 };
 

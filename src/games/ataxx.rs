@@ -19,7 +19,7 @@ pub use self::{
 const STARTPOS: &str = "x5o/7/7/7/7/7/o5x x 0 1";
 
 static NET: ValueNetwork<2916, 256> =
-    unsafe { std::mem::transmute(*include_bytes!("../resources/ataxx-value015.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/ataxx-value015.bin")) };
 
 impl ValueFeatureMap for Board {
     fn value_feature_map<F: FnMut(usize)>(&self, f: F) {
@@ -33,7 +33,7 @@ impl UciLike for Uai {
     const NAME: &'static str = "uai";
     const NEWGAME: &'static str = "uainewgame";
     const OK: &'static str = "uaiok";
-    const FEN_STRING: &'static str = include_str!("../resources/ataxx-fens.txt");
+    const FEN_STRING: &'static str = include_str!("../../resources/ataxx-fens.txt");
 
     fn options() {}
 }

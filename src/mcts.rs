@@ -4,7 +4,7 @@ mod tree;
 pub use params::MctsParams;
 pub use tree::{Mark, Node, Tree};
 
-use crate::game::{GameRep, GameState};
+use crate::games::{GameRep, GameState};
 
 use std::time::Instant;
 

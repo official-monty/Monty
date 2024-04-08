@@ -1,3 +1,7 @@
+pub mod ataxx;
+pub mod chess;
+pub mod shatranj;
+
 use goober::SparseVector;
 
 use crate::MctsParams;

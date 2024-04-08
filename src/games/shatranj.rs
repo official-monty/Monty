@@ -8,7 +8,7 @@ pub use moves::Move;
 
 use crate::{
     comm::UciLike,
-    game::{GameRep, GameState},
+    games::{GameRep, GameState},
     value::{ValueFeatureMap, ValueNetwork},
     MctsParams,
 };
@@ -16,7 +16,7 @@ use crate::{
 const STARTPOS: &str = "rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR w KQkq - 0 1";
 
 static NET: ValueNetwork<768, 8> =
-    unsafe { std::mem::transmute(*include_bytes!("../resources/shatranj-value002.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/shatranj-value002.bin")) };
 
 impl ValueFeatureMap for Board {
     fn value_feature_map<F: FnMut(usize)>(&self, f: F) {
@@ -29,7 +29,7 @@ impl UciLike for Uci {
     const NAME: &'static str = "uci";
     const NEWGAME: &'static str = "ucinewgame";
     const OK: &'static str = "uciok";
-    const FEN_STRING: &'static str = include_str!("../resources/chess-fens.txt");
+    const FEN_STRING: &'static str = include_str!("../../resources/chess-fens.txt");
 
     type Game = Shatranj;
 

@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use crate::{
-    game::{GameRep, GameState},
+    games::{GameRep, GameState},
     MctsParams,
 };
 

@@ -1,11 +1,8 @@
-pub mod ataxx;
-pub mod chess;
 mod comm;
-mod game;
+mod games;
 mod mcts;
-pub mod shatranj;
 mod value;
 
 pub use comm::UciLike;
-pub use game::{GameRep, GameState};
+pub use games::{GameRep, GameState, chess, ataxx, shatranj};
 pub use mcts::{Limits, MctsParams, Searcher, Tree};
