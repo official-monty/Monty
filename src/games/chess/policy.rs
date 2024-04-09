@@ -3,12 +3,12 @@ use super::{moves::Move, Board};
 use goober::{activation, layer, FeedForwardNetwork, Matrix, SparseVector, Vector};
 
 pub static POLICY: PolicyNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../../resources/chess-policy004.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../../resources/chess-policy005.bin")) };
 
 #[repr(C)]
 #[derive(Clone, Copy, FeedForwardNetwork)]
 pub struct SubNet {
-    ft: layer::SparseConnected<activation::ReLU, 768, 8>,
+    ft: layer::SparseConnected<activation::ReLU, 768, 16>,
 }
 
 impl SubNet {
