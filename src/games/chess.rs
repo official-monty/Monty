@@ -4,9 +4,10 @@ mod consts;
 mod frc;
 mod moves;
 mod policy;
+mod value;
 
 use crate::{
-    comm::UciLike, games::{GameRep, GameState}, value::{ValueFeatureMap, ValueNetwork}, MctsParams
+    comm::UciLike, games::{GameRep, GameState}, value::ValueFeatureMap, MctsParams
 };
 
 use self::frc::Castling;
@@ -15,12 +16,10 @@ pub use self::{
     board::Board,
     moves::Move,
     policy::{PolicyNetwork, SubNet, POLICY},
+    value::VALUE,
 };
 
 const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
-static VALUE: ValueNetwork<768, 128> =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/chess-value005.bin")) };
 
 impl ValueFeatureMap for Board {
     fn value_feature_map<F: FnMut(usize)>(&self, f: F) {
