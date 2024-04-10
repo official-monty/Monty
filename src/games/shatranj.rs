@@ -112,10 +112,6 @@ impl GameRep for Shatranj {
         self.board.stm()
     }
 
-    fn hash(&self) -> u64 {
-        unimplemented!()
-    }
-
     fn tm_stm(&self) -> usize {
         self.stm()
     }

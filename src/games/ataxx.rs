@@ -92,10 +92,6 @@ impl GameRep for Ataxx {
         NET.eval(&self.board)
     }
 
-    fn hash(&self) -> u64 {
-        unimplemented!()
-    }
-
     fn get_policy_feats(&self) -> SparseVector {
         self.board.get_features()
     }

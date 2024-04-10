@@ -56,8 +56,6 @@ pub trait GameRep: Clone + Default + Send + Sync + std::fmt::Display {
         1.0 / (1.0 + (-(self.get_value() as f32) / 400.0).exp())
     }
 
-    fn hash(&self) -> u64;
-
     fn from_fen(fen: &str) -> Self;
 
     fn conv_mov_to_str(&self, mov: Self::Move) -> String;

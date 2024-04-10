@@ -116,19 +116,12 @@ impl<T: GameRep> Searcher<T> {
     fn perform_one_iteration(&mut self, pos: &mut T, ptr: i32, depth: &mut usize) -> f32 {
         *depth += 1;
 
-        let utility = |state| match state {
-            GameState::Ongoing => pos.get_value_wdl(),
-            GameState::Draw => 0.5,
-            GameState::Lost(_) => 0.0,
-            GameState::Won(_) => 1.0,
-        };
-
         let mut u;
         let child_state;
 
         if self.tree[ptr].is_terminal() || self.tree[ptr].visits() == 0 {
             child_state = GameState::Ongoing;
-            u = utility(self.tree[ptr].state());
+            u = self.get_utility(ptr, pos);
         } else {
             // this is "expanding on the second visit",
             // an important optimisation - not only does it
@@ -144,7 +137,7 @@ impl<T: GameRep> Searcher<T> {
             // proved a loss from the child nodes
             if action == usize::MAX {
                 child_state = GameState::Ongoing;
-                u = utility(self.tree[ptr].state());
+                u = self.get_utility(ptr, pos);
             } else {
                 let edge = &self.tree[ptr].actions()[action];
                 let mut child_ptr = edge.ptr();
@@ -152,7 +145,7 @@ impl<T: GameRep> Searcher<T> {
                 // descend down the tree
                 pos.make_move(T::Move::from(edge.mov()));
 
-                // this node has not yet been pushed to the tree
+                // this node has not yet been pushed to the tree,
                 // create it and push it
                 if child_ptr == -1 {
                     let state = pos.game_state();
@@ -165,15 +158,29 @@ impl<T: GameRep> Searcher<T> {
             }
         };
 
+        // for convenience the value is stored from the nstm
+        // perspective (as it is usually accessed from the
+        // parent's perspective)
         u = 1.0 - u;
 
         self.tree[ptr].update(1, u);
 
+        // if the child node resulted in a loss, then
+        // this node has a guaranteed win
         if let GameState::Lost(n) = child_state {
             self.tree[ptr].set_state(GameState::Won(n + 1));
         }
 
         u
+    }
+
+    fn get_utility(&self, ptr: i32, pos: &T) -> f32 {
+        match self.tree[ptr].state() {
+            GameState::Ongoing => pos.get_value_wdl(),
+            GameState::Draw => 0.5,
+            GameState::Lost(_) => 0.0,
+            GameState::Won(_) => 1.0,
+        }
     }
 
     fn pick_action(&mut self, ptr: i32) -> usize {

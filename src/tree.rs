@@ -1,11 +1,8 @@
 mod edge;
 mod node;
-mod table;
 
 pub use edge::Edge;
 pub use node::{Mark, Node};
-use table::HashTable;
-
 use std::time::Instant;
 
 use crate::games::{GameRep, GameState};
@@ -13,7 +10,6 @@ use crate::games::{GameRep, GameState};
 #[derive(Debug)]
 pub struct Tree {
     tree: Vec<Node>,
-    table: HashTable,
     root: i32,
     empty: i32,
     used: usize,
@@ -36,21 +32,13 @@ impl std::ops::IndexMut<i32> for Tree {
 
 impl Tree {
     pub fn new_mb(mb: usize) -> Self {
-        let bytes = mb * 1024 * 1024;
-
-        let tree_bytes = bytes / 4;
-        let tt_bytes = bytes / 8;
-
-        let tree_cap = tree_bytes / std::mem::size_of::<Node>();
-        let tt_cap = tt_bytes / std::mem::size_of::<i32>();
-
-        Self::new(tree_cap, tt_cap)
+        let cap = mb * 1024 * 1024 / std::mem::size_of::<Node>();
+        Self::new(cap)
     }
 
-    fn new(tree_cap: usize, tt_cap: usize) -> Self {
+    fn new(cap: usize) -> Self {
         let mut tree = Self {
-            tree: vec![Node::new(GameState::Ongoing); tree_cap],
-            table: HashTable::with_capacity(tt_cap),
+            tree: vec![Node::new(GameState::Ongoing); cap / 4],
             root: -1,
             empty: 0,
             used: 0,
@@ -115,8 +103,6 @@ impl Tree {
     }
 
     pub fn clear(&mut self) {
-        self.table.clear();
-
         if self.used == 0 {
             return;
         }
