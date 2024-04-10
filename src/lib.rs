@@ -1,6 +1,8 @@
 mod comm;
 mod games;
 mod mcts;
+mod params;
+mod tree;
 mod value;
 
 pub use comm::UciLike;

@@ -104,6 +104,10 @@ impl GameRep for Chess {
         }
     }
 
+    fn hash(&self) -> u64 {
+        self.board.hash()
+    }
+
     fn map_legal_moves<F: FnMut(Self::Move)>(&self, f: F) {
         self.board.map_legal_moves(&self.castling, f);
     }
