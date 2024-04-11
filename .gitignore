@@ -1,6 +1,7 @@
 /target
 *-policy-*
 *.data
+*.binpack
 *.exe
 checkpoints
 data

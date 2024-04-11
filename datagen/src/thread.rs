@@ -1,6 +1,5 @@
-use crate::{to_slice_with_lifetime, DatagenSupport, PolicyFormat, Rand};
+use crate::{to_slice_with_lifetime, BinpackType, DatagenSupport, PolicyData, Rand};
 
-use bulletformat::BulletFormat;
 use monty::{GameState, Limits, MctsParams, Searcher, Tree};
 
 use std::{
@@ -35,9 +34,9 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
         }
     }
 
-    pub fn run(&mut self, node_limit: usize, policy: bool) {
+    pub fn run<const MAX_MOVES: usize>(&mut self, node_limit: usize, policy: bool) {
         let pout_path = format!("monty-policy-{}.data", self.rng.rand_int());
-        let vout_path = format!("monty-value-{}.data", self.rng.rand_int());
+        let vout_path = format!("monty-value-{}.binpack", self.rng.rand_int());
         let mut vout =
             BufWriter::new(File::create(vout_path.as_str()).expect("Provide a correct path!"));
         let mut pout = if policy {
@@ -55,7 +54,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
                 break;
             }
 
-            self.run_game(node_limit, &mut pout, &mut vout);
+            self.run_game::<MAX_MOVES>(node_limit, &mut pout, &mut vout);
 
             if self.total > prev + 1024 {
                 prev = self.total;
@@ -70,7 +69,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
         }
     }
 
-    fn run_game(
+    fn run_game<const MAX_MOVES: usize>(
         &mut self,
         node_limit: usize,
         pout: &mut Option<BufWriter<File>>,
@@ -110,11 +109,15 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
 
         let mut tree = Tree::new_mb(8);
 
+        let mut game = T::Binpack::new(position.clone());
+
         // play out game
         loop {
             let mut searcher = Searcher::new(position.clone(), tree, self.params.clone());
 
             let (bm, score) = searcher.search(limits, false, &mut 0, &None);
+
+            game.push(position.stm(), bm, score);
 
             tree = searcher.tree_and_board().0;
 
@@ -122,15 +125,15 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
             position.map_legal_moves(|_| root_count += 1);
 
             // disallow positions with >106 moves and moves when in check
-            if root_count <= T::PolicyData::MAX_MOVES {
-                let mut policy_pos = T::into_policy(&position, score);
-                let value_pos = T::into_value(&position, score);
+            if root_count <= MAX_MOVES {
+                let score = if position.stm() > 0 {-score} else {score};
+                let mut policy_pos = PolicyData::<T, MAX_MOVES>::new(position.clone(), bm, score);
 
                 for action in tree[tree.root_node()].actions() {
-                    policy_pos.push(action.mov().into(), action.visits() as i16);
+                    policy_pos.push(action.mov().into(), action.visits());
                 }
 
-                records.push((policy_pos, value_pos, position.stm()));
+                records.push(policy_pos);
                 self.total += 1;
             } else {
                 self.skipped += 1;
@@ -163,30 +166,16 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
             tree.clear();
         }
 
-        let mut policies = Vec::new();
-        let mut values = Vec::new();
-
-        for (mut policy, mut value, stm) in records {
-            let this_result = if result == 0.5 {
-                0.5
-            } else if stm as f64 == result {
-                0.0
-            } else {
-                1.0
-            };
-
-            policy.set_result(this_result);
-            value.set_result(this_result);
-
-            policies.push(policy);
-            values.push(value);
-        }
-
         if let Some(out) = pout {
-            write(&policies, out);
+            for policy in &mut records {
+                policy.set_result(result);
+            }
+
+            write(&records, out);
         }
 
-        write(&values, vout);
+        game.set_result(result);
+        game.serialise_into(vout).unwrap();
     }
 }
 

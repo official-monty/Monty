@@ -1,11 +1,11 @@
-use datagen::{impls::chess::ChessPolicyData, Rand};
+use datagen::{PolicyData, Rand};
 use goober::{FeedForwardNetwork, OutputLayer, SparseVector, Vector};
-use monty::chess::{Move, PolicyNetwork, SubNet};
+use monty::chess::{Board, Chess, Move, PolicyNetwork, SubNet};
 
 use crate::TrainablePolicy;
 
 impl TrainablePolicy for PolicyNetwork {
-    type Data = ChessPolicyData;
+    type Data = PolicyData<Chess, 112>;
 
     fn update(
         policy: &mut Self,
@@ -29,7 +29,7 @@ impl TrainablePolicy for PolicyNetwork {
     }
 
     fn update_single_grad(pos: &Self::Data, policy: &Self, grad: &mut Self, error: &mut f32) {
-        let board = pos.board;
+        let board = Board::from(pos.pos);
 
         let mut feats = SparseVector::with_capacity(32);
         board.map_policy_features(|feat| feats.push(feat));
@@ -41,10 +41,9 @@ impl TrainablePolicy for PolicyNetwork {
 
         let flip = board.flip_val();
 
-        for training_mov in &pos.moves[..pos.num] {
-            let mov = <Move as From<u16>>::from(training_mov.mov);
+        for &(mov, visits) in &pos.moves[..pos.num] {
+            let mov = <Move as From<u16>>::from(mov);
 
-            let visits = training_mov.visits;
             let from = usize::from(mov.from() ^ flip);
             let to = 64 + usize::from(mov.to() ^ flip);
 

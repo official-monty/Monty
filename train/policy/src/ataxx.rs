@@ -1,11 +1,11 @@
-use datagen::{impls::ataxx::AtaxxPolicyData, Rand};
+use datagen::{PolicyData, Rand};
 use goober::{FeedForwardNetwork, OutputLayer};
-use monty::ataxx::{PolicyNetwork, SubNet};
+use monty::ataxx::{Ataxx, PolicyNetwork, SubNet};
 
 use crate::TrainablePolicy;
 
 impl TrainablePolicy for PolicyNetwork {
-    type Data = AtaxxPolicyData;
+    type Data = PolicyData<Ataxx, 104>;
 
     fn update_single_grad(pos: &Self::Data, policy: &Self, grad: &mut Self, error: &mut f32) {
         if pos.num == 1 && pos.moves[0].from == 63 {

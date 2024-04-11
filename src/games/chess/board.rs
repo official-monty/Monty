@@ -20,6 +20,24 @@ pub struct Board {
 }
 
 impl Board {
+    pub fn from_raw(
+        bb: [u64; 8],
+        stm: bool,
+        enp_sq: u8,
+        rights: u8,
+        halfm: u8,
+    ) -> Self {
+        Self {
+            bb,
+            hash: 0,
+            phase: 0,
+            stm,
+            enp_sq,
+            rights,
+            halfm,
+        }
+    }
+
     // ACCESSOR METHODS
 
     #[must_use]
