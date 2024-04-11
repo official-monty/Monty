@@ -3,12 +3,12 @@ use crate::value::ValueFeatureMap;
 const SCALE: i32 = 400;
 
 pub static VALUE: ValueNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../../resources/chess-value005.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../../resources/chess-value006.bin")) };
 
 #[repr(C)]
 pub struct ValueNetwork {
-    l1: Layer<768, 128>,
-    l2: Layer<128, 16>,
+    l1: Layer<768, 256>,
+    l2: Layer<256, 16>,
     l3: Layer<16, 16>,
     l4: Layer<16, 16>,
     l5: Layer<16, 16>,
