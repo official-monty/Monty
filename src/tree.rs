@@ -41,7 +41,7 @@ impl Tree {
 
     fn new(cap: usize) -> Self {
         let mut tree = Self {
-            tree: vec![Node::new(GameState::Ongoing, -1, 0); cap / 4],
+            tree: vec![Node::new(GameState::Ongoing, -1, 0); cap / 8],
             root: -1,
             empty: 0,
             used: 0,
