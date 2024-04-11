@@ -127,13 +127,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
                 let value_pos = T::into_value(&position, score);
 
                 for action in tree[tree.root_node()].actions() {
-                    let visits = if action.ptr() == -1 {
-                        0
-                    } else {
-                        tree[action.ptr()].visits()
-                    };
-
-                    policy_pos.push(action.mov().into(), visits as i16);
+                    policy_pos.push(action.mov().into(), action.visits() as i16);
                 }
 
                 records.push((policy_pos, value_pos, position.stm()));

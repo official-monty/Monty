@@ -22,21 +22,29 @@ pub struct Node {
     actions: Vec<Edge>,
     state: GameState,
     mark: Mark,
+
+    // used for lru
+    bwd_link: i32,
     fwd_link: i32,
-    visits: i32,
-    wins: f32,
+    parent: i32,
+    action: u16,
 }
 
 impl Node {
-    pub fn new(state: GameState) -> Self {
+    pub fn new(state: GameState, parent: i32, action: usize) -> Self {
         Node {
             actions: Vec::new(),
             state,
             mark: Mark::Empty,
+            parent,
+            bwd_link: -1,
             fwd_link: -1,
-            visits: 0,
-            wins: 0.0,
+            action: action as u16,
         }
+    }
+
+    pub fn parent(&self) -> i32 {
+        self.parent
     }
 
     pub fn is_terminal(&self) -> bool {
@@ -59,6 +67,10 @@ impl Node {
         self.mark
     }
 
+    pub fn bwd_link(&self) -> i32 {
+        self.bwd_link
+    }
+
     pub fn fwd_link(&self) -> i32 {
         self.fwd_link
     }
@@ -71,17 +83,13 @@ impl Node {
         !self.actions.is_empty()
     }
 
-    pub fn visits(&self) -> i32 {
-        self.visits
+    pub fn action(&self) -> usize {
+        usize::from(self.action)
     }
 
-    pub fn q(&self) -> f32 {
-        match self.state {
-            GameState::Won(_) => 0.0,
-            GameState::Lost(_) => 1.0,
-            GameState::Draw => 0.5,
-            GameState::Ongoing => self.wins / self.visits as f32,
-        }
+    pub fn clear_parent(&mut self) {
+        self.parent = -1;
+        self.action = 0;
     }
 
     pub fn is_not_expanded(&self) -> bool {
@@ -93,8 +101,6 @@ impl Node {
         self.state = GameState::Ongoing;
         self.mark = Mark::Empty;
         self.fwd_link = -1;
-        self.visits = 0;
-        self.wins = 0.0;
     }
 
     pub fn set_mark(&mut self, mark: Mark) {
@@ -105,9 +111,8 @@ impl Node {
         self.fwd_link = ptr;
     }
 
-    pub fn update(&mut self, visits: i32, result: f32) {
-        self.visits += visits;
-        self.wins += result;
+    pub fn set_bwd_link(&mut self, ptr: i32) {
+        self.bwd_link = ptr;
     }
 
     pub fn expand<T: GameRep, const ROOT: bool>(
