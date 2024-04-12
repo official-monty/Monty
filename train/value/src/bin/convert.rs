@@ -29,7 +29,6 @@ fn main() {
     loop {
         let err = Binpack::deserialise_map(&mut reader, |board, mov, score, result| {
             let mut write = true;
-            write &= !board.in_check();
 
             //if board.in_check() {
             //    write = false;
