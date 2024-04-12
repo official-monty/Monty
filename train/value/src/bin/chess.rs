@@ -20,6 +20,16 @@ fn main() {
         .activate(Activation::SCReLU)
         .add_layer(16)
         .activate(Activation::SCReLU)
+        .add_layer(16)
+        .activate(Activation::SCReLU)
+        .add_layer(16)
+        .activate(Activation::SCReLU)
+        .add_layer(16)
+        .activate(Activation::SCReLU)
+        .add_layer(16)
+        .activate(Activation::SCReLU)
+        .add_layer(16)
+        .activate(Activation::SCReLU)
         .add_layer(1)
         .build();
 
