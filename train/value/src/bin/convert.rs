@@ -46,13 +46,13 @@ fn main() {
                 scores += 1;
             }
 
-            if write {
-                let wdl = 1.0 / (1.0 + (-f32::from(score) / 400.0).exp());
-                if (result - wdl).abs() > 0.6 {
-                    write = false;
-                    res += 1;
-                }
-            }
+            //if write {
+            //    let wdl = 1.0 / (1.0 + (-f32::from(score) / 400.0).exp());
+            //    if (result - wdl).abs() > 0.6 {
+            //        write = false;
+            //        res += 1;
+            //    }
+            //}
 
             if write  {
                 buf.push(ChessBoard::from_raw(board.bbs(), board.stm(), score, result).unwrap());
