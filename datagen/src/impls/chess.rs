@@ -15,6 +15,7 @@ pub struct CompressedChessBoard {
     enp_sq: u8,
     rights: u8,
     halfm: u8,
+    rook_files: [[u8; 2]; 2],
 }
 
 impl From<Chess> for CompressedChessBoard {
@@ -38,6 +39,7 @@ impl From<Board> for CompressedChessBoard {
             enp_sq: board.enp_sq(),
             rights: board.rights(),
             halfm: board.halfm(),
+            rook_files: [[0; 2]; 2],
         }
     }
 }
