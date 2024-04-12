@@ -23,7 +23,7 @@ fn main() {
     let checks = 0;
     let caps = 0;
     let mut scores = 0;
-    let mut res = 0;
+    let res = 0;
     let mut games = 0;
 
     loop {
