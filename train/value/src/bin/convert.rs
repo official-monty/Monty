@@ -20,8 +20,8 @@ fn main() {
 
     let mut positions = 0;
     let mut filtered = 0;
-    let mut checks = 0;
-    let mut caps = 0;
+    let checks = 0;
+    let caps = 0;
     let mut scores = 0;
     let mut res = 0;
     let mut games = 0;
@@ -31,15 +31,15 @@ fn main() {
             let mut write = true;
             write &= !board.in_check();
 
-            if board.in_check() {
-                write = false;
-                checks += 1;
-            }
+            //if board.in_check() {
+            //    write = false;
+            //    checks += 1;
+            //}
 
-            if mov.is_capture() {
-                write = false;
-                caps += 1;
-            }
+            //if mov.is_capture() {
+            //    write = false;
+            //    caps += 1;
+            //}
 
             if score == i16::MIN || score.abs() > 2000 {
                 write = false;
@@ -61,6 +61,9 @@ fn main() {
             }
 
             positions += 1;
+            if positions % 4194304 == 0 {
+                println!("Processed: {positions}");
+            }
 
             board.make(mov, &castling);
         });
