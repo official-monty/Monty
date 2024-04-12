@@ -1,27 +1,9 @@
 use crate::{tree::Edge, GameRep, GameState, MctsParams};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Mark {
-    Empty,
-    Var1,
-    Var2,
-}
-
-impl Mark {
-    pub fn flip(self) -> Self {
-        match self {
-            Self::Empty => Self::Empty,
-            Self::Var1 => Self::Var2,
-            Self::Var2 => Self::Var1,
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct Node {
     actions: Vec<Edge>,
     state: GameState,
-    mark: Mark,
 
     // used for lru
     bwd_link: i32,
@@ -35,7 +17,6 @@ impl Node {
         Node {
             actions: Vec::new(),
             state,
-            mark: Mark::Empty,
             parent,
             bwd_link: -1,
             fwd_link: -1,
@@ -61,10 +42,6 @@ impl Node {
 
     pub fn state(&self) -> GameState {
         self.state
-    }
-
-    pub fn mark(&self) -> Mark {
-        self.mark
     }
 
     pub fn bwd_link(&self) -> i32 {
@@ -99,12 +76,8 @@ impl Node {
     pub fn clear(&mut self) {
         self.actions.clear();
         self.state = GameState::Ongoing;
-        self.mark = Mark::Empty;
+        self.bwd_link = -1;
         self.fwd_link = -1;
-    }
-
-    pub fn set_mark(&mut self, mark: Mark) {
-        self.mark = mark;
     }
 
     pub fn set_fwd_link(&mut self, ptr: i32) {

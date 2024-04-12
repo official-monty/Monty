@@ -40,16 +40,17 @@ impl<T: GameRep> Searcher<T> {
 
         // attempt to reuse the current tree stored in memory
         self.tree.try_use_subtree(&self.root_position, prev_board);
+        let node = self.tree.root_node();
 
-        // we failed to reuse a tree, push the root node to
-        // the tree and expand it
-        if self.tree.is_empty() {
-            let node = self.tree.push(Node::new(GameState::Ongoing, -1, 0));
-            self.tree.make_root_node(node);
-            self.tree[node].expand::<T, true>(&self.root_position, &self.params);
-        } else {
-            let node = self.tree.root_node();
+        // if we found a subtree, we need to relabel the policies
+        // of the new root node as we (may) have different root
+        // policy softmax temperature compared to normal nodes.
+        // otherwise, we need to expand the new unexplored root
+        // node
+        if self.tree[node].has_children() {
             self.tree[node].relabel_policy(&self.root_position, &self.params);
+        } else {
+            self.tree[node].expand::<T, true>(&self.root_position, &self.params);
         }
 
         let mut nodes = 0;
