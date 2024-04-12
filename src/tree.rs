@@ -327,13 +327,7 @@ impl Tree {
         self.display_recurse::<T>(Edge::new(idx, 0, 0), depth + 1, 0, &mut bars);
     }
 
-    fn display_recurse<T: GameRep>(
-        &self,
-        edge: Edge,
-        depth: usize,
-        ply: usize,
-        bars: &mut [bool],
-    ) {
+    fn display_recurse<T: GameRep>(&self, edge: Edge, depth: usize, ply: usize, bars: &mut [bool]) {
         let node = &self[edge.ptr()];
 
         if depth == 0 {
@@ -371,7 +365,6 @@ impl Tree {
         } else {
             println!();
         }
-
 
         let mut active = Vec::new();
         for &action in node.actions() {

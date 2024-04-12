@@ -53,7 +53,10 @@ pub trait BinpackType<T: GameRep>: Sized {
 
     fn serialise_into(&self, writer: &mut impl std::io::Write) -> std::io::Result<()>;
 
-    fn deserialise_from(reader: &mut impl std::io::BufRead, buffer: Vec<(u16, i16)>) -> std::io::Result<Self>;
+    fn deserialise_from(
+        reader: &mut impl std::io::BufRead,
+        buffer: Vec<(u16, i16)>,
+    ) -> std::io::Result<Self>;
 }
 
 pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {

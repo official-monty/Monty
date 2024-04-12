@@ -7,7 +7,10 @@ mod policy;
 mod value;
 
 use crate::{
-    comm::UciLike, games::{GameRep, GameState}, value::ValueFeatureMap, MctsParams
+    comm::UciLike,
+    games::{GameRep, GameState},
+    value::ValueFeatureMap,
+    MctsParams,
 };
 
 use self::frc::Castling;

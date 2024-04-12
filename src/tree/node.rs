@@ -1,4 +1,4 @@
-use crate::{GameState, tree::Edge, MctsParams, GameRep};
+use crate::{tree::Edge, GameRep, GameState, MctsParams};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mark {
@@ -115,11 +115,7 @@ impl Node {
         self.bwd_link = ptr;
     }
 
-    pub fn expand<T: GameRep, const ROOT: bool>(
-        &mut self,
-        pos: &T,
-        params: &MctsParams,
-    ) {
+    pub fn expand<T: GameRep, const ROOT: bool>(&mut self, pos: &T, params: &MctsParams) {
         assert!(self.is_not_expanded());
 
         let feats = pos.get_policy_feats();
@@ -129,7 +125,8 @@ impl Node {
             let policy = pos.get_policy(mov, &feats);
 
             // trick for calculating policy before quantising
-            self.actions.push(Edge::new(f32::to_bits(policy) as i32, mov.into(), 0));
+            self.actions
+                .push(Edge::new(f32::to_bits(policy) as i32, mov.into(), 0));
             max = max.max(policy);
         });
 

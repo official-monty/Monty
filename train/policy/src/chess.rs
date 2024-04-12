@@ -25,7 +25,9 @@ impl TrainablePolicy for PolicyNetwork {
             );
         }
 
-        policy.hce.adam(&grad.hce, &mut momentum.hce, &mut velocity.hce, adj, lr);
+        policy
+            .hce
+            .adam(&grad.hce, &mut momentum.hce, &mut velocity.hce, adj, lr);
     }
 
     fn update_single_grad(pos: &Self::Data, policy: &Self, grad: &mut Self, error: &mut f32) {
@@ -51,7 +53,8 @@ impl TrainablePolicy for PolicyNetwork {
             let to_out = policy.subnets[to].out_with_layers(&feats);
             let hce_feats = PolicyNetwork::get_hce_feats(&board, &mov);
             let hce_out = policy.hce.out_with_layers(&hce_feats);
-            let score = from_out.output_layer().dot(&to_out.output_layer()) + hce_out.output_layer()[0];
+            let score =
+                from_out.output_layer().dot(&to_out.output_layer()) + hce_out.output_layer()[0];
 
             if score > max {
                 max = score;

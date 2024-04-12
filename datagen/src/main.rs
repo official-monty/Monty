@@ -23,7 +23,11 @@ fn main() {
     run_datagen::<monty::shatranj::Shatranj>(1_000, threads, policy);
 }
 
-fn run_datagen<T: DatagenSupport, const MAX_MOVES: usize>(nodes: usize, threads: usize, policy: bool) {
+fn run_datagen<T: DatagenSupport, const MAX_MOVES: usize>(
+    nodes: usize,
+    threads: usize,
+    policy: bool,
+) {
     let params = T::default_mcts_params();
     let stop_base = AtomicBool::new(false);
     let stop = &stop_base;

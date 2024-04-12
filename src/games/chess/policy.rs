@@ -37,7 +37,10 @@ pub struct PolicyNetwork {
 
 impl PolicyNetwork {
     pub const fn zeroed() -> Self {
-        Self { subnets: [SubNet::zeroed(); 128], hce: layer::DenseConnected::zeroed() }
+        Self {
+            subnets: [SubNet::zeroed(); 128],
+            hce: layer::DenseConnected::zeroed(),
+        }
     }
 
     pub fn get(&self, pos: &Board, mov: &Move, feats: &SparseVector) -> f32 {

@@ -1,8 +1,14 @@
-use std::{fs::File, io::{BufReader, BufWriter}};
+use std::{
+    fs::File,
+    io::{BufReader, BufWriter},
+};
 
 use bullet::format::{BulletFormat, ChessBoard};
 use datagen::impls::chess::Binpack;
-use monty::{chess::{Board, Chess}, GameRep};
+use monty::{
+    chess::{Board, Chess},
+    GameRep,
+};
 
 fn main() {
     let mut args = std::env::args();
@@ -53,7 +59,7 @@ fn main() {
             //    }
             //}
 
-            if write  {
+            if write {
                 buf.push(ChessBoard::from_raw(board.bbs(), board.stm(), score, result).unwrap());
             } else {
                 filtered += 1;

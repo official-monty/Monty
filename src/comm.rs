@@ -1,6 +1,7 @@
 use crate::{
     games::GameRep,
-    mcts::{Limits, MctsParams, Searcher, Tree},
+    mcts::{Limits, Searcher},
+    MctsParams, Tree,
 };
 
 use std::time::Instant;

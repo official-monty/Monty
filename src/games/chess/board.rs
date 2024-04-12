@@ -20,13 +20,7 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn from_raw(
-        bb: [u64; 8],
-        stm: bool,
-        enp_sq: u8,
-        rights: u8,
-        halfm: u8,
-    ) -> Self {
+    pub fn from_raw(bb: [u64; 8], stm: bool, enp_sq: u8, rights: u8, halfm: u8) -> Self {
         Self {
             bb,
             hash: 0,
@@ -169,7 +163,11 @@ impl Board {
 
     fn map_features<F: FnMut(usize), const HM: bool>(&self, mut f: F) {
         let flip = self.stm() == Side::BLACK;
-        let hm = if HM && self.king_index() % 8 > 3 {7} else {0};
+        let hm = if HM && self.king_index() % 8 > 3 {
+            7
+        } else {
+            0
+        };
 
         for piece in Piece::PAWN..=Piece::KING {
             let pc = 64 * (piece - 2);

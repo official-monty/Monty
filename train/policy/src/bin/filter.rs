@@ -1,4 +1,7 @@
-use std::{fs::File, io::{BufReader, BufWriter, Read, Write}};
+use std::{
+    fs::File,
+    io::{BufReader, BufWriter, Read, Write},
+};
 
 type T = datagen::impls::chess::ChessPolicyData;
 const S: usize = std::mem::size_of::<T>();
@@ -24,9 +27,7 @@ fn main() {
         let mut value = [0; S];
         reader.read_exact(&mut value).unwrap();
 
-        let board: T = unsafe {
-            std::mem::transmute(value)
-        };
+        let board: T = unsafe { std::mem::transmute(value) };
 
         if (board.score - 0.5).abs() > 0.49 {
             filtered += 1;

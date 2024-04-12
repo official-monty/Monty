@@ -1,7 +1,8 @@
-pub use crate::params::MctsParams;
-pub use crate::tree::{Edge, Mark, Node, Tree};
-
-use crate::games::{GameRep, GameState};
+use crate::{
+    games::{GameRep, GameState},
+    params::MctsParams,
+    tree::{Edge, Node, Tree},
+};
 
 use std::time::Instant;
 
@@ -49,7 +50,6 @@ impl<T: GameRep> Searcher<T> {
         } else {
             let node = self.tree.root_node();
             self.tree[node].relabel_policy(&self.root_position, &self.params);
-
         }
 
         let mut nodes = 0;

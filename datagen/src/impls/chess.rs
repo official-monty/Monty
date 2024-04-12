@@ -1,4 +1,4 @@
-use monty::chess::{Chess, Move, Board};
+use monty::chess::{Board, Chess, Move};
 
 use crate::{BinpackType, DatagenSupport};
 
@@ -69,13 +69,7 @@ impl From<CompressedChessBoard> for Board {
         bbs[6] = pbq & prq & rqk;
         bbs[7] = nbk & rqk;
 
-        Board::from_raw(
-            bbs,
-            value.stm,
-            value.enp_sq,
-            value.rights,
-            value.halfm,
-        )
+        Board::from_raw(bbs, value.stm, value.enp_sq, value.rights, value.halfm)
     }
 }
 
@@ -160,13 +154,18 @@ impl BinpackType<Chess> for Binpack {
             moves.push((mov, score));
         }
 
-        Ok(Self { startpos, result, moves })
+        Ok(Self {
+            startpos,
+            result,
+            moves,
+        })
     }
 }
 
 impl Binpack {
     pub fn deserialise_map<F>(reader: &mut impl std::io::BufRead, mut f: F) -> std::io::Result<()>
-    where F: FnMut(&mut Board, Move, i16, f32)
+    where
+        F: FnMut(&mut Board, Move, i16, f32),
     {
         let mut startpos = [0; std::mem::size_of::<CompressedChessBoard>()];
         reader.read_exact(&mut startpos)?;

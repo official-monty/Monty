@@ -126,7 +126,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
 
             // disallow positions with >106 moves and moves when in check
             if root_count <= MAX_MOVES {
-                let score = if position.stm() > 0 {-score} else {score};
+                let score = if position.stm() > 0 { -score } else { score };
                 let mut policy_pos = PolicyData::<T, MAX_MOVES>::new(position.clone(), bm, score);
 
                 for action in tree[tree.root_node()].actions() {
