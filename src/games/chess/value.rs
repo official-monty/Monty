@@ -3,7 +3,7 @@ use crate::value::ValueFeatureMap;
 const SCALE: i32 = 400;
 
 pub static VALUE: ValueNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../../resources/chess-value006.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../../resources/chess-value007.bin")) };
 
 #[repr(C)]
 pub struct ValueNetwork {
