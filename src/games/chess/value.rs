@@ -7,8 +7,8 @@ pub static VALUE: ValueNetwork =
 
 #[repr(C)]
 pub struct ValueNetwork {
-    l1: Layer<768, 256>,
-    l2: Layer<256, 16>,
+    l1: Layer<768, 512>,
+    l2: Layer<512, 16>,
     l3: Layer<16, 16>,
     l4: Layer<16, 16>,
     l5: Layer<16, 16>,
