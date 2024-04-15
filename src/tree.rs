@@ -1,15 +1,17 @@
 mod edge;
+mod hash;
 mod node;
 
 pub use edge::Edge;
+use hash::{HashEntry, HashTable};
 pub use node::Node;
 use std::time::Instant;
 
 use crate::games::{GameRep, GameState};
 
-#[derive(Debug)]
 pub struct Tree {
     tree: Vec<Node>,
+    hash: HashTable,
     root: i32,
     empty: i32,
     used: usize,
@@ -40,7 +42,8 @@ impl Tree {
 
     fn new(cap: usize) -> Self {
         let mut tree = Self {
-            tree: vec![Node::new(GameState::Ongoing, -1, 0); cap / 8],
+            tree: vec![Node::new(GameState::Ongoing, 0, -1, 0); cap / 8],
+            hash: HashTable::new(cap / 16),
             root: -1,
             empty: 0,
             used: 0,
@@ -87,6 +90,24 @@ impl Tree {
         }
 
         new
+    }
+
+    pub fn probe_hash(&self, hash: u64) -> Option<HashEntry> {
+        self.hash.get(hash)
+    }
+
+    pub fn push_hash(&mut self, hash: u64, visits: i32, wins: f32) {
+        self.hash.push(hash, visits, wins);
+    }
+
+    pub fn check_hash_visits(&self, hash: u64) -> i32 {
+        let entry = self.hash.fetch(hash);
+        if hash != entry.hash {
+            -1
+        } else {
+            entry.visits
+        }
+
     }
 
     pub fn delete(&mut self, ptr: i32) {
@@ -161,6 +182,7 @@ impl Tree {
             return;
         }
 
+        self.hash.clear();
         self.root = -1;
         self.empty = 0;
         self.used = 0;
@@ -171,7 +193,7 @@ impl Tree {
         let end = self.cap() as i32 - 1;
 
         for i in 0..end {
-            self[i] = Node::new(GameState::Ongoing, -1, 0);
+            self[i] = Node::new(GameState::Ongoing, 0, -1, 0);
             self[i].set_fwd_link(i + 1);
         }
 
@@ -205,7 +227,7 @@ impl Tree {
         let t = Instant::now();
 
         if self.is_empty() {
-            let node = self.push(Node::new(GameState::Ongoing, -1, 0));
+            let node = self.push(Node::new(GameState::Ongoing, root.hash(), -1, 0));
             self.make_root_node(node);
 
             return;
@@ -234,7 +256,7 @@ impl Tree {
 
         if !found {
             println!("info string no subtree found");
-            let node = self.push(Node::new(GameState::Ongoing, -1, 0));
+            let node = self.push(Node::new(GameState::Ongoing, root.hash(), -1, 0));
             self.make_root_node(node);
         }
 

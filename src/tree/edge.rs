@@ -46,6 +46,10 @@ impl Edge {
         self.visits
     }
 
+    pub fn wins(&self) -> f32 {
+        self.wins
+    }
+
     pub fn q(&self) -> f32 {
         self.wins / self.visits as f32
     }
@@ -56,6 +60,11 @@ impl Edge {
 
     pub fn set_policy(&mut self, policy: f32) {
         self.policy = (policy * f32::from(i16::MAX)) as i16
+    }
+
+    pub fn set_stats(&mut self, visits: i32, wins: f32) {
+        self.visits = visits;
+        self.wins = wins;
     }
 
     pub fn update(&mut self, result: f32) {

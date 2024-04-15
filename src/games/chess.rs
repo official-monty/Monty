@@ -114,6 +114,10 @@ impl GameRep for Chess {
         self.board.game_state(&self.castling, &self.stack)
     }
 
+    fn hash(&self) -> u64 {
+        self.board.hash()
+    }
+
     fn make_move(&mut self, mov: Self::Move) {
         self.stack.push(self.board.hash());
         self.board.make(mov, &self.castling);

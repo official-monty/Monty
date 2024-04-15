@@ -4,6 +4,7 @@ use crate::{tree::Edge, GameRep, GameState, MctsParams};
 pub struct Node {
     actions: Vec<Edge>,
     state: GameState,
+    hash: u64,
 
     // used for lru
     bwd_link: i32,
@@ -13,10 +14,11 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(state: GameState, parent: i32, action: usize) -> Self {
+    pub fn new(state: GameState, hash: u64, parent: i32, action: usize) -> Self {
         Node {
             actions: Vec::new(),
             state,
+            hash,
             parent,
             bwd_link: -1,
             fwd_link: -1,
@@ -42,6 +44,10 @@ impl Node {
 
     pub fn state(&self) -> GameState {
         self.state
+    }
+
+    pub fn hash(&self) -> u64 {
+        self.hash
     }
 
     pub fn bwd_link(&self) -> i32 {
@@ -76,6 +82,7 @@ impl Node {
     pub fn clear(&mut self) {
         self.actions.clear();
         self.state = GameState::Ongoing;
+        self.hash = 0;
         self.bwd_link = -1;
         self.fwd_link = -1;
     }

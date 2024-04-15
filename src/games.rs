@@ -40,6 +40,10 @@ pub trait GameRep: Clone + Default + Send + Sync + std::fmt::Display {
     /// For games where black goes first.
     fn tm_stm(&self) -> usize;
 
+    fn hash(&self) -> u64 {
+        unimplemented!()
+    }
+
     fn game_state(&self) -> GameState;
 
     fn make_move(&mut self, mov: Self::Move);
