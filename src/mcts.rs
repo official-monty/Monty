@@ -135,13 +135,16 @@ impl<T: GameRep> Searcher<T> {
 
         if self.tree[ptr].is_terminal() || pvisits == 0 {
             child_state = GameState::Ongoing;
-            u = self.get_utility(ptr, pos);
 
-            // mcgs at home
+            // probe hash table to use in place of network
             if self.tree[ptr].state() == GameState::Ongoing {
                 if let Some(entry) = self.tree.probe_hash(hash) {
-                    self.tree.edge_mut(parent, action).set_stats(entry.visits, entry.wins);
+                    u = 1.0 - entry.wins / entry.visits as f32;
+                } else {
+                    u = self.get_utility(ptr, pos);
                 }
+            } else {
+                u = self.get_utility(ptr, pos);
             }
         } else {
             // this is "expanding on the second visit",
