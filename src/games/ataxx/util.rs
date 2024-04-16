@@ -1,3 +1,5 @@
+use crate::init;
+
 pub struct Side;
 impl Side {
     pub const RED: usize = 0;
@@ -61,4 +63,21 @@ static DOUBLES: [u64; 49] = {
     }
 
     res
+};
+
+const fn rand(mut seed: u64) -> u64 {
+    seed ^= seed << 13;
+    seed ^= seed >> 7;
+    seed ^= seed << 17;
+    seed
+}
+
+pub static ZVALS: [[u64; 49]; 2] = {
+    let mut seed = 180_620_142;
+    seed = rand(seed);
+
+    init!(|side, 2| init!(|sq, 49| {
+        seed = rand(seed);
+        seed
+    }))
 };

@@ -107,6 +107,30 @@ impl GameRep for Ataxx {
     fn perft(&self, depth: usize) -> u64 {
         perft(&self.board, depth as u8)
     }
+
+    fn hash(&self) -> u64 {
+        use self::util::ZVALS;
+
+        let mut hash = 0;
+
+        let mut boys = self.board.boys();
+        while boys > 0 {
+            let sq = boys.trailing_zeros() as usize;
+            boys &= boys - 1;
+
+            hash ^= ZVALS[0][sq];
+        }
+
+        let mut opps = self.board.opps();
+        while opps > 0 {
+            let sq = opps.trailing_zeros() as usize;
+            opps &= opps - 1;
+
+            hash ^= ZVALS[1][sq];
+        }
+
+        hash
+    }
 }
 
 impl std::fmt::Display for Ataxx {
