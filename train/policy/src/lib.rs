@@ -9,87 +9,78 @@ use std::{
 };
 
 const BATCH_SIZE: usize = 16_384;
+const BPSB: usize = 1024;
 
-pub fn train<T: TrainablePolicy>(threads: usize, data_path: String, epochs: usize, lr_drop: usize)
-where
-    for<'b> &'b T: Send,
+pub fn train<T: TrainablePolicy>(
+    threads: usize,
+    data_path: String,
+    superbatches: usize,
+    lr_drop: usize,
+) where for<'b> &'b T: Send,
 {
     let file = File::open(data_path.as_str()).unwrap();
     let mut policy = T::rand_init();
+    let positions = file.metadata().unwrap().len() / std::mem::size_of::<T::Data>() as u64;
+    let throughput = superbatches * BPSB * BATCH_SIZE;
 
     println!("# [Info]");
-    println!(
-        "> {} Positions",
-        file.metadata().unwrap().len() / std::mem::size_of::<T::Data>() as u64,
-    );
+    println!("> Positions {positions}");
+    println!("> Epochs {:.2}", throughput as f64 / positions as f64);
 
     let mut lr = 0.001;
     let mut momentum = T::boxed_and_zeroed();
     let mut velocity = T::boxed_and_zeroed();
 
-    for iteration in 1..=epochs {
-        println!("# [Training Epoch {iteration}]");
-        train_epoch::<T>(
-            threads,
-            &mut policy,
-            lr,
-            &mut momentum,
-            &mut velocity,
-            data_path.as_str(),
-        );
+    'training: loop {
+        let mut running_error = 0.0;
+        //let mut num = 0;
 
-        if iteration % lr_drop == 0 {
-            lr *= 0.1;
+        let cap = 128 * BATCH_SIZE * std::mem::size_of::<T::Data>();
+        let file = File::open(data_path.as_str()).unwrap();
+        let mut loaded = BufReader::with_capacity(cap, file);
+        let mut batch_no = 0;
+        let mut sb = 0;
+
+        while let Ok(buf) = loaded.fill_buf() {
+            if buf.is_empty() {
+                break;
+            }
+
+            let data = to_slice_with_lifetime(buf);
+
+            for batch in data.chunks(BATCH_SIZE) {
+                let mut grad = T::boxed_and_zeroed();
+                running_error += gradient_batch::<T>(threads, &policy, &mut grad, batch);
+                let adj = 1.0 / batch.len() as f32;
+                T::update(&mut policy, &grad, adj, lr, &mut momentum, &mut velocity);
+
+                batch_no += 1;
+                print!("> Superbatch {}/{superbatches} Batch {}/{BPSB}\r", sb + 1, batch_no % BPSB);
+                let _ = std::io::stdout().flush();
+
+                if batch_no % BPSB == 0 {
+                    sb += 1;
+                    println!("> Superbatch {sb}/{superbatches} Running Loss {}", running_error / (BPSB * BATCH_SIZE) as f32);
+                    running_error = 0.0;
+
+                    if sb % lr_drop == 0 {
+                        lr *= 0.1;
+                    }
+
+                    policy.write_to_bin(format!("checkpoints/policy-{sb}.bin").as_str());
+
+                    if sb == superbatches {
+                        break 'training;
+                    }
+                }
+
+            }
+
+            //num += data.len();
+            let consumed = buf.len();
+            loaded.consume(consumed);
         }
-
-        policy.write_to_bin(format!("checkpoints/ataxx-policy-{iteration}.bin").as_str());
     }
-}
-
-fn train_epoch<T: TrainablePolicy>(
-    threads: usize,
-    policy: &mut T,
-    lr: f32,
-    momentum: &mut T,
-    velocity: &mut T,
-    path: &str,
-) where
-    for<'b> &'b T: Send,
-{
-    let mut running_error = 0.0;
-    let mut num = 0;
-
-    let cap = 128 * BATCH_SIZE * std::mem::size_of::<T::Data>();
-    let file = File::open(path).unwrap();
-    let size = file.metadata().unwrap().len() as usize / std::mem::size_of::<T::Data>();
-    let mut loaded = BufReader::with_capacity(cap, file);
-    let mut batch_no = 0;
-    let num_batches = (size + BATCH_SIZE - 1) / BATCH_SIZE;
-
-    while let Ok(buf) = loaded.fill_buf() {
-        if buf.is_empty() {
-            break;
-        }
-
-        let data = to_slice_with_lifetime(buf);
-
-        for batch in data.chunks(BATCH_SIZE) {
-            let mut grad = T::boxed_and_zeroed();
-            running_error += gradient_batch::<T>(threads, policy, &mut grad, batch);
-            let adj = 2.0 / batch.len() as f32;
-            T::update(policy, &grad, adj, lr, momentum, velocity);
-
-            batch_no += 1;
-            print!("> Batch {batch_no}/{num_batches}\r");
-            let _ = std::io::stdout().flush();
-        }
-
-        num += data.len();
-        let consumed = buf.len();
-        loaded.consume(consumed);
-    }
-
-    println!("> Running Loss: {}", running_error / num as f32);
 }
 
 fn gradient_batch<T: TrainablePolicy>(
