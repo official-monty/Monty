@@ -14,21 +14,30 @@ fn main() {
 
     #[cfg(not(feature = "ataxx"))]
     #[cfg(not(feature = "shatranj"))]
-    run_datagen::<monty::chess::Chess, 112>(1_000, threads, policy);
+    run_datagen::<monty::chess::Chess, 112>(1_000, threads, policy, "Chess");
 
     #[cfg(feature = "ataxx")]
-    run_datagen::<monty::ataxx::Ataxx, 114>(1_000, threads, policy);
+    run_datagen::<monty::ataxx::Ataxx, 114>(1_000, threads, policy, "Ataxx");
 
     #[cfg(feature = "shatranj")]
-    run_datagen::<monty::shatranj::Shatranj>(1_000, threads, policy);
+    run_datagen::<monty::shatranj::Shatranj>(1_000, threads, policy, "Shatranj");
 }
 
 fn run_datagen<T: DatagenSupport, const MAX_MOVES: usize>(
     nodes: usize,
     threads: usize,
     policy: bool,
+    name: &str,
 ) {
-    let params = T::default_mcts_params();
+    println!("Generating: {name}");
+
+    let mut params = T::default_mcts_params();
+
+    params.set("root_cpuct", 3.0);
+    params.set("root_pst", 5.0);
+
+    params.clone().info();
+
     let stop_base = AtomicBool::new(false);
     let stop = &stop_base;
 

@@ -81,6 +81,10 @@ impl CompressedChessBoard {
     fn from_bytes(bytes: [u8; std::mem::size_of::<CompressedChessBoard>()]) -> Self {
         unsafe { std::mem::transmute(bytes) }
     }
+
+    pub fn stm(&self) -> bool {
+        self.stm
+    }
 }
 
 pub struct Binpack {
