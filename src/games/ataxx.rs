@@ -49,6 +49,12 @@ impl Ataxx {
     }
 }
 
+impl From<Ataxx> for Board {
+    fn from(value: Ataxx) -> Self {
+        value.board
+    }
+}
+
 impl GameRep for Ataxx {
     const STARTPOS: &'static str = STARTPOS;
     const MAX_MOVES: usize = 256;

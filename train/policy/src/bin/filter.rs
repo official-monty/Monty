@@ -3,7 +3,7 @@ use std::{
     io::{BufReader, BufWriter, Read, Write},
 };
 
-type T = datagen::impls::chess::ChessPolicyData;
+type T = datagen::PolicyData<monty::chess::Chess, 112>;
 const S: usize = std::mem::size_of::<T>();
 
 fn main() {

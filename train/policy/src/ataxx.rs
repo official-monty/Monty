@@ -1,18 +1,18 @@
 use datagen::{PolicyData, Rand};
 use goober::{FeedForwardNetwork, OutputLayer};
-use monty::ataxx::{Ataxx, PolicyNetwork, SubNet};
+use monty::ataxx::{Ataxx, Move, PolicyNetwork, SubNet};
 
 use crate::TrainablePolicy;
 
 impl TrainablePolicy for PolicyNetwork {
-    type Data = PolicyData<Ataxx, 104>;
+    type Data = PolicyData<Ataxx, 114>;
 
     fn update_single_grad(pos: &Self::Data, policy: &Self, grad: &mut Self, error: &mut f32) {
-        if pos.num == 1 && pos.moves[0].from == 63 {
+        if pos.num == 1 {
             return;
         }
 
-        let board = pos.board;
+        let board = pos.pos;
 
         let feats = board.get_features();
 
@@ -21,10 +21,11 @@ impl TrainablePolicy for PolicyNetwork {
         let mut total_visits = 0;
         let mut max = -1000.0;
 
-        for mov in &pos.moves[..pos.num] {
-            let visits = mov.visits;
-            let from = usize::from(mov.from.min(49));
-            let to = 50 + usize::from(mov.to.min(48));
+        for &(mov, visits) in &pos.moves[..pos.num] {
+            let mov = <Move as From<u16>>::from(mov);
+
+            let from = mov.from().min(49);
+            let to = 50 + mov.to().min(48);
 
             let from_out = policy.subnets[from].out_with_layers(&feats);
             let to_out = policy.subnets[to].out_with_layers(&feats);
@@ -36,18 +37,17 @@ impl TrainablePolicy for PolicyNetwork {
             }
 
             total_visits += visits;
-            policies.push((mov, score, from_out, to_out));
+            policies.push((mov, visits, score, from_out, to_out));
         }
 
-        for (_, score, _, _) in policies.iter_mut() {
+        for (_, _, score, _, _) in policies.iter_mut() {
             *score = (*score - max).exp();
             total += *score;
         }
 
-        for (mov, score, from_out, to_out) in policies {
-            let visits = mov.visits;
-            let from = usize::from(mov.from.min(49));
-            let to = 50 + usize::from(mov.to.min(48));
+        for (mov, visits, score, from_out, to_out) in policies {
+            let from = mov.from().min(49);
+            let to = 50 + mov.to().min(48);
 
             let ratio = score / total;
 
