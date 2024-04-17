@@ -31,15 +31,14 @@ pub fn train<T: TrainablePolicy>(
     let mut momentum = T::boxed_and_zeroed();
     let mut velocity = T::boxed_and_zeroed();
 
-    'training: loop {
-        let mut running_error = 0.0;
-        //let mut num = 0;
+    let mut running_error = 0.0;
+    let mut sb = 0;
+    let mut batch_no = 0;
 
+    'training: loop {
         let cap = 128 * BATCH_SIZE * std::mem::size_of::<T::Data>();
         let file = File::open(data_path.as_str()).unwrap();
         let mut loaded = BufReader::with_capacity(cap, file);
-        let mut batch_no = 0;
-        let mut sb = 0;
 
         while let Ok(buf) = loaded.fill_buf() {
             if buf.is_empty() {
@@ -76,7 +75,6 @@ pub fn train<T: TrainablePolicy>(
 
             }
 
-            //num += data.len();
             let consumed = buf.len();
             loaded.consume(consumed);
         }
