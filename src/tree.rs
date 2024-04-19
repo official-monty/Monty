@@ -293,7 +293,7 @@ impl Tree {
         -1
     }
 
-    pub fn get_best_child_by_key<F: FnMut(&Edge) -> f32>(&self, ptr: i32, mut key: F) -> usize {
+    fn get_best_child_by_key<F: FnMut(&Edge) -> f32>(&self, ptr: i32, mut key: F) -> usize {
         let mut best_child = usize::MAX;
         let mut best_score = f32::NEG_INFINITY;
 
@@ -315,8 +315,8 @@ impl Tree {
                 f32::NEG_INFINITY
             } else if child.ptr() != -1 {
                 match self[child.ptr()].state() {
-                    GameState::Won(_) => 0.0,
-                    GameState::Lost(_) => 1.0,
+                    GameState::Lost(n) => 1.0 + f32::from(n),
+                    GameState::Won(n) => f32::from(n) - 256.0,
                     GameState::Draw => 0.5,
                     GameState::Ongoing => child.q(),
                 }

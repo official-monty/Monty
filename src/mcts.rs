@@ -1,7 +1,7 @@
 use crate::{
     games::{GameRep, GameState},
     params::MctsParams,
-    tree::{Edge, Node, Tree},
+    tree::{Node, Tree},
 };
 
 use std::time::Instant;
@@ -306,23 +306,9 @@ impl<T: GameRep> Searcher<T> {
     }
 
     fn get_pv(&self, mut depth: usize) -> (Vec<T::Move>, f32) {
-        let key = |edge: &Edge| {
-            if edge.ptr() == -1 {
-                -10000.0
-            } else {
-                let child = &self.tree[edge.ptr()];
-                match child.state() {
-                    GameState::Draw => 0.5,
-                    GameState::Ongoing => edge.q(),
-                    GameState::Lost(n) => 1.0 + f32::from(n),
-                    GameState::Won(n) => f32::from(n) - 256.0,
-                }
-            }
-        };
-
         let mate = self.tree[self.tree.root_node()].is_terminal();
 
-        let idx = self.tree.get_best_child_by_key(self.tree.root_node(), key);
+        let idx = self.tree.get_best_child(self.tree.root_node());
         let mut action = self.tree.edge(self.tree.root_node(), idx);
 
         let score = action.q();
@@ -330,7 +316,7 @@ impl<T: GameRep> Searcher<T> {
 
         while (mate || depth > 0) && action.ptr() != -1 {
             pv.push(T::Move::from(action.mov()));
-            let idx = self.tree.get_best_child_by_key(action.ptr(), key);
+            let idx = self.tree.get_best_child(action.ptr());
 
             if idx == usize::MAX {
                 break;
