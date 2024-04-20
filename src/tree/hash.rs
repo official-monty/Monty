@@ -21,7 +21,9 @@ pub struct HashTable {
 
 impl HashTable {
     pub fn new(size: usize) -> Self {
-        Self { table: vec![HashEntry::default(); size] }
+        Self {
+            table: vec![HashEntry::default(); size],
+        }
     }
 
     pub fn clear(&mut self) {
@@ -47,10 +49,6 @@ impl HashTable {
 
     pub fn push(&mut self, hash: u64, visits: i32, wins: f32) {
         let idx = hash % (self.table.len() as u64);
-        self.table[idx as usize] = HashEntry {
-            hash,
-            visits,
-            wins,
-        };
+        self.table[idx as usize] = HashEntry { hash, visits, wins };
     }
 }

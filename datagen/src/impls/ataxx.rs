@@ -12,7 +12,10 @@ impl BinpackType<Ataxx> for <Ataxx as DatagenSupport>::Binpack {
 
     fn push(&mut self, _: usize, _: Move, _: f32) {}
 
-    fn deserialise_from(_: &mut impl std::io::BufRead, _: Vec<(u16, i16)>) -> std::io::Result<Self> {
+    fn deserialise_from(
+        _: &mut impl std::io::BufRead,
+        _: Vec<(u16, i16)>,
+    ) -> std::io::Result<Self> {
         Ok(())
     }
 

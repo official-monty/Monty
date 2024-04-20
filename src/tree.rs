@@ -107,7 +107,6 @@ impl Tree {
         } else {
             entry.visits
         }
-
     }
 
     pub fn delete(&mut self, ptr: i32) {

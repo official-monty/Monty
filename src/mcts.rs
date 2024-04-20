@@ -57,7 +57,7 @@ impl<T: GameRep> Searcher<T> {
         let mut depth = 0;
         let mut cumulative_depth = 0;
 
-        // search until a further iteration may overflow the tree
+        // search loop (forever thanks to LRU tree replacement)
         loop {
             // start from the root
             let mut pos = self.root_position.clone();
@@ -87,7 +87,7 @@ impl<T: GameRep> Searcher<T> {
                 }
             }
 
-            // we define "depth" in the UCI sense as the average
+            // we define "depth" for UCI output as the average
             // depth of selection
             let avg_depth = cumulative_depth / nodes;
             if avg_depth > depth {
@@ -109,13 +109,8 @@ impl<T: GameRep> Searcher<T> {
             self.search_report(depth.max(1), &timer, nodes);
         }
 
-        let idx = self.tree.get_best_child(self.tree.root_node());
-
-        if idx == usize::MAX {
-            self.tree.display::<T>(self.tree.root_node(), 1);
-        }
-
-        let best_child = &self.tree.edge(self.tree.root_node(), idx);
+        let best_action = self.tree.get_best_child(self.tree.root_node());
+        let best_child = &self.tree.edge(self.tree.root_node(), best_action);
         (T::Move::from(best_child.mov()), best_child.q())
     }
 
@@ -129,22 +124,19 @@ impl<T: GameRep> Searcher<T> {
         let parent = self.tree[ptr].parent();
         let action = self.tree[ptr].action();
 
-        let mut u;
-        let child_state;
+        let mut child_state = GameState::Ongoing;
         let pvisits = self.tree.edge(parent, action).visits();
 
-        if self.tree[ptr].is_terminal() || pvisits == 0 {
-            child_state = GameState::Ongoing;
-
+        let mut u = if self.tree[ptr].is_terminal() || pvisits == 0 {
             // probe hash table to use in place of network
             if self.tree[ptr].state() == GameState::Ongoing {
                 if let Some(entry) = self.tree.probe_hash(hash) {
-                    u = 1.0 - entry.wins / entry.visits as f32;
+                    1.0 - entry.wins / entry.visits as f32
                 } else {
-                    u = self.get_utility(ptr, pos);
+                    self.get_utility(ptr, pos)
                 }
             } else {
-                u = self.get_utility(ptr, pos);
+                self.get_utility(ptr, pos)
             }
         } else {
             // this is "expanding on the second visit",
@@ -160,8 +152,7 @@ impl<T: GameRep> Searcher<T> {
 
             // proved a loss from the child nodes
             if action == usize::MAX {
-                child_state = GameState::Ongoing;
-                u = self.get_utility(ptr, pos);
+                self.get_utility(ptr, pos)
             } else {
                 let edge = self.tree.edge(ptr, action);
                 let mut child_ptr = edge.ptr();
@@ -177,8 +168,9 @@ impl<T: GameRep> Searcher<T> {
                     self.tree.edge_mut(ptr, action).set_ptr(child_ptr);
                 }
 
+                // descend deeper
                 child_state = self.tree[child_ptr].state();
-                u = self.perform_one_iteration(pos, child_ptr, depth);
+                self.perform_one_iteration(pos, child_ptr, depth)
             }
         };
 
@@ -187,7 +179,10 @@ impl<T: GameRep> Searcher<T> {
         // parent's perspective)
         u = 1.0 - u;
 
+        // update stats for this node
         self.tree.edge_mut(parent, action).update(u);
+
+        // push node stats to hash table
         let edge = self.tree.edge(parent, action);
         if edge.visits() > self.tree.check_hash_visits(hash) {
             self.tree.push_hash(hash, edge.visits(), edge.wins());
@@ -270,6 +265,8 @@ impl<T: GameRep> Searcher<T> {
             }
         }
 
+        // all child nodes lead to a forced loss, so we
+        // can propogate a terminal loss
         if proven_loss {
             self.tree[ptr].set_state(GameState::Lost(win_len + 1));
             return usize::MAX;

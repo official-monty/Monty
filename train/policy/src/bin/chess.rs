@@ -5,10 +5,5 @@ fn main() {
     args.next();
     let threads = args.next().unwrap().parse().unwrap();
 
-    policy::train::<PolicyNetwork>(
-        threads,
-        "data/chess/policy007.data".to_string(),
-        30,
-        20,
-    );
+    policy::train::<PolicyNetwork>(threads, "data/chess/policy007.data".to_string(), 30, 20);
 }

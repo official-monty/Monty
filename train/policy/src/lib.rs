@@ -16,7 +16,8 @@ pub fn train<T: TrainablePolicy>(
     data_path: String,
     superbatches: usize,
     lr_drop: usize,
-) where for<'b> &'b T: Send,
+) where
+    for<'b> &'b T: Send,
 {
     let file = File::open(data_path.as_str()).unwrap();
     let mut policy = T::rand_init();
@@ -54,12 +55,19 @@ pub fn train<T: TrainablePolicy>(
                 T::update(&mut policy, &grad, adj, lr, &mut momentum, &mut velocity);
 
                 batch_no += 1;
-                print!("> Superbatch {}/{superbatches} Batch {}/{BPSB}\r", sb + 1, batch_no % BPSB);
+                print!(
+                    "> Superbatch {}/{superbatches} Batch {}/{BPSB}\r",
+                    sb + 1,
+                    batch_no % BPSB
+                );
                 let _ = std::io::stdout().flush();
 
                 if batch_no % BPSB == 0 {
                     sb += 1;
-                    println!("> Superbatch {sb}/{superbatches} Running Loss {}", running_error / (BPSB * BATCH_SIZE) as f32);
+                    println!(
+                        "> Superbatch {sb}/{superbatches} Running Loss {}",
+                        running_error / (BPSB * BATCH_SIZE) as f32
+                    );
                     running_error = 0.0;
 
                     if sb % lr_drop == 0 {
@@ -72,7 +80,6 @@ pub fn train<T: TrainablePolicy>(
                         break 'training;
                     }
                 }
-
             }
 
             let consumed = buf.len();
