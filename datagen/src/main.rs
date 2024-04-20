@@ -14,7 +14,7 @@ fn main() {
 
     #[cfg(not(feature = "ataxx"))]
     #[cfg(not(feature = "shatranj"))]
-    run_datagen::<monty::chess::Chess, 112>(1_000, threads, policy, "Chess");
+    run_datagen::<monty::chess::Chess, 112>(5_000, threads, policy, "Chess");
 
     #[cfg(feature = "ataxx")]
     run_datagen::<monty::ataxx::Ataxx, 114>(1_000, threads, policy, "Ataxx");

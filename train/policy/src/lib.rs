@@ -72,6 +72,7 @@ pub fn train<T: TrainablePolicy>(
 
                     if sb % lr_drop == 0 {
                         lr *= 0.1;
+                        println!("Dropping LR to {lr}");
                     }
 
                     policy.write_to_bin(format!("checkpoints/policy-{sb}.bin").as_str());
