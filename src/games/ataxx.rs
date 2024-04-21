@@ -13,19 +13,25 @@ use crate::{
 pub use self::{
     board::Board,
     moves::Move,
-    policy::{PolicyNetwork, SubNet, POLICY_NETWORK},
+    policy::{PolicyNetwork, SubNet},
 };
 
 const STARTPOS: &str = "x5o/7/7/7/7/7/o5x x 0 1";
-
-static NET: ValueNetwork<2916, 256> =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/ataxx-value015.bin")) };
 
 impl ValueFeatureMap for Board {
     fn value_feature_map<F: FnMut(usize)>(&self, f: F) {
         self.value_features_map(f);
     }
 }
+
+#[repr(C)]
+struct Nets(ValueNetwork<2916, 256>, PolicyNetwork);
+
+const NETS: Nets =
+    unsafe { std::mem::transmute(*include_bytes!(concat!("../../", env!("EVALFILE")))) };
+
+pub static VALUE: ValueNetwork<2916, 256> = NETS.0;
+pub static POLICY: PolicyNetwork = NETS.1;
 
 pub struct Uai;
 impl UciLike for Uai {
@@ -95,7 +101,7 @@ impl GameRep for Ataxx {
     }
 
     fn get_value(&self) -> i32 {
-        NET.eval(&self.board)
+        VALUE.eval(&self.board)
     }
 
     fn get_policy_feats(&self) -> SparseVector {
@@ -103,7 +109,7 @@ impl GameRep for Ataxx {
     }
 
     fn get_policy(&self, mov: Self::Move, feats: &SparseVector) -> f32 {
-        PolicyNetwork::get(&mov, feats)
+        POLICY.get(&mov, feats)
     }
 
     fn make_move(&mut self, mov: Self::Move) {

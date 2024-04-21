@@ -1,12 +1,6 @@
-use super::{consts::Flag, frc::Castling};
+use crate::pop_lsb;
 
-#[macro_export]
-macro_rules! pop_lsb {
-    ($idx:ident, $x:expr) => {
-        let $idx = $x.trailing_zeros() as u16;
-        $x &= $x - 1
-    };
-}
+use super::{consts::Flag, frc::Castling};
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Move {

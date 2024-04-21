@@ -16,7 +16,7 @@ use crate::{
 const STARTPOS: &str = "rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR w KQkq - 0 1";
 
 static NET: ValueNetwork<768, 8> =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/shatranj-value002.bin")) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/shatranj.network")) };
 
 impl ValueFeatureMap for Board {
     fn value_feature_map<F: FnMut(usize)>(&self, f: F) {

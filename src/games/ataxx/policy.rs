@@ -2,9 +2,6 @@ use super::moves::Move;
 
 use goober::{activation, layer, FeedForwardNetwork, Matrix, SparseVector, Vector};
 
-pub static POLICY_NETWORK: PolicyNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../../resources/ataxx-policy004.bin")) };
-
 #[repr(C)]
 #[derive(Clone, Copy, FeedForwardNetwork)]
 pub struct SubNet {
@@ -35,11 +32,11 @@ pub struct PolicyNetwork {
 }
 
 impl PolicyNetwork {
-    pub fn get(mov: &Move, feats: &SparseVector) -> f32 {
-        let from_subnet = &POLICY_NETWORK.subnets[mov.from().min(49)];
+    pub fn get(&self, mov: &Move, feats: &SparseVector) -> f32 {
+        let from_subnet = &self.subnets[mov.from().min(49)];
         let from_vec = from_subnet.out(feats);
 
-        let to_subnet = &POLICY_NETWORK.subnets[50 + mov.to().min(48)];
+        let to_subnet = &self.subnets[50 + mov.to().min(48)];
         let to_vec = to_subnet.out(feats);
 
         from_vec.dot(&to_vec)

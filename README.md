@@ -10,9 +10,9 @@
 </div>
 
 ## Compiling
-Run the following command
+You need a network file, and run the following command
 ```
-make <name of game>
+make <name of game> EVALFILE=<relative path to network file>
 ```
 to compile monty for the given game.
 

@@ -1,9 +1,6 @@
-use crate::value::ValueFeatureMap;
+use super::Board;
 
 const SCALE: i32 = 400;
-
-pub static VALUE: ValueNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../../resources/chess-value007.bin")) };
 
 #[repr(C)]
 pub struct ValueNetwork {
@@ -21,10 +18,10 @@ pub struct ValueNetwork {
 }
 
 impl ValueNetwork {
-    pub fn eval<T: ValueFeatureMap>(&self, board: &T) -> i32 {
+    pub fn eval(&self, board: &Board) -> i32 {
         let mut l2 = self.l1.biases;
 
-        board.value_feature_map(|feat| {
+        board.map_value_features(|feat| {
             for (i, d) in l2.vals.iter_mut().zip(&self.l1.weights[feat].vals) {
                 *i += *d;
             }

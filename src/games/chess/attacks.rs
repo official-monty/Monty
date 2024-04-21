@@ -1,21 +1,8 @@
+use crate::init;
+
 use super::consts::Piece;
 
-// Macro for calculating tables (until const fn pointers are stable).
-#[macro_export]
-macro_rules! init {
-    (|$sq:ident, $size:literal | $($rest:tt)+) => {{
-        let mut $sq = 0;
-        let mut res = [{$($rest)+}; $size];
-        while $sq < $size {
-            res[$sq] = {$($rest)+};
-            $sq += 1;
-        }
-        res
-    }};
-}
-
 pub struct Attacks;
-
 impl Attacks {
     pub fn of_piece<const PC: usize>(from: usize, occ: u64) -> u64 {
         match PC {

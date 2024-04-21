@@ -9,26 +9,27 @@ mod value;
 use crate::{
     comm::UciLike,
     games::{GameRep, GameState},
-    value::ValueFeatureMap,
     MctsParams,
 };
 
-use self::frc::Castling;
+use self::{frc::Castling, value::ValueNetwork};
 
 pub use self::{
     board::Board,
     moves::Move,
-    policy::{PolicyNetwork, SubNet, POLICY},
-    value::VALUE,
+    policy::{PolicyNetwork, SubNet},
 };
 
 const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-impl ValueFeatureMap for Board {
-    fn value_feature_map<F: FnMut(usize)>(&self, f: F) {
-        self.map_value_features(f);
-    }
-}
+#[repr(C)]
+struct Nets(ValueNetwork, PolicyNetwork);
+
+const NETS: Nets =
+    unsafe { std::mem::transmute(*include_bytes!(concat!("../../", env!("EVALFILE")))) };
+
+pub static VALUE: ValueNetwork = NETS.0;
+pub static POLICY: PolicyNetwork = NETS.1;
 
 pub struct Uci;
 impl UciLike for Uci {

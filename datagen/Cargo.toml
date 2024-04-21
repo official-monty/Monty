@@ -9,5 +9,5 @@ monty = { path = "../" }
 bulletformat = "1.3.0"
 
 [features]
-ataxx = []
-shatranj = []
+ataxx = ["monty/ataxx"]
+shatranj = ["monty/shatranj"]
