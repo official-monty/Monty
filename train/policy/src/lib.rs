@@ -12,7 +12,7 @@ use datagen::to_slice_with_lifetime;
 
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Write}, time::Instant,
 };
 
 const BATCH_SIZE: usize = 16_384;
@@ -54,8 +54,9 @@ pub fn train<T: TrainablePolicy>(
             }
 
             let data = to_slice_with_lifetime(buf);
+            let t = Instant::now();
 
-            for batch in data.chunks(BATCH_SIZE) {
+            for (i, batch) in data.chunks(BATCH_SIZE).enumerate() {
                 let mut grad = T::boxed_and_zeroed();
                 running_error += gradient_batch::<T>(threads, &policy, &mut grad, batch);
                 let adj = 1.0 / batch.len() as f32;
@@ -63,9 +64,11 @@ pub fn train<T: TrainablePolicy>(
 
                 batch_no += 1;
                 print!(
-                    "> Superbatch {}/{superbatches} Batch {}/{BPSB}\r",
+                    "> Superbatch {}/{superbatches} Batch {}/{BPSB} Speed {:.0}\r",
                     sb + 1,
-                    batch_no % BPSB
+                    batch_no % BPSB,
+                    (i * BATCH_SIZE) as f32 / t.elapsed().as_secs_f32()
+
                 );
                 let _ = std::io::stdout().flush();
 

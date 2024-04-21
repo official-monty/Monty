@@ -66,9 +66,9 @@ checksum = "e25220aef4d4194f3091b7cd93641d7e324063b287c351664e48cf19edbd42de"
 
 [[package]]
 name = "cc"
-version = "1.0.94"
+version = "1.0.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17f6e324229dc011159fcc089755d1e2e216a90d43a7dea6853ca740b84f35e7"
+checksum = "d32a725bc159af97c3e629873bb9f88fb8cf8a4867175f76dc987815ea07c83b"
 
 [[package]]
 name = "cexpr"
@@ -140,7 +140,7 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 [[package]]
 name = "goober"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/goober.git#344f2ddf9a5b9ce0022fa7e374b2331cc8487a7c"
+source = "git+https://github.com/jw1912/goober.git#32b9b52e68ef03d9d706548fb21bb3c4535c4dd2"
 dependencies = [
  "goober-core",
  "goober-derive",
@@ -150,12 +150,12 @@ dependencies = [
 [[package]]
 name = "goober-core"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/goober.git#344f2ddf9a5b9ce0022fa7e374b2331cc8487a7c"
+source = "git+https://github.com/jw1912/goober.git#32b9b52e68ef03d9d706548fb21bb3c4535c4dd2"
 
 [[package]]
 name = "goober-derive"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/goober.git#344f2ddf9a5b9ce0022fa7e374b2331cc8487a7c"
+source = "git+https://github.com/jw1912/goober.git#32b9b52e68ef03d9d706548fb21bb3c4535c4dd2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -165,7 +165,7 @@ dependencies = [
 [[package]]
 name = "goober-layer"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/goober.git#344f2ddf9a5b9ce0022fa7e374b2331cc8487a7c"
+source = "git+https://github.com/jw1912/goober.git#32b9b52e68ef03d9d706548fb21bb3c4535c4dd2"
 dependencies = [
  "goober-core",
 ]
