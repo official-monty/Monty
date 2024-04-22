@@ -77,6 +77,7 @@ impl Chess {
 
 impl GameRep for Chess {
     type Move = Move;
+    type PolicyInputs = (goober::SparseVector, u64);
 
     const STARTPOS: &'static str = STARTPOS;
 
@@ -136,14 +137,14 @@ impl GameRep for Chess {
         self.stm()
     }
 
-    fn get_policy_feats(&self) -> goober::SparseVector {
+    fn get_policy_feats(&self) -> Self::PolicyInputs {
         let mut feats = goober::SparseVector::with_capacity(32);
         self.board.map_policy_features(|feat| feats.push(feat));
-        feats
+        (feats, self.board.threats())
     }
 
-    fn get_policy(&self, mov: Self::Move, feats: &goober::SparseVector) -> f32 {
-        POLICY.get(&self.board, &mov, feats)
+    fn get_policy(&self, mov: Self::Move, (feats, threats): &Self::PolicyInputs) -> f32 {
+        POLICY.get(&self.board, &mov, feats, *threats)
     }
 
     fn get_value(&self) -> i32 {

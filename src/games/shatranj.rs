@@ -67,6 +67,7 @@ impl Shatranj {
 
 impl GameRep for Shatranj {
     type Move = Move;
+    type PolicyInputs = goober::SparseVector;
 
     const STARTPOS: &'static str = STARTPOS;
 

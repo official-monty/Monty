@@ -34,24 +34,27 @@ impl SubNet {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct PolicyNetwork {
-    pub subnets: [SubNet; 128],
+    pub subnets: [[SubNet; 2]; 128],
     pub hce: layer::DenseConnected<activation::Identity, 5, 1>,
 }
 
 impl PolicyNetwork {
     pub const fn zeroed() -> Self {
         Self {
-            subnets: [SubNet::zeroed(); 128],
+            subnets: [[SubNet::zeroed(); 2]; 128],
             hce: layer::DenseConnected::zeroed(),
         }
     }
 
-    pub fn get(&self, pos: &Board, mov: &Move, feats: &SparseVector) -> f32 {
+    pub fn get(&self, pos: &Board, mov: &Move, feats: &SparseVector, threats: u64) -> f32 {
         let flip = pos.flip_val();
-        let from_subnet = &self.subnets[usize::from(mov.from() ^ flip)];
+
+        let from_threat = usize::from(threats & (1 << mov.from()) > 0);
+        let from_subnet = &self.subnets[usize::from(mov.from() ^ flip)][from_threat];
         let from_vec = from_subnet.out(feats);
 
-        let to_subnet = &self.subnets[64 + usize::from(mov.to() ^ flip)];
+        let to_threat = usize::from(threats & (1 << mov.to()) > 0);
+        let to_subnet = &self.subnets[64 + usize::from(mov.to() ^ flip)][to_threat];
         let to_vec = to_subnet.out(feats);
 
         let hce = self.hce.out(&Self::get_hce_feats(pos, mov))[0];

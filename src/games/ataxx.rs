@@ -65,6 +65,7 @@ impl GameRep for Ataxx {
     const STARTPOS: &'static str = STARTPOS;
     const MAX_MOVES: usize = 256;
     type Move = Move;
+    type PolicyInputs = goober::SparseVector;
 
     fn default_mcts_params() -> MctsParams {
         MctsParams::default()
