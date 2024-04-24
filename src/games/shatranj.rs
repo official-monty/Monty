@@ -16,7 +16,7 @@ use crate::{
 const STARTPOS: &str = "rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR w KQkq - 0 1";
 
 static NET: ValueNetwork<768, 8> =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/shatranj.network")) };
+    unsafe { std::mem::transmute(*include_bytes!(concat!("../../", env!("EVALFILE")))) };
 
 impl ValueFeatureMap for Board {
     fn value_feature_map<F: FnMut(usize)>(&self, f: F) {
@@ -111,6 +111,10 @@ impl GameRep for Shatranj {
 
     fn stm(&self) -> usize {
         self.board.stm()
+    }
+
+    fn hash(&self) -> u64 {
+        self.board.hash()
     }
 
     fn tm_stm(&self) -> usize {

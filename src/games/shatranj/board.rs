@@ -16,6 +16,15 @@ pub struct Board {
 }
 
 impl Board {
+    pub fn from_raw(bb: [u64; 8], stm: bool, halfm: u8) -> Self {
+        Self {
+            bb,
+            stm,
+            halfm,
+            hash: 0,
+        }
+    }
+
     #[must_use]
     pub fn piece(&self, piece: usize) -> u64 {
         self.bb[piece]

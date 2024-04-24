@@ -20,7 +20,7 @@ fn main() {
     run_datagen::<monty::ataxx::Ataxx, 114>(1_000, threads, policy, "Ataxx");
 
     #[cfg(feature = "shatranj")]
-    run_datagen::<monty::shatranj::Shatranj>(1_000, threads, policy, "Shatranj");
+    run_datagen::<monty::shatranj::Shatranj, 112>(1_000, threads, policy, "Shatranj");
 }
 
 fn run_datagen<T: DatagenSupport, const MAX_MOVES: usize>(
