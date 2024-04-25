@@ -1,9 +1,13 @@
-use monty::{shatranj::Uci, UciLike, ValueNetwork};
+use monty::{shatranj::{Uci, PolicyNetwork}, UciLike, ValueNetwork};
 
-static VALUE: ValueNetwork<768, 8> =
-    unsafe { std::mem::transmute(*include_bytes!(concat!("../../", env!("EVALFILE")))) };
+#[repr(C)]
+struct Nets(ValueNetwork<768, 8>, PolicyNetwork);
 
-static POLICY: () = ();
+const NETS: Nets =
+    unsafe { std::mem::transmute(*include_bytes!(concat!("../../../", env!("EVALFILE")))) };
+
+static VALUE: ValueNetwork<768, 8> = NETS.0;
+static POLICY: PolicyNetwork = NETS.1;
 
 fn main() {
     let mut args = std::env::args();

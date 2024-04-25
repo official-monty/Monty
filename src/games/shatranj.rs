@@ -2,9 +2,11 @@ mod attacks;
 mod board;
 mod consts;
 mod moves;
+mod policy;
 
 pub use board::Board;
 pub use moves::Move;
+pub use policy::{PolicyNetwork, SubNet};
 
 use crate::{
     comm::UciLike,
@@ -66,7 +68,7 @@ impl GameRep for Shatranj {
     type Move = Move;
     type PolicyInputs = goober::SparseVector;
 
-    type Policy = ();
+    type Policy = PolicyNetwork;
     type Value = ValueNetwork<768, 8>;
 
     const STARTPOS: &'static str = STARTPOS;
@@ -122,11 +124,13 @@ impl GameRep for Shatranj {
     }
 
     fn get_policy_feats(&self) -> goober::SparseVector {
-        goober::SparseVector::with_capacity(0)
+        let mut feats = goober::SparseVector::with_capacity(32);
+        self.board.features_map(|feat| feats.push(feat));
+        feats
     }
 
-    fn get_policy(&self, _: Self::Move, _: &goober::SparseVector, _: &Self::Policy) -> f32 {
-        0.0
+    fn get_policy(&self, mov: Self::Move, feats: &goober::SparseVector, policy: &Self::Policy) -> f32 {
+        policy.get(&self.board, &mov, feats)
     }
 
     fn get_value(&self, value: &Self::Value) -> i32 {

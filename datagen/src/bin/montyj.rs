@@ -1,10 +1,14 @@
 use datagen::run_datagen;
-use monty::{shatranj::Shatranj, ValueNetwork};
+use monty::{shatranj::{PolicyNetwork, Shatranj}, ValueNetwork};
 
-static VALUE: ValueNetwork<768, 8> =
+#[repr(C)]
+struct Nets(ValueNetwork<768, 8>, PolicyNetwork);
+
+const NETS: Nets =
     unsafe { std::mem::transmute(*include_bytes!(concat!("../../../", env!("EVALFILE")))) };
 
-static POLICY: () = ();
+static VALUE: ValueNetwork<768, 8> = NETS.0;
+static POLICY: PolicyNetwork = NETS.1;
 
 fn main() {
     let mut args = std::env::args();

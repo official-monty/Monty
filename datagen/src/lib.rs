@@ -5,12 +5,16 @@ mod thread;
 pub use rng::Rand;
 pub use thread::{write, DatagenThread};
 
-use monty::GameRep;
+use monty::{ataxx::Ataxx, chess::Chess, shatranj::Shatranj, GameRep};
 
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
+
+pub type AtaxxPolicyData = PolicyData<Ataxx, 114>;
+pub type ChessPolicyData = PolicyData<Chess, 112>;
+pub type ShatranjPolicyData = PolicyData<Shatranj, 112>;
 
 #[repr(C)]
 pub struct PolicyData<T: DatagenSupport, const MAX: usize> {
