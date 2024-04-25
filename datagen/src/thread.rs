@@ -34,12 +34,18 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
         }
     }
 
-    pub fn run<const MAX_MOVES: usize>(&mut self, node_limit: usize, policy: bool) {
+    pub fn run<const MAX_MOVES: usize>(
+        &mut self,
+        node_limit: usize,
+        output_policy: bool,
+        policy: &T::Policy,
+        value: &T::Value,
+    ) {
         let pout_path = format!("monty-policy-{}.data", self.rng.rand_int());
         let vout_path = format!("monty-value-{}.binpack", self.rng.rand_int());
         let mut vout =
             BufWriter::new(File::create(vout_path.as_str()).expect("Provide a correct path!"));
-        let mut pout = if policy {
+        let mut pout = if output_policy {
             Some(BufWriter::new(
                 File::create(pout_path.as_str()).expect("Provide a correct path!"),
             ))
@@ -54,7 +60,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
                 break;
             }
 
-            self.run_game::<MAX_MOVES>(node_limit, &mut pout, &mut vout);
+            self.run_game::<MAX_MOVES>(node_limit, &mut pout, &mut vout, policy, value);
 
             if self.total > prev + 1024 {
                 prev = self.total;
@@ -74,6 +80,8 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
         node_limit: usize,
         pout: &mut Option<BufWriter<File>>,
         vout: &mut BufWriter<File>,
+        policy: &T::Policy,
+        value: &T::Value,
     ) {
         let mut position = T::from_fen(T::STARTPOS);
 
@@ -113,7 +121,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
 
         // play out game
         loop {
-            let mut searcher = Searcher::new(position.clone(), tree, self.params.clone());
+            let mut searcher = Searcher::new(position.clone(), tree, self.params.clone(), policy, value);
 
             let (bm, score) = searcher.search(limits, false, &mut 0, &None);
 

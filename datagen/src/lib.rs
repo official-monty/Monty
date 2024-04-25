@@ -7,6 +7,11 @@ pub use thread::{write, DatagenThread};
 
 use monty::GameRep;
 
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
+
 #[repr(C)]
 pub struct PolicyData<T: DatagenSupport, const MAX: usize> {
     pub pos: T::CompressedBoard,
@@ -70,4 +75,42 @@ pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {
 
     let len = src_size / tgt_size;
     unsafe { std::slice::from_raw_parts(slice.as_ptr().cast(), len) }
+}
+
+pub fn run_datagen<T: DatagenSupport, const MAX_MOVES: usize>(
+    nodes: usize,
+    threads: usize,
+    use_policy: bool,
+    name: &str,
+    policy: &T::Policy,
+    value: &T::Value,
+) {
+    println!("Generating: {name}");
+
+    let params = T::default_mcts_params();
+    params.clone().info();
+
+    let stop_base = AtomicBool::new(false);
+    let stop = &stop_base;
+
+    std::thread::scope(|s| {
+        for i in 0..threads {
+            let params = params.clone();
+            std::thread::sleep(Duration::from_millis(10));
+            s.spawn(move || {
+                let mut thread = DatagenThread::<T>::new(i as u32, params.clone(), stop);
+                thread.run::<MAX_MOVES>(nodes, use_policy, policy, value);
+            });
+        }
+
+        loop {
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input).unwrap();
+            let commands = input.split_whitespace().collect::<Vec<_>>();
+            if let Some(&"stop") = commands.first() {
+                stop.store(true, Ordering::Relaxed);
+                break;
+            }
+        }
+    });
 }

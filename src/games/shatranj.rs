@@ -15,9 +15,6 @@ use crate::{
 
 const STARTPOS: &str = "rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR w KQkq - 0 1";
 
-static NET: ValueNetwork<768, 8> =
-    unsafe { std::mem::transmute(*include_bytes!(concat!("../../", env!("EVALFILE")))) };
-
 impl ValueFeatureMap for Board {
     fn value_feature_map<F: FnMut(usize)>(&self, f: F) {
         self.features_map(f);
@@ -68,6 +65,9 @@ impl Shatranj {
 impl GameRep for Shatranj {
     type Move = Move;
     type PolicyInputs = goober::SparseVector;
+
+    type Policy = ();
+    type Value = ValueNetwork<768, 8>;
 
     const STARTPOS: &'static str = STARTPOS;
 
@@ -125,26 +125,24 @@ impl GameRep for Shatranj {
         goober::SparseVector::with_capacity(0)
     }
 
-    fn get_policy(&self, _: Self::Move, _: &goober::SparseVector) -> f32 {
+    fn get_policy(&self, _: Self::Move, _: &goober::SparseVector, _: &Self::Policy) -> f32 {
         0.0
     }
 
-    fn get_value(&self) -> i32 {
-        NET.eval(&self.board)
+    fn get_value(&self, value: &Self::Value) -> i32 {
+        value.eval(&self.board)
     }
 
     fn perft(&self, depth: usize) -> u64 {
         perft::<true, true>(&self.board, depth as u8)
     }
-}
 
-impl std::fmt::Display for Shatranj {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn display(&self, policy: &Self::Policy) {
         let feats = self.get_policy_feats();
         let mut moves = Vec::new();
         let mut max = f32::NEG_INFINITY;
         self.map_legal_moves(|mov| {
-            let policy = self.get_policy(mov, &feats);
+            let policy = self.get_policy(mov, &feats, policy);
             moves.push((mov, policy));
 
             if policy > max {
@@ -182,10 +180,10 @@ impl std::fmt::Display for Shatranj {
             ['P', 'N', 'B', 'R', 'Q', 'K'],
         ];
 
-        writeln!(f, "+-----------------+")?;
+        println!("+-----------------+");
 
         for i in (0..8).rev() {
-            write!(f, "|")?;
+            print!("|");
 
             for j in 0..8 {
                 let sq = 8 * i + j;
@@ -200,16 +198,16 @@ impl std::fmt::Display for Shatranj {
                 if count[sq] > 0 {
                     let g = (255.0 * (2.0 * w[sq]).min(1.0)) as u8;
                     let r = 255 - g;
-                    write!(f, " \x1b[38;2;{r};{g};0m{ch}\x1b[0m")?;
+                    print!(" \x1b[38;2;{r};{g};0m{ch}\x1b[0m");
                 } else {
-                    write!(f, " \x1b[34m{ch}\x1b[0m")?;
+                    print!(" \x1b[34m{ch}\x1b[0m");
                 }
             }
 
-            writeln!(f, " |")?;
+            println!(" |");
         }
 
-        writeln!(f, "+-----------------+")
+        println!("+-----------------+")
     }
 }
 

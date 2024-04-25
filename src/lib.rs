@@ -3,25 +3,14 @@ mod games;
 mod mcts;
 mod params;
 mod tree;
-
-#[cfg(any(feature = "ataxx", feature = "shatranj"))]
 mod value;
 
 pub use comm::UciLike;
-pub use games::{GameRep, GameState};
+pub use games::{GameRep, GameState, ataxx, chess, shatranj};
 pub use mcts::{Limits, Searcher};
 pub use params::MctsParams;
 pub use tree::Tree;
-
-#[cfg(feature = "ataxx")]
-pub use games::ataxx;
-
-#[cfg(not(feature = "ataxx"))]
-#[cfg(not(feature = "shatranj"))]
-pub use games::chess;
-
-#[cfg(feature = "shatranj")]
-pub use games::shatranj;
+pub use value::ValueNetwork;
 
 // Macro for calculating tables (until const fn pointers are stable).
 #[macro_export]

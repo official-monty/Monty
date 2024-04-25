@@ -12,24 +12,16 @@ use crate::{
     MctsParams,
 };
 
-use self::{frc::Castling, value::ValueNetwork};
+use self::frc::Castling;
 
 pub use self::{
     board::Board,
     moves::Move,
     policy::{PolicyNetwork, SubNet},
+    value::ValueNetwork,
 };
 
 const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
-#[repr(C)]
-struct Nets(ValueNetwork, PolicyNetwork);
-
-const NETS: Nets =
-    unsafe { std::mem::transmute(*include_bytes!(concat!("../../", env!("EVALFILE")))) };
-
-pub static VALUE: ValueNetwork = NETS.0;
-pub static POLICY: PolicyNetwork = NETS.1;
 
 pub struct Uci;
 impl UciLike for Uci {
@@ -78,6 +70,9 @@ impl Chess {
 impl GameRep for Chess {
     type Move = Move;
     type PolicyInputs = (goober::SparseVector, u64);
+
+    type Policy = PolicyNetwork;
+    type Value = ValueNetwork;
 
     const STARTPOS: &'static str = STARTPOS;
 
@@ -143,26 +138,29 @@ impl GameRep for Chess {
         (feats, self.board.threats())
     }
 
-    fn get_policy(&self, mov: Self::Move, (feats, threats): &Self::PolicyInputs) -> f32 {
-        POLICY.get(&self.board, &mov, feats, *threats)
+    fn get_policy(
+        &self,
+        mov: Self::Move,
+        (feats, threats): &Self::PolicyInputs,
+        policy: &Self::Policy
+    ) -> f32 {
+        policy.get(&self.board, &mov, feats, *threats)
     }
 
-    fn get_value(&self) -> i32 {
-        VALUE.eval(&self.board)
+    fn get_value(&self, value: &Self::Value) -> i32 {
+        value.eval(&self.board)
     }
 
     fn perft(&self, depth: usize) -> u64 {
         perft::<true, true>(&self.board, depth as u8, &self.castling)
     }
-}
 
-impl std::fmt::Display for Chess {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn display(&self, policy: &PolicyNetwork) {
         let feats = self.get_policy_feats();
         let mut moves = Vec::new();
         let mut max = f32::NEG_INFINITY;
         self.map_legal_moves(|mov| {
-            let policy = self.get_policy(mov, &feats);
+            let policy = self.get_policy(mov, &feats, policy);
             moves.push((mov, policy));
 
             if policy > max {
@@ -200,10 +198,10 @@ impl std::fmt::Display for Chess {
             ['P', 'N', 'B', 'R', 'Q', 'K'],
         ];
 
-        writeln!(f, "+-----------------+")?;
+        println!("+-----------------+");
 
         for i in (0..8).rev() {
-            write!(f, "|")?;
+            print!("|");
 
             for j in 0..8 {
                 let sq = 8 * i + j;
@@ -218,16 +216,16 @@ impl std::fmt::Display for Chess {
                 if count[sq] > 0 {
                     let g = (255.0 * (2.0 * w[sq]).min(1.0)) as u8;
                     let r = 255 - g;
-                    write!(f, " \x1b[38;2;{r};{g};0m{ch}\x1b[0m")?;
+                    print!(" \x1b[38;2;{r};{g};0m{ch}\x1b[0m");
                 } else {
-                    write!(f, " \x1b[34m{ch}\x1b[0m")?;
+                    print!(" \x1b[34m{ch}\x1b[0m");
                 }
             }
 
-            writeln!(f, " |")?;
+            println!(" |");
         }
 
-        writeln!(f, "+-----------------+")
+        println!("+-----------------+");
     }
 }
 

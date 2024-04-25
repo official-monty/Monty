@@ -15,7 +15,10 @@ pub trait UciLike: Sized {
 
     fn options();
 
-    fn run() {
+    fn run(
+        policy: &<Self::Game as GameRep>::Policy,
+        value: &<Self::Game as GameRep>::Value,
+    ) {
         let mut prev = None;
         let mut pos = Self::Game::default();
         let mut params = Self::Game::default_mcts_params();
@@ -38,7 +41,7 @@ pub trait UciLike: Sized {
                 "setoption" => setoption(&commands, &mut params, &mut report_moves, &mut tree),
                 "position" => position(commands, &mut pos, &mut prev, &mut tree),
                 "go" => {
-                    let res = go(&commands, tree, prev, &pos, &params, report_moves);
+                    let res = go(&commands, tree, prev, &pos, &params, report_moves, policy, value);
 
                     tree = res.0;
                     prev = Some(res.1);
@@ -46,8 +49,8 @@ pub trait UciLike: Sized {
                 "perft" => run_perft::<Self::Game>(&commands, &pos),
                 "quit" => std::process::exit(0),
                 "eval" => {
-                    println!("cp: {}%", pos.get_value());
-                    println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl());
+                    println!("cp: {}%", pos.get_value(value));
+                    println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl(value));
                 }
                 "policy" => {
                     let f = pos.get_policy_feats();
@@ -56,7 +59,7 @@ pub trait UciLike: Sized {
 
                     pos.map_legal_moves(|mov| {
                         let s = pos.conv_mov_to_str(mov);
-                        let p = pos.get_policy(mov, &f);
+                        let p = pos.get_policy(mov, &f, policy);
 
                         if p > max {
                             max = p;
@@ -87,7 +90,7 @@ pub trait UciLike: Sized {
                     let depth = commands.get(1).unwrap_or(&"5").parse().unwrap_or(5);
                     tree.display::<Self::Game>(tree.root_node(), depth);
                 }
-                "d" => println!("{pos}"),
+                "d" => pos.display(policy),
                 _ => {
                     if cmd == Self::NAME {
                         preamble::<Self>();
@@ -100,7 +103,11 @@ pub trait UciLike: Sized {
         }
     }
 
-    fn bench(depth: usize) {
+    fn bench(
+        depth: usize,
+        policy: &<Self::Game as GameRep>::Policy,
+        value: &<Self::Game as GameRep>::Value,
+    ) {
         let params = Self::Game::default_mcts_params();
         let mut total_nodes = 0;
         let bench_fens = Self::FEN_STRING.split('\n').collect::<Vec<&str>>();
@@ -116,7 +123,7 @@ pub trait UciLike: Sized {
 
         for fen in bench_fens {
             let pos = Self::Game::from_fen(fen);
-            let mut searcher = Searcher::new(pos, tree, params.clone());
+            let mut searcher = Searcher::new(pos, tree, params.clone(), policy, value);
             let timer = Instant::now();
             searcher.search(limits, false, &mut total_nodes, &None);
             time += timer.elapsed().as_secs_f32();
@@ -210,6 +217,8 @@ fn go<T: GameRep>(
     pos: &T,
     params: &MctsParams,
     report_moves: bool,
+    policy: &T::Policy,
+    value: &T::Value,
 ) -> (Tree, T) {
     let mut max_nodes = 10_000_000;
     let mut max_time = None;
@@ -269,7 +278,7 @@ fn go<T: GameRep>(
         *t = t.saturating_sub(5);
     }
 
-    let mut searcher = Searcher::new(pos.clone(), tree, params.clone());
+    let mut searcher = Searcher::new(pos.clone(), tree, params.clone(), policy, value);
 
     let limits = Limits {
         max_time: time,

@@ -24,15 +24,6 @@ impl ValueFeatureMap for Board {
     }
 }
 
-#[repr(C)]
-struct Nets(ValueNetwork<2916, 256>, PolicyNetwork);
-
-const NETS: Nets =
-    unsafe { std::mem::transmute(*include_bytes!(concat!("../../", env!("EVALFILE")))) };
-
-pub static VALUE: ValueNetwork<2916, 256> = NETS.0;
-pub static POLICY: PolicyNetwork = NETS.1;
-
 pub struct Uai;
 impl UciLike for Uai {
     type Game = Ataxx;
@@ -66,6 +57,9 @@ impl GameRep for Ataxx {
     const MAX_MOVES: usize = 256;
     type Move = Move;
     type PolicyInputs = goober::SparseVector;
+
+    type Policy = PolicyNetwork;
+    type Value = ValueNetwork<2916, 256>;
 
     fn default_mcts_params() -> MctsParams {
         MctsParams::default()
@@ -101,16 +95,16 @@ impl GameRep for Ataxx {
         self.board.map_legal_moves(f);
     }
 
-    fn get_value(&self) -> i32 {
-        VALUE.eval(&self.board)
+    fn get_value(&self, value: &Self::Value) -> i32 {
+        value.eval(&self.board)
     }
 
     fn get_policy_feats(&self) -> SparseVector {
         self.board.get_features()
     }
 
-    fn get_policy(&self, mov: Self::Move, feats: &SparseVector) -> f32 {
-        POLICY.get(&mov, feats)
+    fn get_policy(&self, mov: Self::Move, feats: &SparseVector, policy: &Self::Policy) -> f32 {
+        policy.get(&mov, feats)
     }
 
     fn make_move(&mut self, mov: Self::Move) {
@@ -144,15 +138,13 @@ impl GameRep for Ataxx {
 
         hash
     }
-}
 
-impl std::fmt::Display for Ataxx {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn display(&self, policy: &Self::Policy) {
         let feats = self.get_policy_feats();
         let mut moves = Vec::new();
         let mut max = f32::NEG_INFINITY;
         self.map_legal_moves(|mov| {
-            let policy = self.get_policy(mov, &feats);
+            let policy = self.get_policy(mov, &feats, policy);
             moves.push((mov, policy));
 
             if policy > max {
@@ -191,10 +183,10 @@ impl std::fmt::Display for Ataxx {
 
         let bbs = self.board.bbs();
 
-        writeln!(f, "+---------------+")?;
+        println!("+---------------+");
 
         for rank in (0..7).rev() {
-            write!(f, "|")?;
+            print!("|");
 
             for file in 0..7 {
                 let sq = 7 * rank + file;
@@ -213,18 +205,16 @@ impl std::fmt::Display for Ataxx {
                 if count[sq] > 0 {
                     let g = (255.0 * (2.0 * w[sq]).min(1.0)) as u8;
                     let r = 255 - g;
-                    write!(f, " \x1b[38;2;{r};{g};0m{add}\x1b[0m")?;
+                    print!(" \x1b[38;2;{r};{g};0m{add}\x1b[0m");
                 } else {
-                    write!(f, " \x1b[34m{add}\x1b[0m")?;
+                    print!(" \x1b[34m{add}\x1b[0m");
                 }
             }
 
-            writeln!(f, " |")?;
+            println!(" |");
         }
 
-        writeln!(f, "+---------------+")?;
-
-        Ok(())
+        println!("+---------------+");
     }
 }
 

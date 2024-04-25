@@ -13,18 +13,28 @@ pub struct Limits {
     pub max_nodes: usize,
 }
 
-pub struct Searcher<T: GameRep> {
+pub struct Searcher<'a, T: GameRep> {
     root_position: T,
     tree: Tree,
     params: MctsParams,
+    policy: &'a T::Policy,
+    value: &'a T::Value,
 }
 
-impl<T: GameRep> Searcher<T> {
-    pub fn new(root_position: T, tree: Tree, params: MctsParams) -> Self {
+impl<'a, T: GameRep> Searcher<'a, T> {
+    pub fn new(
+        root_position: T,
+        tree: Tree,
+        params: MctsParams,
+        policy: &'a T::Policy,
+        value: &'a T::Value,
+    ) -> Self {
         Self {
             root_position,
             tree,
             params,
+            policy,
+            value,
         }
     }
 
@@ -48,9 +58,9 @@ impl<T: GameRep> Searcher<T> {
         // otherwise, we need to expand the new unexplored root
         // node
         if self.tree[node].has_children() {
-            self.tree[node].relabel_policy(&self.root_position, &self.params);
+            self.tree[node].relabel_policy(&self.root_position, &self.params, self.policy);
         } else {
-            self.tree[node].expand::<T, true>(&self.root_position, &self.params);
+            self.tree[node].expand::<T, true>(&self.root_position, &self.params, self.policy);
         }
 
         let mut nodes = 0;
@@ -144,7 +154,7 @@ impl<T: GameRep> Searcher<T> {
             // massively reduce memory usage, it also is a
             // large speedup (avoids many policy net calculations)
             if self.tree[ptr].is_not_expanded() {
-                self.tree[ptr].expand::<T, false>(pos, &self.params);
+                self.tree[ptr].expand::<T, false>(pos, &self.params, self.policy);
             }
 
             // select action to take via puct
@@ -202,7 +212,7 @@ impl<T: GameRep> Searcher<T> {
 
     fn get_utility(&self, ptr: i32, pos: &T) -> f32 {
         match self.tree[ptr].state() {
-            GameState::Ongoing => pos.get_value_wdl(),
+            GameState::Ongoing => pos.get_value_wdl(self.value),
             GameState::Draw => 0.5,
             GameState::Lost(_) => 0.0,
             GameState::Won(_) => 1.0,
