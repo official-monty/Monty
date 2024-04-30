@@ -5,7 +5,7 @@ use goober::{activation, layer, FeedForwardNetwork, Matrix, SparseVector, Vector
 #[repr(C)]
 #[derive(Clone, Copy, FeedForwardNetwork)]
 pub struct SubNet {
-    ft: layer::SparseConnected<activation::ReLU, 2916, 4>,
+    ft: layer::SparseConnected<activation::ReLU, 2916, 8>,
 }
 
 impl SubNet {
