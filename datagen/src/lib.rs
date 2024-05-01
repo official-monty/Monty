@@ -91,8 +91,7 @@ pub fn run_datagen<T: DatagenSupport, const MAX_MOVES: usize>(
 ) {
     println!("Generating: {name}");
 
-    let mut params = T::default_mcts_params();
-    params.set("root_cpuct", 5.0);
+    let params = T::default_mcts_params();
     params.clone().info();
 
     let stop_base = AtomicBool::new(false);
