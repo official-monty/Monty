@@ -52,10 +52,10 @@ impl TrainablePolicy for PolicyNetwork {
             let from = usize::from(mov.from() ^ flip);
             let to = 64 + usize::from(mov.to() ^ flip);
             let from_threat = usize::from(threats & (1 << mov.from()) > 0);
-            let to_threat = usize::from(threats & (1 << mov.to()) > 0);
+            let good_see = usize::from(board.see(&mov, -108));
 
             let from_out = policy.subnets[from][from_threat].out_with_layers(&feats);
-            let to_out = policy.subnets[to][to_threat].out_with_layers(&feats);
+            let to_out = policy.subnets[to][good_see].out_with_layers(&feats);
             let hce_feats = PolicyNetwork::get_hce_feats(&board, &mov);
             let hce_out = policy.hce.out_with_layers(&hce_feats);
             let score =
@@ -66,19 +66,19 @@ impl TrainablePolicy for PolicyNetwork {
             }
 
             total_visits += visits;
-            policies.push((mov, visits, score, from_out, to_out, hce_out, hce_feats));
+            policies.push((from_out, to_out, hce_out, mov, visits, score, good_see));
         }
 
-        for (_, _, score, _, _, _, _) in policies.iter_mut() {
+        for (_, _, _, _, _, score, _) in policies.iter_mut() {
             *score = (*score - max).exp();
             total += *score;
         }
 
-        for (mov, visits, score, from_out, to_out, hce_out, hce_feats) in policies {
+        for (from_out, to_out, hce_out, mov, visits, score, good_see) in policies {
             let from = usize::from(mov.from() ^ flip);
             let to = 64 + usize::from(mov.to() ^ flip);
             let from_threat = usize::from(threats & (1 << mov.from()) > 0);
-            let to_threat = usize::from(threats & (1 << mov.to()) > 0);
+            let hce_feats = PolicyNetwork::get_hce_feats(&board, &mov);
 
             let ratio = score / total;
 
@@ -96,9 +96,9 @@ impl TrainablePolicy for PolicyNetwork {
                 &from_out,
             );
 
-            policy.subnets[to][to_threat].backprop(
+            policy.subnets[to][good_see].backprop(
                 &feats,
-                &mut grad.subnets[to][to_threat],
+                &mut grad.subnets[to][good_see],
                 factor * from_out.output_layer(),
                 &to_out,
             );
