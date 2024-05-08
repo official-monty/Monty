@@ -41,7 +41,7 @@ fn main() {
         batches_per_superbatch: 6104,
         start_superbatch: 1,
         end_superbatch: 40,
-        wdl_scheduler: WdlScheduler::Constant { value: 0.5 },
+        wdl_scheduler: WdlScheduler::Constant { value: 0.75 },
         lr_scheduler: LrScheduler::Step {
             start: 0.001,
             gamma: 0.1,
