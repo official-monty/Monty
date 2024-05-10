@@ -100,15 +100,6 @@ impl Tree {
         self.hash.push(hash, visits, wins);
     }
 
-    pub fn check_hash_visits(&self, hash: u64) -> i32 {
-        let entry = self.hash.fetch(hash);
-        if hash != entry.hash {
-            -1
-        } else {
-            entry.visits
-        }
-    }
-
     pub fn delete(&mut self, ptr: i32) {
         self.remove_from_lru(ptr);
         self[ptr].clear();

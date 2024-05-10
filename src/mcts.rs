@@ -194,9 +194,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
 
         // push node stats to hash table
         let edge = self.tree.edge(parent, action);
-        if edge.visits() > self.tree.check_hash_visits(hash) {
-            self.tree.push_hash(hash, edge.visits(), edge.wins());
-        }
+        self.tree.push_hash(hash, edge.visits(), edge.wins());
 
         // if the child node resulted in a loss, then
         // this node has a guaranteed win
