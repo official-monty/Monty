@@ -53,7 +53,7 @@ fn main() {
 
     let settings = LocalSettings {
         threads: 4,
-        data_file_paths: vec!["data/chess/value5k.data"],
+        data_file_paths: vec!["data/chess/value5k-2.data"],
         output_directory: "checkpoints",
     };
 

@@ -5,7 +5,7 @@ use monty::chess::{ValueNetwork, PolicyNetwork};
 struct Nets(ValueNetwork, PolicyNetwork);
 
 const NETS: Nets =
-    unsafe { std::mem::transmute(*include_bytes!(concat!("../../../", env!("EVALFILE")))) };
+    unsafe { std::mem::transmute(*include_bytes!("../../../resources/net.network")) };
 
 static VALUE: ValueNetwork = NETS.0;
 static POLICY: PolicyNetwork = NETS.1;

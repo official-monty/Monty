@@ -5,7 +5,7 @@ use monty::{ataxx::{Uai, PolicyNetwork}, UciLike, ValueNetwork};
 struct Nets(ValueNetwork<2916, 256>, PolicyNetwork);
 
 const NETS: Nets =
-    unsafe { std::mem::transmute(*include_bytes!(concat!("../../", env!("EVALFILE")))) };
+    unsafe { std::mem::transmute(*include_bytes!("../../resources/net.network")) };
 
 static VALUE: ValueNetwork<2916, 256> = NETS.0;
 static POLICY: PolicyNetwork = NETS.1;

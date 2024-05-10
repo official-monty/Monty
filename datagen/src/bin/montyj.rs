@@ -5,7 +5,7 @@ use monty::{shatranj::{PolicyNetwork, Shatranj}, ValueNetwork};
 struct Nets(ValueNetwork<768, 8>, PolicyNetwork);
 
 const NETS: Nets =
-    unsafe { std::mem::transmute(*include_bytes!(concat!("../../../", env!("EVALFILE")))) };
+    unsafe { std::mem::transmute(*include_bytes!("../../../resources/net.network")) };
 
 static VALUE: ValueNetwork<768, 8> = NETS.0;
 static POLICY: PolicyNetwork = NETS.1;
