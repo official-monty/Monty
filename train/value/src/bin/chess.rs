@@ -1,14 +1,14 @@
 use bullet::{
-    inputs, outputs, Activation, LocalSettings, Loss, LrScheduler, TrainerBuilder,
-    TrainingSchedule, WdlScheduler,
+    format::{ChessBoard, chess::BoardIter}, inputs, outputs, Activation, LocalSettings, Loss, LrScheduler, TrainerBuilder, TrainingSchedule, WdlScheduler
 };
+use monty::chess::Board;
 
 const HIDDEN_SIZE: usize = 512;
 
 fn main() {
     let mut trainer = TrainerBuilder::default()
         .single_perspective()
-        .input(inputs::ChessBucketsMirrored::new([0; 32]))
+        .input(ThreatInputs)
         .output_buckets(outputs::Single)
         .feature_transformer(HIDDEN_SIZE)
         .activate(Activation::SCReLU)
@@ -69,5 +69,90 @@ fn main() {
         let eval = trainer.eval(fen);
         println!("FEN: {fen}");
         println!("EVAL: {}", 400.0 * eval);
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct ThreatInputs;
+
+pub struct ThreatInputsIter {
+    board_iter: BoardIter,
+    threats: u64,
+    defences: u64,
+    buffer: [usize; 2],
+    in_buffer: u8,
+    flip: u8,
+}
+
+impl inputs::InputType for ThreatInputs {
+    type RequiredDataType = ChessBoard;
+    type FeatureIter = ThreatInputsIter;
+
+    fn buckets(&self) -> usize {
+        1
+    }
+
+    fn max_active_inputs(&self) -> usize {
+        32 * 3
+    }
+
+    fn inputs(&self) -> usize {
+        768 * 3
+    }
+
+    fn feature_iter(&self, pos: &Self::RequiredDataType) -> Self::FeatureIter {
+        let mut bb = [0; 8];
+
+        for (pc, sq) in pos.into_iter() {
+            let bit = 1 << sq;
+            bb[usize::from(pc >> 3)] ^= bit;
+            bb[usize::from(2 + (pc & 7))] ^= bit;
+        }
+
+        let board = Board::from_raw(bb, false, 0, 0, 0);
+
+        let threats = board.threats_by(1);
+        let defences = board.threats_by(0);
+
+        ThreatInputsIter {
+            board_iter: pos.into_iter(),
+            threats,
+            defences,
+            buffer: [0; 2],
+            in_buffer: 0,
+            flip: if pos.our_ksq() % 8 > 3 { 7 } else { 0 },
+        }
+    }
+}
+
+impl Iterator for ThreatInputsIter {
+    type Item = (usize, usize);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.in_buffer > 0 {
+            self.in_buffer -= 1;
+            let this = self.buffer[usize::from(self.in_buffer)];
+            Some((this, this))
+        } else {
+            self.board_iter.next().map(|(piece, square)| {
+                let c = usize::from(piece & 8 > 0);
+                let pc = 64 * usize::from(piece & 7);
+                let sq = usize::from(square);
+
+                let feat = [0, 384][c] + pc + (sq ^ usize::from(self.flip));
+
+                if self.threats & (1 << sq) > 0 {
+                    self.buffer[usize::from(self.in_buffer)] = feat + 768;
+                    self.in_buffer += 1;
+                }
+
+                if self.defences & (1 << sq) > 0 {
+                    self.buffer[usize::from(self.in_buffer)] = feat + 768 * 2;
+                    self.in_buffer += 1;
+                }
+
+                (feat, feat)
+            })
+        }
     }
 }

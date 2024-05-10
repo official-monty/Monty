@@ -6,5 +6,5 @@ authors = ["Jamie Whiting"]
 
 [dependencies]
 datagen = { path = "../../datagen" }
-monty = { path = "../../" }
+monty = { path = "../../", features = ["nonet"] }
 goober = { git = 'https://github.com/jw1912/goober' }

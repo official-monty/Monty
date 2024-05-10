@@ -10,4 +10,4 @@ shatranj = []
 [dependencies]
 bullet = { package = "bullet_lib", git = 'https://github.com/jw1912/bullet', features = ["cuda"] }
 datagen = { path = "../../datagen" }
-monty = { path = "../../" }
+monty = { path = "../../", features = ["nonet"]}

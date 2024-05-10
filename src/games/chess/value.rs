@@ -4,7 +4,7 @@ const SCALE: i32 = 400;
 
 #[repr(C)]
 pub struct ValueNetwork {
-    l1: Layer<768, 512>,
+    l1: Layer<{768 * 3}, 512>,
     l2: Layer<512, 16>,
     l3: Layer<16, 16>,
     l4: Layer<16, 16>,
