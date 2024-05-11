@@ -182,32 +182,34 @@ impl Board {
 
             while our_bb > 0 {
                 pop_lsb!(sq, our_bb);
-                let feat = pc + usize::from(sq ^ hm);
-                f(feat);
+                let mut feat = pc + usize::from(sq ^ hm);
 
                 let bit = 1 << sq;
                 if threats & bit > 0 {
-                    f(768 + feat)
+                    feat += 768;
                 }
 
                 if defences & bit > 0 {
-                    f(768 * 2 + feat)
+                    feat += 768 * 2;
                 }
+
+                f(feat);
             }
 
             while opp_bb > 0 {
                 pop_lsb!(sq, opp_bb);
-                let feat = 384 + pc + usize::from(sq ^ hm);
-                f(feat);
+                let mut feat = 384 + pc + usize::from(sq ^ hm);
 
                 let bit = 1 << sq;
                 if threats & bit > 0 {
-                    f(768 + feat)
+                    feat += 768;
                 }
 
                 if defences & bit > 0 {
-                    f(768 * 2 + feat)
+                    feat += 768 * 2;
                 }
+
+                f(feat);
             }
         }
     }
