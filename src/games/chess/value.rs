@@ -3,54 +3,6 @@ use super::Board;
 const SCALE: i32 = 400;
 
 #[repr(C)]
-pub struct PackedValueNetwork {
-    l1: Layer<{768 * 3}, 512>,
-    l2: Layer<512, 16>,
-    l3: Layer<16, 16>,
-    l4: Layer<16, 16>,
-    l5: Layer<16, 16>,
-    l6: Layer<16, 16>,
-    l7: Layer<16, 16>,
-    l8: Layer<16, 16>,
-    l9: Layer<16, 16>,
-    l10: Layer<16, 16>,
-    l11: Layer<16, 1>,
-}
-
-impl PackedValueNetwork {
-    pub fn unpack(&self) -> Box<ValueNetwork> {
-        let mut net: Box<ValueNetwork> = unsafe { crate::boxed_and_zeroed() };
-
-        for i in 0..768 {
-            for j in 0..4 {
-                net.l1.weights[i + 768 * j] = self.l1.weights[i];
-            }
-
-            net.l1.weights[i + 768].madd(1.0, &self.l1.weights[i + 768]);
-            net.l1.weights[i + 768 * 2].madd(1.0, &self.l1.weights[i + 768 * 2]);
-
-            net.l1.weights[i + 768 * 3].madd(1.0, &self.l1.weights[i + 768]);
-            net.l1.weights[i + 768 * 3].madd(1.0, &self.l1.weights[i + 768 * 2]);
-        }
-
-        net.l1.biases = self.l1.biases;
-
-        net.l2 = self.l2;
-        net.l3 = self.l3;
-        net.l4 = self.l4;
-        net.l5 = self.l5;
-        net.l6 = self.l6;
-        net.l7 = self.l7;
-        net.l8 = self.l8;
-        net.l9 = self.l9;
-        net.l10 = self.l10;
-        net.l11 = self.l11;
-
-        net
-    }
-}
-
-#[repr(C)]
 pub struct ValueNetwork {
     l1: Layer<{768 * 4}, 512>,
     l2: Layer<512, 16>,

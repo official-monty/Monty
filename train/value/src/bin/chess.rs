@@ -79,8 +79,6 @@ pub struct ThreatInputsIter {
     board_iter: BoardIter,
     threats: u64,
     defences: u64,
-    buffer: [usize; 2],
-    in_buffer: u8,
     flip: u8,
 }
 
@@ -93,11 +91,11 @@ impl inputs::InputType for ThreatInputs {
     }
 
     fn max_active_inputs(&self) -> usize {
-        32 * 3
+        32
     }
 
     fn inputs(&self) -> usize {
-        768 * 3
+        768 * 4
     }
 
     fn feature_iter(&self, pos: &Self::RequiredDataType) -> Self::FeatureIter {
@@ -118,8 +116,6 @@ impl inputs::InputType for ThreatInputs {
             board_iter: pos.into_iter(),
             threats,
             defences,
-            buffer: [0; 2],
-            in_buffer: 0,
             flip: if pos.our_ksq() % 8 > 3 { 7 } else { 0 },
         }
     }
@@ -129,30 +125,22 @@ impl Iterator for ThreatInputsIter {
     type Item = (usize, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.in_buffer > 0 {
-            self.in_buffer -= 1;
-            let this = self.buffer[usize::from(self.in_buffer)];
-            Some((this, this))
-        } else {
-            self.board_iter.next().map(|(piece, square)| {
-                let c = usize::from(piece & 8 > 0);
-                let pc = 64 * usize::from(piece & 7);
-                let sq = usize::from(square);
+        self.board_iter.next().map(|(piece, square)| {
+            let c = usize::from(piece & 8 > 0);
+            let pc = 64 * usize::from(piece & 7);
+            let sq = usize::from(square);
+            let mut feat = [0, 384][c] + pc + (sq ^ usize::from(self.flip));
 
-                let feat = [0, 384][c] + pc + (sq ^ usize::from(self.flip));
+            if self.threats & (1 << sq) > 0 {
+                feat += 768;
+            }
 
-                if self.threats & (1 << sq) > 0 {
-                    self.buffer[usize::from(self.in_buffer)] = feat + 768;
-                    self.in_buffer += 1;
-                }
+            if self.defences & (1 << sq) > 0 {
+                feat += 768 * 2;
+            }
 
-                if self.defences & (1 << sq) > 0 {
-                    self.buffer[usize::from(self.in_buffer)] = feat + 768 * 2;
-                    self.in_buffer += 1;
-                }
+            (feat, feat)
+        })
 
-                (feat, feat)
-            })
-        }
     }
 }

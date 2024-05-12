@@ -18,7 +18,7 @@ pub use self::{
     board::Board,
     moves::Move,
     policy::{PolicyNetwork, SubNet},
-    value::{PackedValueNetwork, ValueNetwork},
+    value::ValueNetwork,
 };
 
 const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
