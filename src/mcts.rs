@@ -287,9 +287,9 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         print!("info depth {depth} ");
         let (pv_line, score) = self.get_pv(depth);
 
-        if score == 1.0 {
+        if score > 1.0 {
             print!("score mate {} ", (pv_line.len() + 1) / 2);
-        } else if score == 0.0 {
+        } else if score < 0.0 {
             print!("score mate -{} ", pv_line.len() / 2);
         } else {
             let cp = -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln();
@@ -316,7 +316,17 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         let idx = self.tree.get_best_child(self.tree.root_node());
         let mut action = self.tree.edge(self.tree.root_node(), idx);
 
-        let score = action.q();
+        let score = if action.ptr() != -1 {
+            match self.tree[action.ptr()].state() {
+                GameState::Lost(_) => 1.1,
+                GameState::Won(_) => -0.1,
+                GameState::Draw => 0.5,
+                GameState::Ongoing => action.q(),
+            }
+        } else {
+            action.q()
+        };
+
         let mut pv = Vec::new();
 
         while (mate || depth > 0) && action.ptr() != -1 {
