@@ -17,11 +17,12 @@ pub struct DatagenThread<'a, T: DatagenSupport> {
     total: usize,
     timer: Instant,
     stop: &'a AtomicBool,
+    book: Option<Vec<&'a str>>,
     marker: std::marker::PhantomData<T>,
 }
 
 impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
-    pub fn new(id: u32, params: MctsParams, stop: &'a AtomicBool) -> Self {
+    pub fn new(id: u32, params: MctsParams, stop: &'a AtomicBool, book: Option<Vec<&'a str>>) -> Self {
         Self {
             id,
             rng: Rand::with_seed(),
@@ -30,6 +31,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
             total: 0,
             timer: Instant::now(),
             stop,
+            book,
             marker: std::marker::PhantomData,
         }
     }
@@ -83,7 +85,13 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
         policy: &T::Policy,
         value: &T::Value,
     ) {
-        let mut position = T::from_fen(T::STARTPOS);
+        let mut position = if let Some(book) = &self.book {
+            let idx = self.rng.rand_int() as usize % book.len();
+            T::from_fen(book[idx])
+        } else {
+            T::from_fen(T::STARTPOS)
+        };
+
 
         // play 8 or 9 random moves
         for _ in 0..(8 + (self.rng.rand_int() % 2)) {

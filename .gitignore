@@ -4,6 +4,7 @@
 *.binpack
 *.exe
 *.network
+*.epd
 checkpoints
 data
 nets

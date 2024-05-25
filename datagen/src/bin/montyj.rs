@@ -1,4 +1,4 @@
-use datagen::run_datagen;
+use datagen::{parse_args, run_datagen};
 use monty::{shatranj::{PolicyNetwork, Shatranj}, ValueNetwork};
 
 #[repr(C)]
@@ -12,10 +12,7 @@ static POLICY: PolicyNetwork = NETS.1;
 
 fn main() {
     let mut args = std::env::args();
-    args.next();
+    let (threads, book, policy) = parse_args(args);
 
-    let threads = args.next().unwrap().parse().unwrap();
-    let policy = args.next() != Some("--no-policy".to_string());
-
-    run_datagen::<Shatranj, 112>(1_000, threads, policy, "Shatranj", &POLICY, &VALUE);
+    run_datagen::<Shatranj, 112>(1_000, threads, policy, "Shatranj", &POLICY, &VALUE, book);
 }

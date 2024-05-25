@@ -8,8 +8,7 @@ pub use thread::{write, DatagenThread};
 use monty::{ataxx::Ataxx, chess::Chess, shatranj::Shatranj, GameRep};
 
 use std::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
+    env::Args, fs::File, io::Read, sync::atomic::{AtomicBool, Ordering}, time::Duration
 };
 
 pub type AtaxxPolicyData = PolicyData<Ataxx, 114>;
@@ -88,6 +87,7 @@ pub fn run_datagen<T: DatagenSupport, const MAX_MOVES: usize>(
     name: &str,
     policy: &T::Policy,
     value: &T::Value,
+    book: Option<String>,
 ) {
     println!("Generating: {name}");
 
@@ -97,12 +97,20 @@ pub fn run_datagen<T: DatagenSupport, const MAX_MOVES: usize>(
     let stop_base = AtomicBool::new(false);
     let stop = &stop_base;
 
+    let mut buf = String::new();
+
+    let book = book.map(|path| {
+        File::open(path).unwrap().read_to_string(&mut buf).unwrap();
+        buf.split('\n').collect::<Vec<&str>>()
+    });
+
     std::thread::scope(|s| {
         for i in 0..threads {
             let params = params.clone();
             std::thread::sleep(Duration::from_millis(10));
+            let this_book = book.clone();
             s.spawn(move || {
-                let mut thread = DatagenThread::<T>::new(i as u32, params.clone(), stop);
+                let mut thread = DatagenThread::<T>::new(i as u32, params.clone(), stop, this_book);
                 thread.run::<MAX_MOVES>(nodes, use_policy, policy, value);
             });
         }
@@ -117,4 +125,35 @@ pub fn run_datagen<T: DatagenSupport, const MAX_MOVES: usize>(
             }
         }
     });
+}
+
+pub fn parse_args(mut args: Args) -> (usize, Option<String>, bool) {
+    args.next();
+
+    let mut threads = None;
+    let mut policy = false;
+    let mut book = None;
+
+    let mut mode = 0;
+
+    for arg in args {
+        match arg.as_str() {
+            "--policy" => policy = true,
+            "--threads" => mode = 1,
+            "--book" => mode = 2,
+            _ => match mode {
+                1 => {
+                    threads = Some(arg.parse().expect("can't parse"));
+                    mode = 0;
+                },
+                2 => {
+                    book = Some(arg);
+                    mode = 0;
+                },
+                _ => println!("unrecognised argument {arg}"),
+            },
+        }
+    }
+
+    (threads.expect("must pass thread count!"), book, policy)
 }
