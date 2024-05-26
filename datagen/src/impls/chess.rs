@@ -1,4 +1,4 @@
-use monty::chess::{Board, Chess, Move};
+use monty::chess::{Board, Castling, Chess, Move};
 
 use crate::{BinpackType, DatagenSupport};
 
@@ -20,7 +20,11 @@ pub struct CompressedChessBoard {
 
 impl From<Chess> for CompressedChessBoard {
     fn from(value: Chess) -> Self {
-        Self::from(value.board())
+        let mut ret = Self::from(value.board());
+
+        ret.rook_files = value.castling().rook_files();
+
+        ret
     }
 }
 
@@ -169,7 +173,7 @@ impl BinpackType<Chess> for Binpack {
 impl Binpack {
     pub fn deserialise_map<F>(reader: &mut impl std::io::BufRead, mut f: F) -> std::io::Result<()>
     where
-        F: FnMut(&mut Board, Move, i16, f32),
+        F: FnMut(&mut Board, &Castling, Move, i16, f32),
     {
         let mut startpos = [0; std::mem::size_of::<CompressedChessBoard>()];
         reader.read_exact(&mut startpos)?;
@@ -180,6 +184,7 @@ impl Binpack {
         let result = f32::from(result[0]) / 2.0;
 
         let mut board = Board::from(startpos);
+        let castling = Castling::from_raw(&board, startpos.rook_files);
 
         loop {
             let mut buf = [0; 4];
@@ -192,7 +197,7 @@ impl Binpack {
             let mov = u16::from_le_bytes([buf[0], buf[1]]);
             let score = i16::from_le_bytes([buf[2], buf[3]]);
 
-            f(&mut board, mov.into(), score, result);
+            f(&mut board, &castling,mov.into(), score, result);
         }
 
         Ok(())

@@ -33,6 +33,27 @@ impl Castling {
         u16::from(self.rook_files[side][ks])
     }
 
+    pub fn rook_files(&self) -> [[u8; 2]; 2] {
+        self.rook_files
+    }
+
+    pub fn from_raw(pos: &Board, mut rook_files: [[u8; 2]; 2]) -> Self {
+        if rook_files == [[0; 2]; 2] {
+            rook_files = [[0, 7]; 2];
+        }
+
+        let mut ret = Self { rook_files, ..Default::default() };
+
+        ret.castle_mask[usize::from(rook_files[0][0])] = 7;
+        ret.castle_mask[usize::from(rook_files[0][1])] = 11;
+        ret.castle_mask[usize::from(rook_files[1][0]) + 56] = 13;
+        ret.castle_mask[usize::from(rook_files[1][1]) + 56] = 14;
+        ret.castle_mask[pos.king_sq(0)] = 3;
+        ret.castle_mask[pos.king_sq(1)] = 12;
+
+        ret
+    }
+
     pub fn parse(&mut self, pos: &Board, rights_str: &str) -> u8 {
         let mut kings = [4, 4];
 

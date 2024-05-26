@@ -12,10 +12,9 @@ use crate::{
     MctsParams,
 };
 
-use self::frc::Castling;
-
 pub use self::{
     board::Board,
+    frc::Castling,
     moves::Move,
     policy::{PolicyNetwork, SubNet},
     value::ValueNetwork,
@@ -64,6 +63,10 @@ impl Chess {
 
     pub fn board(&self) -> Board {
         self.board
+    }
+
+    pub fn castling(&self) -> Castling {
+        self.castling
     }
 }
 

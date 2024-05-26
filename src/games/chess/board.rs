@@ -83,7 +83,12 @@ impl Board {
 
     #[must_use]
     pub fn king_index(&self) -> usize {
-        (self.bb[Piece::KING] & self.bb[usize::from(self.stm)]).trailing_zeros() as usize
+        self.king_sq(self.stm())
+    }
+
+    #[must_use]
+    pub fn king_sq(&self, side: usize) -> usize {
+        (self.bb[Piece::KING] & self.bb[side]).trailing_zeros() as usize
     }
 
     #[must_use]

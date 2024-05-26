@@ -5,17 +5,7 @@ use std::{
 
 use bullet::format::{BulletFormat, ChessBoard};
 
-#[cfg(not(feature = "shatranj"))]
 use datagen::impls::chess::Binpack;
-
-#[cfg(not(feature = "shatranj"))]
-use monty::{
-    chess::{Board, Chess},
-    GameRep,
-};
-
-#[cfg(feature = "shatranj")]
-use datagen::impls::shatranj::Binpack;
 
 fn main() {
     let mut args = std::env::args();
@@ -29,12 +19,6 @@ fn main() {
 
     let mut buf = Vec::new();
 
-    #[cfg(not(feature = "shatranj"))]
-    let mut castling = Default::default();
-
-    #[cfg(not(feature = "shatranj"))]
-    let _ = Board::parse_fen(Chess::STARTPOS, &mut castling);
-
     let mut positions = 0;
     let mut filtered = 0;
     let checks = 0;
@@ -44,7 +28,7 @@ fn main() {
     let mut games = 0;
 
     loop {
-        let err = Binpack::deserialise_map(&mut reader, |board, mov, score, result| {
+        let err = Binpack::deserialise_map(&mut reader, |board, castling, mov, score, result| {
             let mut write = true;
 
             //if board.in_check() {
@@ -81,11 +65,7 @@ fn main() {
                 println!("Processed: {positions}");
             }
 
-            #[cfg(not(feature = "shatranj"))]
-            board.make(mov, &castling);
-
-            #[cfg(feature = "shatranj")]
-            board.make(mov);
+            board.make(mov, castling);
         });
 
         if err.is_err() {
