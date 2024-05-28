@@ -6,7 +6,8 @@ use datagen::to_slice_with_lifetime;
 
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Write}, time::Instant,
+    io::{BufRead, BufReader, Write},
+    time::Instant,
 };
 
 const BATCH_SIZE: usize = 16_384;
@@ -62,7 +63,6 @@ pub fn train<T: TrainablePolicy>(
                     sb + 1,
                     batch_no % BPSB,
                     (i * BATCH_SIZE) as f32 / t.elapsed().as_secs_f32()
-
                 );
                 let _ = std::io::stdout().flush();
 

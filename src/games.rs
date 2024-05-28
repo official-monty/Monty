@@ -54,7 +54,8 @@ pub trait GameRep: Clone + Default + Send + Sync {
 
     fn get_policy_feats(&self) -> Self::PolicyInputs;
 
-    fn get_policy(&self, mov: Self::Move, feats: &Self::PolicyInputs, policy: &Self::Policy) -> f32;
+    fn get_policy(&self, mov: Self::Move, feats: &Self::PolicyInputs, policy: &Self::Policy)
+        -> f32;
 
     fn get_value(&self, value: &Self::Value) -> i32;
 

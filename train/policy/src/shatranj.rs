@@ -1,6 +1,6 @@
 use datagen::{PolicyData, Rand};
 use goober::{FeedForwardNetwork, OutputLayer, SparseVector};
-use monty::shatranj::{Board, Shatranj, Move, PolicyNetwork, SubNet};
+use monty::shatranj::{Board, Move, PolicyNetwork, Shatranj, SubNet};
 
 use crate::TrainablePolicy;
 

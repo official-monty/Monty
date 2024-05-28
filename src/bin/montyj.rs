@@ -1,10 +1,12 @@
-use monty::{shatranj::{Uci, PolicyNetwork}, UciLike, ValueNetwork};
+use monty::{
+    shatranj::{PolicyNetwork, Uci},
+    UciLike, ValueNetwork,
+};
 
 #[repr(C)]
 struct Nets(ValueNetwork<768, 8>, PolicyNetwork);
 
-const NETS: Nets =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/net.network")) };
+const NETS: Nets = unsafe { std::mem::transmute(*include_bytes!("../../resources/net.network")) };
 
 static VALUE: ValueNetwork<768, 8> = NETS.0;
 static POLICY: PolicyNetwork = NETS.1;

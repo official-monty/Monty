@@ -15,10 +15,7 @@ pub trait UciLike: Sized {
 
     fn options();
 
-    fn run(
-        policy: &<Self::Game as GameRep>::Policy,
-        value: &<Self::Game as GameRep>::Value,
-    ) {
+    fn run(policy: &<Self::Game as GameRep>::Policy, value: &<Self::Game as GameRep>::Value) {
         let mut prev = None;
         let mut pos = Self::Game::default();
         let mut params = Self::Game::default_mcts_params();
@@ -41,7 +38,16 @@ pub trait UciLike: Sized {
                 "setoption" => setoption(&commands, &mut params, &mut report_moves, &mut tree),
                 "position" => position(commands, &mut pos, &mut prev, &mut tree),
                 "go" => {
-                    let res = go(&commands, tree, prev, &pos, &params, report_moves, policy, value);
+                    let res = go(
+                        &commands,
+                        tree,
+                        prev,
+                        &pos,
+                        &params,
+                        report_moves,
+                        policy,
+                        value,
+                    );
 
                     tree = res.0;
                     prev = Some(res.1);

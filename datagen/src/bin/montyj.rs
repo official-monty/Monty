@@ -1,5 +1,8 @@
 use datagen::{parse_args, run_datagen};
-use monty::{shatranj::{PolicyNetwork, Shatranj}, ValueNetwork};
+use monty::{
+    shatranj::{PolicyNetwork, Shatranj},
+    ValueNetwork,
+};
 
 #[repr(C)]
 struct Nets(ValueNetwork<768, 8>, PolicyNetwork);

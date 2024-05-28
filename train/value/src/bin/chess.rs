@@ -1,5 +1,7 @@
 use bullet::{
-    format::{ChessBoard, chess::BoardIter}, inputs, outputs, Activation, LocalSettings, Loss, LrScheduler, TrainerBuilder, TrainingSchedule, WdlScheduler
+    format::{chess::BoardIter, ChessBoard},
+    inputs, outputs, Activation, LocalSettings, Loss, LrScheduler, TrainerBuilder,
+    TrainingSchedule, WdlScheduler,
 };
 use monty::chess::Board;
 
@@ -141,6 +143,5 @@ impl Iterator for ThreatInputsIter {
 
             (feat, feat)
         })
-
     }
 }

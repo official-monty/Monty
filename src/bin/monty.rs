@@ -1,10 +1,12 @@
-use monty::{chess::{ValueNetwork, PolicyNetwork, Uci}, UciLike};
+use monty::{
+    chess::{PolicyNetwork, Uci, ValueNetwork},
+    UciLike,
+};
 
 #[repr(C)]
 struct Nets(ValueNetwork, PolicyNetwork);
 
-const NETS: Nets =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/net.network")) };
+const NETS: Nets = unsafe { std::mem::transmute(*include_bytes!("../../resources/net.network")) };
 
 static VALUE: ValueNetwork = NETS.0;
 static POLICY: PolicyNetwork = NETS.1;

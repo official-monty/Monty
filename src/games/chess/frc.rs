@@ -42,7 +42,10 @@ impl Castling {
             rook_files = [[0, 7]; 2];
         }
 
-        let mut ret = Self { rook_files, ..Default::default() };
+        let mut ret = Self {
+            rook_files,
+            ..Default::default()
+        };
 
         ret.castle_mask[usize::from(rook_files[0][0])] = 7;
         ret.castle_mask[usize::from(rook_files[0][1])] = 11;

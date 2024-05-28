@@ -1,11 +1,12 @@
-use monty::{ataxx::{Uai, PolicyNetwork}, UciLike, ValueNetwork};
-
+use monty::{
+    ataxx::{PolicyNetwork, Uai},
+    UciLike, ValueNetwork,
+};
 
 #[repr(C)]
 struct Nets(ValueNetwork<2916, 256>, PolicyNetwork);
 
-const NETS: Nets =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/net.network")) };
+const NETS: Nets = unsafe { std::mem::transmute(*include_bytes!("../../resources/net.network")) };
 
 static VALUE: ValueNetwork<2916, 256> = NETS.0;
 static POLICY: PolicyNetwork = NETS.1;

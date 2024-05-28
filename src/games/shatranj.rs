@@ -129,7 +129,12 @@ impl GameRep for Shatranj {
         feats
     }
 
-    fn get_policy(&self, mov: Self::Move, feats: &goober::SparseVector, policy: &Self::Policy) -> f32 {
+    fn get_policy(
+        &self,
+        mov: Self::Move,
+        feats: &goober::SparseVector,
+        policy: &Self::Policy,
+    ) -> f32 {
         policy.get(&self.board, &mov, feats)
     }
 

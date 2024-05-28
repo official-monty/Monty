@@ -22,7 +22,12 @@ pub struct DatagenThread<'a, T: DatagenSupport> {
 }
 
 impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
-    pub fn new(id: u32, params: MctsParams, stop: &'a AtomicBool, book: Option<Vec<&'a str>>) -> Self {
+    pub fn new(
+        id: u32,
+        params: MctsParams,
+        stop: &'a AtomicBool,
+        book: Option<Vec<&'a str>>,
+    ) -> Self {
         Self {
             id,
             rng: Rand::with_seed(),
@@ -92,7 +97,6 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
             T::from_fen(T::STARTPOS)
         };
 
-
         // play 8 or 9 random moves
         for _ in 0..(8 + (self.rng.rand_int() % 2)) {
             let mut moves = Vec::new();
@@ -129,7 +133,8 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
 
         // play out game
         loop {
-            let mut searcher = Searcher::new(position.clone(), tree, self.params.clone(), policy, value);
+            let mut searcher =
+                Searcher::new(position.clone(), tree, self.params.clone(), policy, value);
 
             let (bm, score) = searcher.search(limits, false, &mut 0, &None);
 

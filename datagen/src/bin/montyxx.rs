@@ -1,5 +1,8 @@
 use datagen::{parse_args, run_datagen};
-use monty::{ataxx::{Ataxx, PolicyNetwork}, ValueNetwork};
+use monty::{
+    ataxx::{Ataxx, PolicyNetwork},
+    ValueNetwork,
+};
 
 #[repr(C)]
 struct Nets(ValueNetwork<2916, 256>, PolicyNetwork);

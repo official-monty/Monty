@@ -197,7 +197,7 @@ impl Binpack {
             let mov = u16::from_le_bytes([buf[0], buf[1]]);
             let score = i16::from_le_bytes([buf[2], buf[3]]);
 
-            f(&mut board, &castling,mov.into(), score, result);
+            f(&mut board, &castling, mov.into(), score, result);
         }
 
         Ok(())

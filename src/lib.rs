@@ -6,7 +6,7 @@ mod tree;
 mod value;
 
 pub use comm::UciLike;
-pub use games::{GameRep, GameState, ataxx, chess, shatranj};
+pub use games::{ataxx, chess, shatranj, GameRep, GameState};
 pub use mcts::{Limits, Searcher};
 pub use params::MctsParams;
 pub use tree::Tree;

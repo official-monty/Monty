@@ -1,10 +1,10 @@
-#[cfg(not(feature="nonet"))]
+#[cfg(not(feature = "nonet"))]
 use std::env;
 
-#[cfg(not(feature="nonet"))]
+#[cfg(not(feature = "nonet"))]
 const DEFAULT_PATH: &str = "resources/net.network";
 
-#[cfg(not(feature="nonet"))]
+#[cfg(not(feature = "nonet"))]
 fn main() {
     println!("cargo:rerun-if-env-changed=EVALFILE");
     println!("cargo:rerun-if-changed=resources/chess.network");
@@ -15,5 +15,5 @@ fn main() {
     }
 }
 
-#[cfg(feature="nonet")]
+#[cfg(feature = "nonet")]
 fn main() {}

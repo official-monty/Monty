@@ -4,7 +4,7 @@ const SCALE: i32 = 400;
 
 #[repr(C)]
 pub struct ValueNetwork {
-    l1: Layer<{768 * 4}, 512>,
+    l1: Layer<{ 768 * 4 }, 512>,
     l2: Layer<512, 16>,
     l3: Layer<16, 16>,
     l4: Layer<16, 16>,
@@ -72,7 +72,7 @@ struct Accumulator<const HIDDEN: usize> {
     vals: [f32; HIDDEN],
 }
 
-impl<const HIDDEN: usize>  Accumulator<HIDDEN> {
+impl<const HIDDEN: usize> Accumulator<HIDDEN> {
     fn madd(&mut self, mul: f32, other: &Self) {
         for (i, &j) in self.vals.iter_mut().zip(other.vals.iter()) {
             *i += mul * j;

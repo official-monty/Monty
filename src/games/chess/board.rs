@@ -160,11 +160,7 @@ impl Board {
 
     pub fn map_value_features<F: FnMut(usize)>(&self, mut f: F) {
         let flip = self.stm() == Side::BLACK;
-        let hm = if self.king_index() % 8 > 3 {
-            7
-        } else {
-            0
-        };
+        let hm = if self.king_index() % 8 > 3 { 7 } else { 0 };
 
         let mut threats = self.threats_by(self.stm() ^ 1);
         let mut defences = self.threats_by(self.stm());

@@ -1,4 +1,5 @@
 /target
+/.cargo
 *-policy-*
 *.data
 *.binpack

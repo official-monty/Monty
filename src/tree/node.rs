@@ -95,7 +95,12 @@ impl Node {
         self.bwd_link = ptr;
     }
 
-    pub fn expand<T: GameRep, const ROOT: bool>(&mut self, pos: &T, params: &MctsParams, policy: &T::Policy) {
+    pub fn expand<T: GameRep, const ROOT: bool>(
+        &mut self,
+        pos: &T,
+        params: &MctsParams,
+        policy: &T::Policy,
+    ) {
         assert!(self.is_not_expanded());
 
         let feats = pos.get_policy_feats();

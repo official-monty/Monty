@@ -8,7 +8,11 @@ pub use thread::{write, DatagenThread};
 use monty::{ataxx::Ataxx, chess::Chess, shatranj::Shatranj, GameRep};
 
 use std::{
-    env::Args, fs::File, io::Read, sync::atomic::{AtomicBool, Ordering}, time::Duration
+    env::Args,
+    fs::File,
+    io::Read,
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
 };
 
 pub type AtaxxPolicyData = PolicyData<Ataxx, 114>;
@@ -145,11 +149,11 @@ pub fn parse_args(mut args: Args) -> (usize, Option<String>, bool) {
                 1 => {
                     threads = Some(arg.parse().expect("can't parse"));
                     mode = 0;
-                },
+                }
                 2 => {
                     book = Some(arg);
                     mode = 0;
-                },
+                }
                 _ => println!("unrecognised argument {arg}"),
             },
         }

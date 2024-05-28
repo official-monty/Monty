@@ -147,7 +147,7 @@ impl GameRep for Chess {
         &self,
         mov: Self::Move,
         (feats, threats): &Self::PolicyInputs,
-        policy: &Self::Policy
+        policy: &Self::Policy,
     ) -> f32 {
         policy.get(&self.board, &mov, feats, *threats)
     }

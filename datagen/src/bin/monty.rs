@@ -1,5 +1,8 @@
 use datagen::{parse_args, run_datagen};
-use monty::{chess::{PolicyNetwork, ValueNetwork}, UciLike};
+use monty::{
+    chess::{PolicyNetwork, ValueNetwork},
+    UciLike,
+};
 
 #[repr(C)]
 struct Nets(ValueNetwork, PolicyNetwork);

@@ -1,6 +1,6 @@
-use monty::ataxx::Ataxx;
-use datagen::PolicyData;
 use bullet::format::{AtaxxBoard, BulletFormat};
+use datagen::PolicyData;
+use monty::ataxx::Ataxx;
 
 use std::{fs::File, io::BufWriter, time::Instant};
 
@@ -42,7 +42,14 @@ fn into_value(pos: &PolicyData<Ataxx, 114>) -> AtaxxBoard {
 
     let score = -(400.0 * (1.0 / pos.score - 1.0).ln()) as i16;
 
-    AtaxxBoard::from_raw(bbs, score, pos.result, stm > 0, board.fullm(), board.halfm())
+    AtaxxBoard::from_raw(
+        bbs,
+        score,
+        pos.result,
+        stm > 0,
+        board.fullm(),
+        board.halfm(),
+    )
 }
 
 fn data_from_bytes_with_lifetime<T>(raw_bytes: &mut [u8]) -> &mut [T] {
