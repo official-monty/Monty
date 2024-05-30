@@ -223,16 +223,18 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         }
 
         let is_root = ptr == self.tree.root_node();
-        let cpuct = if is_root {
-            self.params.root_cpuct()
-        } else {
-            self.params.cpuct()
-        };
         let node = &self.tree[ptr];
 
         let parent = node.parent();
         let action = node.action();
         let edge = self.tree.edge(parent, action);
+
+        let cpuct_scale = 1.0 + (((edge.visits() + 8192) / 8192) as f32).ln();
+        let cpuct = if is_root {
+            self.params.root_cpuct()
+        } else {
+            self.params.cpuct() * cpuct_scale
+        };
 
         // exploration factor to apply
         let expl = cpuct * (edge.visits().max(1) as f32).sqrt();
