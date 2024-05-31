@@ -16,7 +16,7 @@ fn main() {
     let arg1 = args.nth(1);
 
     if let Some("bench") = arg1.as_deref() {
-        monty::chess::Uci::bench(4, &POLICY, &VALUE);
+        monty::chess::Uci::bench(5, &POLICY, &VALUE);
         return;
     }
 

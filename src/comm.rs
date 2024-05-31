@@ -129,7 +129,7 @@ pub trait UciLike: Sized {
 
         for fen in bench_fens {
             let pos = Self::Game::from_fen(fen);
-            let mut searcher = Searcher::new(pos, tree, params.clone(), policy, value);
+            let mut searcher = Searcher::new(pos, tree, params.clone(), policy, value, false);
             let timer = Instant::now();
             searcher.search(limits, false, &mut total_nodes, &None);
             time += timer.elapsed().as_secs_f32();
@@ -284,7 +284,7 @@ fn go<T: GameRep>(
         *t = t.saturating_sub(5);
     }
 
-    let mut searcher = Searcher::new(pos.clone(), tree, params.clone(), policy, value);
+    let mut searcher = Searcher::new(pos.clone(), tree, params.clone(), policy, value, false);
 
     let limits = Limits {
         max_time: time,

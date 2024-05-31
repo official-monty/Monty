@@ -1,7 +1,6 @@
 use datagen::{parse_args, run_datagen};
 use monty::{
-    chess::{PolicyNetwork, ValueNetwork},
-    UciLike,
+    chess::{Chess, PolicyNetwork, ValueNetwork}, GameRep, UciLike
 };
 
 #[repr(C)]
@@ -25,5 +24,21 @@ fn main() {
         println!("Not using a book.")
     }
 
-    run_datagen::<monty::chess::Chess, 112>(5_000, threads, policy, "Chess", &POLICY, &VALUE, book);
+    let mut params = Chess::default_mcts_params();
+
+    // value data params
+    params.set("root_pst", 2.62);
+    params.set("root_cpuct", 1.08);
+    params.set("cpuct", 0.54);
+
+    run_datagen::<Chess, 112>(
+        params,
+        5_000,
+        threads,
+        policy,
+        "Chess",
+        &POLICY,
+        &VALUE,
+        book,
+    );
 }

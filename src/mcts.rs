@@ -19,6 +19,7 @@ pub struct Searcher<'a, T: GameRep> {
     params: MctsParams,
     policy: &'a T::Policy,
     value: &'a T::Value,
+    datagen: bool,
 }
 
 impl<'a, T: GameRep> Searcher<'a, T> {
@@ -28,6 +29,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         params: MctsParams,
         policy: &'a T::Policy,
         value: &'a T::Value,
+        datagen: bool,
     ) -> Self {
         Self {
             root_position,
@@ -35,6 +37,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
             params,
             policy,
             value,
+            datagen,
         }
     }
 
@@ -222,7 +225,6 @@ impl<'a, T: GameRep> Searcher<'a, T> {
             panic!("trying to pick from no children!");
         }
 
-        let is_root = ptr == self.tree.root_node();
         let node = &self.tree[ptr];
 
         let parent = node.parent();
@@ -230,11 +232,13 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         let edge = self.tree.edge(parent, action);
 
         let cpuct_scale = 1.0 + (((edge.visits() + 8192) / 8192) as f32).ln();
-        let cpuct = if is_root {
+        let cpuct_base = if self.datagen && ptr == self.tree.root_node() {
             self.params.root_cpuct()
         } else {
-            self.params.cpuct() * cpuct_scale
+            self.params.cpuct()
         };
+
+        let cpuct = cpuct_base * cpuct_scale;
 
         // exploration factor to apply
         let expl = cpuct * (edge.visits().max(1) as f32).sqrt();

@@ -5,7 +5,7 @@ mod thread;
 pub use rng::Rand;
 pub use thread::{write, DatagenThread};
 
-use monty::{ataxx::Ataxx, chess::Chess, shatranj::Shatranj, GameRep};
+use monty::{ataxx::Ataxx, chess::Chess, shatranj::Shatranj, GameRep, MctsParams};
 
 use std::{
     env::Args,
@@ -84,7 +84,9 @@ pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {
     unsafe { std::slice::from_raw_parts(slice.as_ptr().cast(), len) }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn run_datagen<T: DatagenSupport, const MAX_MOVES: usize>(
+    params: MctsParams,
     nodes: usize,
     threads: usize,
     use_policy: bool,
@@ -94,9 +96,6 @@ pub fn run_datagen<T: DatagenSupport, const MAX_MOVES: usize>(
     book: Option<String>,
 ) {
     println!("Generating: {name}");
-
-    let params = T::default_mcts_params();
-    params.clone().info();
 
     let stop_base = AtomicBool::new(false);
     let stop = &stop_base;
