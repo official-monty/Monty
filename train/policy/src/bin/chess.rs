@@ -8,7 +8,7 @@ fn main() {
     policy::train::<PolicyNetwork>(
         threads,
         "data/chess/policy-with-frc.data".to_string(),
-        30,
-        20,
+        60,
+        25,
     );
 }
