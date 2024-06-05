@@ -41,7 +41,6 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         }
     }
 
-    /// the main MCTS search function
     pub fn search(
         &mut self,
         limits: Limits,
@@ -55,11 +54,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         self.tree.try_use_subtree(&self.root_position, prev_board);
         let node = self.tree.root_node();
 
-        // if we found a subtree, we need to relabel the policies
-        // of the new root node as we (may) have different root
-        // policy softmax temperature compared to normal nodes.
-        // otherwise, we need to expand the new unexplored root
-        // node
+        // relabel root policies with root PST value
         if self.tree[node].has_children() {
             self.tree[node].relabel_policy(&self.root_position, &self.params, self.policy);
         } else {
@@ -70,15 +65,12 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         let mut depth = 0;
         let mut cumulative_depth = 0;
 
-        // search loop (forever thanks to LRU tree replacement)
+        // search loop
         loop {
-            // start from the root
             let mut pos = self.root_position.clone();
-
             let mut this_depth = 0;
             self.perform_one_iteration(&mut pos, self.tree.root_node(), &mut this_depth);
 
-            // update depth statistics
             cumulative_depth += this_depth - 1;
 
             // proven checkmate
@@ -86,22 +78,19 @@ impl<'a, T: GameRep> Searcher<'a, T> {
                 break;
             }
 
-            // check if hit node limit
             if nodes >= limits.max_nodes {
                 break;
             }
 
             nodes += 1;
 
-            // check for timeup
             if let Some(time) = limits.max_time {
                 if nodes % 128 == 0 && timer.elapsed().as_millis() >= time {
                     break;
                 }
             }
 
-            // we define "depth" for UCI output as the average
-            // depth of selection
+            // define "depth" as the average depth of selection
             let avg_depth = cumulative_depth / nodes;
             if avg_depth > depth {
                 depth = avg_depth;
@@ -130,7 +119,6 @@ impl<'a, T: GameRep> Searcher<'a, T> {
     fn perform_one_iteration(&mut self, pos: &mut T, ptr: i32, depth: &mut usize) -> f32 {
         *depth += 1;
 
-        // mark this node as most recently used
         self.tree.make_recently_used(ptr);
 
         let hash = self.tree[ptr].hash();
@@ -152,53 +140,39 @@ impl<'a, T: GameRep> Searcher<'a, T> {
                 self.get_utility(ptr, pos)
             }
         } else {
-            // this is "expanding on the second visit",
-            // an important optimisation - not only does it
-            // massively reduce memory usage, it also is a
-            // large speedup (avoids many policy net calculations)
+            // expand node on the second visit
             if self.tree[ptr].is_not_expanded() {
                 self.tree[ptr].expand::<T, false>(pos, &self.params, self.policy);
             }
 
-            // select action to take via puct
+            // select action to take via PUCT
             let action = self.pick_action(ptr);
 
             let edge = self.tree.edge(ptr, action);
-            let mut child_ptr = edge.ptr();
-
-            // descend down the tree
             pos.make_move(T::Move::from(edge.mov()));
 
-            // this node has not yet been pushed to the tree,
-            // create it and push it
+            let mut child_ptr = edge.ptr();
+
+            // create and push node if not present
             if child_ptr == -1 {
                 let state = pos.game_state();
                 child_ptr = self.tree.push(Node::new(state, pos.hash(), ptr, action));
                 self.tree.edge_mut(ptr, action).set_ptr(child_ptr);
             }
 
-            // descend deeper
             child_state = self.tree[child_ptr].state();
             self.perform_one_iteration(pos, child_ptr, depth)
         };
 
-        // for convenience the value is stored from the nstm
-        // perspective (as it is usually accessed from the
-        // parent's perspective)
+        // flip perspective of score
         u = 1.0 - u;
-
-        // update stats for this node
         self.tree.edge_mut(parent, action).update(u);
 
-        // push node stats to hash table
         let edge = self.tree.edge(parent, action);
         self.tree.push_hash(hash, edge.visits(), edge.wins());
 
-        // potentially propogate proven mate scores
-        // if the child state is terminal
         self.tree.propogate_proven_mates(ptr, child_state);
 
-        // mark this node as most recently used
         self.tree.make_recently_used(ptr);
 
         u
@@ -224,6 +198,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         let action = node.action();
         let edge = self.tree.edge(parent, action);
 
+        // scale CPUCT as visits increase
         let cpuct_scale = 1.0 + (((edge.visits() + 8192) / 8192) as f32).ln();
         let cpuct_base = if self.datagen && ptr == self.tree.root_node() {
             self.params.root_cpuct()
@@ -236,14 +211,12 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         // exploration factor to apply
         let expl = cpuct * (edge.visits().max(1) as f32).sqrt();
 
-        // first play urgency - choose a Q value for
-        // moves which have no been played yet
+        // first play urgency
         let fpu = 1.0 - edge.q();
 
         let mut best = usize::MAX;
         let mut max = f32::NEG_INFINITY;
 
-        // return child with highest PUCT score
         for (i, action) in node.actions().iter().enumerate() {
             let puct = if action.visits() == 0 {
                 fpu + expl * action.policy()
