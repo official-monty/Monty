@@ -163,28 +163,23 @@ impl<'a, T: GameRep> Searcher<'a, T> {
             // select action to take via puct
             let action = self.pick_action(ptr);
 
-            // proved a loss from the child nodes
-            if action == usize::MAX {
-                self.get_utility(ptr, pos)
-            } else {
-                let edge = self.tree.edge(ptr, action);
-                let mut child_ptr = edge.ptr();
+            let edge = self.tree.edge(ptr, action);
+            let mut child_ptr = edge.ptr();
 
-                // descend down the tree
-                pos.make_move(T::Move::from(edge.mov()));
+            // descend down the tree
+            pos.make_move(T::Move::from(edge.mov()));
 
-                // this node has not yet been pushed to the tree,
-                // create it and push it
-                if child_ptr == -1 {
-                    let state = pos.game_state();
-                    child_ptr = self.tree.push(Node::new(state, pos.hash(), ptr, action));
-                    self.tree.edge_mut(ptr, action).set_ptr(child_ptr);
-                }
-
-                // descend deeper
-                child_state = self.tree[child_ptr].state();
-                self.perform_one_iteration(pos, child_ptr, depth)
+            // this node has not yet been pushed to the tree,
+            // create it and push it
+            if child_ptr == -1 {
+                let state = pos.game_state();
+                child_ptr = self.tree.push(Node::new(state, pos.hash(), ptr, action));
+                self.tree.edge_mut(ptr, action).set_ptr(child_ptr);
             }
+
+            // descend deeper
+            child_state = self.tree[child_ptr].state();
+            self.perform_one_iteration(pos, child_ptr, depth)
         };
 
         // for convenience the value is stored from the nstm
@@ -245,7 +240,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         // moves which have no been played yet
         let fpu = 1.0 - edge.q();
 
-        let mut best = 0;
+        let mut best = usize::MAX;
         let mut max = f32::NEG_INFINITY;
 
         // return child with highest PUCT score
