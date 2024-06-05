@@ -213,6 +213,37 @@ impl Tree {
         }
     }
 
+    pub fn propogate_proven_mates(&mut self, ptr: i32, child_state: GameState) {
+        match child_state {
+            // if the child node resulted in a loss, then
+            // this node has a guaranteed win
+            GameState::Lost(n) => self[ptr].set_state(GameState::Won(n + 1)),
+            // if the child node resulted in a win, then check if there are
+            // any non-won children, and if not, guaranteed loss for this node
+            GameState::Won(n) => {
+                let mut proven_loss = true;
+                let mut max_win_len = n;
+                for action in self[ptr].actions() {
+                    if action.ptr() == -1 {
+                        proven_loss = false;
+                        break;
+                    } else if let GameState::Won(n) = self[action.ptr()].state() {
+                        max_win_len = n.max(max_win_len);
+                    } else {
+                        proven_loss = false;
+                        break;
+                    }
+                }
+
+                if proven_loss {
+                    self[ptr].set_state(GameState::Lost(max_win_len + 1));
+                }
+            }
+            // nothing to do otherwise
+            _ => {}
+        }
+    }
+
     pub fn try_use_subtree<T: GameRep>(&mut self, root: &T, prev_board: &Option<T>) {
         let t = Instant::now();
 
