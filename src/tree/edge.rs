@@ -5,6 +5,7 @@ pub struct Edge {
     policy: i16,
     visits: i32,
     wins: f32,
+    sq_wins: f32,
 }
 
 impl Default for Edge {
@@ -15,6 +16,7 @@ impl Default for Edge {
             policy: 0,
             visits: 0,
             wins: 0.0,
+            sq_wins: 0.0,
         }
     }
 }
@@ -27,6 +29,7 @@ impl Edge {
             policy,
             visits: 0,
             wins: 0.0,
+            sq_wins: 0.0,
         }
     }
 
@@ -54,6 +57,12 @@ impl Edge {
         self.wins / self.visits as f32
     }
 
+    pub fn var(&self) -> f32 {
+        let v = self.visits as f32;
+        let var = self.sq_wins / v - (self.wins / v).powi(2);
+        var.max(0.0)
+    }
+
     pub fn set_ptr(&mut self, ptr: i32) {
         self.ptr = ptr;
     }
@@ -62,13 +71,9 @@ impl Edge {
         self.policy = (policy * f32::from(i16::MAX)) as i16
     }
 
-    pub fn set_stats(&mut self, visits: i32, wins: f32) {
-        self.visits = visits;
-        self.wins = wins;
-    }
-
     pub fn update(&mut self, result: f32) {
         self.visits += 1;
         self.wins += result;
+        self.sq_wins += result.powi(2);
     }
 }

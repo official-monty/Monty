@@ -65,4 +65,6 @@ make_mcts_params! {
     root_pst: 1.0, 1.0, 10.0,
     root_cpuct: 1.41, 0.1, 5.0,
     cpuct: 1.41, 0.1, 5.0,
+    cpuct_var_weight: 0.0, 0.0, 2.0,
+    cpuct_var_scale: 0.4, 0.0, 2.0,
 }
