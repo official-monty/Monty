@@ -84,7 +84,6 @@ impl GameRep for Chess {
     fn default_mcts_params() -> MctsParams {
         let mut params = MctsParams::default();
         params.set("root_pst", 4.0);
-        params.set("root_cpuct", 0.65);
         params.set("cpuct", 0.65);
         params.set("cpuct_var_weight", 0.85);
         params.set("cpuct_var_scale", 0.2);

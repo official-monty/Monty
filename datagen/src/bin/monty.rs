@@ -1,6 +1,7 @@
 use datagen::{parse_args, run_datagen};
 use monty::{
-    chess::{Chess, PolicyNetwork, ValueNetwork}, GameRep, UciLike
+    chess::{Chess, PolicyNetwork, ValueNetwork},
+    GameRep, UciLike,
 };
 
 #[repr(C)]
@@ -28,17 +29,9 @@ fn main() {
 
     // value data params
     params.set("root_pst", 2.62);
-    params.set("root_cpuct", 1.08);
-    params.set("cpuct", 0.54);
+    params.set("cpuct", 1.08);
 
     run_datagen::<Chess, 112>(
-        params,
-        5_000,
-        threads,
-        policy,
-        "Chess",
-        &POLICY,
-        &VALUE,
-        book,
+        params, 5_000, threads, policy, "Chess", &POLICY, &VALUE, book,
     );
 }

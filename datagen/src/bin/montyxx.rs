@@ -1,6 +1,7 @@
 use datagen::{parse_args, run_datagen};
 use monty::{
-    ataxx::{Ataxx, PolicyNetwork}, GameRep, ValueNetwork
+    ataxx::{Ataxx, PolicyNetwork},
+    GameRep, ValueNetwork,
 };
 
 #[repr(C)]

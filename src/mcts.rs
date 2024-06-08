@@ -1,3 +1,7 @@
+mod helpers;
+
+use helpers::SearchHelpers;
+
 use crate::{
     games::{GameRep, GameState},
     params::MctsParams,
@@ -19,7 +23,6 @@ pub struct Searcher<'a, T: GameRep> {
     params: MctsParams,
     policy: &'a T::Policy,
     value: &'a T::Value,
-    datagen: bool,
 }
 
 impl<'a, T: GameRep> Searcher<'a, T> {
@@ -29,7 +32,6 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         params: MctsParams,
         policy: &'a T::Policy,
         value: &'a T::Value,
-        datagen: bool,
     ) -> Self {
         Self {
             root_position,
@@ -37,7 +39,6 @@ impl<'a, T: GameRep> Searcher<'a, T> {
             params,
             policy,
             value,
-            datagen,
         }
     }
 
@@ -193,50 +194,19 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         }
 
         let node = &self.tree[ptr];
+        let edge = self.tree.edge(node.parent(), node.action());
 
-        let parent = node.parent();
-        let action = node.action();
-        let edge = self.tree.edge(parent, action);
+        let cpuct = SearchHelpers::get_cpuct(&self.params, edge);
+        let fpu = SearchHelpers::get_fpu(edge);
 
-        // baseline CPUCT value
-        let mut cpuct = if self.datagen && ptr == self.tree.root_node() {
-            self.params.root_cpuct()
-        } else {
-            self.params.cpuct()
-        };
-
-        // scale CPUCT as visits increase
-        cpuct *= 1.0 + (((edge.visits() + 8192) / 8192) as f32).ln();
-
-        // scale CPUCT with variance of Q
-        if edge.visits() > 1 {
-            let frac = edge.var().sqrt() / self.params.cpuct_var_scale();
-            cpuct *= 1.0 + self.params.cpuct_var_weight() * (frac - 1.0);
-        }
-
-        // exploration factor to apply
         let expl = cpuct * (edge.visits().max(1) as f32).sqrt();
 
-        // first play urgency
-        let fpu = 1.0 - edge.q();
+        self.tree.get_best_child_by_key(ptr, |action| {
+            let q = SearchHelpers::get_action_value(action, fpu);
+            let u = expl * action.policy() / (1 + action.visits()) as f32;
 
-        let mut best = usize::MAX;
-        let mut max = f32::NEG_INFINITY;
-
-        for (i, action) in node.actions().iter().enumerate() {
-            let puct = if action.visits() == 0 {
-                fpu + expl * action.policy()
-            } else {
-                action.q() + expl * action.policy() / (1 + action.visits()) as f32
-            };
-
-            if puct > max {
-                max = puct;
-                best = i;
-            }
-        }
-
-        best
+            q + u
+        })
     }
 
     fn search_report(&self, depth: usize, timer: &Instant, nodes: usize) {

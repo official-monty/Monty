@@ -314,7 +314,7 @@ impl Tree {
         -1
     }
 
-    fn get_best_child_by_key<F: FnMut(&Edge) -> f32>(&self, ptr: i32, mut key: F) -> usize {
+    pub fn get_best_child_by_key<F: FnMut(&Edge) -> f32>(&self, ptr: i32, mut key: F) -> usize {
         let mut best_child = usize::MAX;
         let mut best_score = f32::NEG_INFINITY;
 

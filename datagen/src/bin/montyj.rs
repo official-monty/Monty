@@ -1,6 +1,7 @@
 use datagen::{parse_args, run_datagen};
 use monty::{
-    shatranj::{PolicyNetwork, Shatranj}, GameRep, ValueNetwork
+    shatranj::{PolicyNetwork, Shatranj},
+    GameRep, ValueNetwork,
 };
 
 #[repr(C)]
