@@ -5,7 +5,7 @@ use std::{
 
 use bullet::format::{BulletFormat, ChessBoard};
 
-use datagen::impls::chess::Binpack;
+use datagen::Binpack;
 
 fn main() {
     let mut args = std::env::args();

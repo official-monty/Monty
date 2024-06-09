@@ -1,4 +1,4 @@
-use crate::{tree::Edge, GameRep, GameState, MctsParams};
+use crate::{chess::Move, tree::Edge, ChessState, GameState, MctsParams, PolicyNetwork};
 
 #[derive(Clone, Debug)]
 pub struct Node {
@@ -95,11 +95,11 @@ impl Node {
         self.bwd_link = ptr;
     }
 
-    pub fn expand<T: GameRep, const ROOT: bool>(
+    pub fn expand<const ROOT: bool>(
         &mut self,
-        pos: &T,
+        pos: &ChessState,
         params: &MctsParams,
-        policy: &T::Policy,
+        policy: &PolicyNetwork,
     ) {
         assert!(self.is_not_expanded());
 
@@ -138,14 +138,19 @@ impl Node {
         }
     }
 
-    pub fn relabel_policy<T: GameRep>(&mut self, pos: &T, params: &MctsParams, policy: &T::Policy) {
+    pub fn relabel_policy(
+        &mut self,
+        pos: &ChessState,
+        params: &MctsParams,
+        policy: &PolicyNetwork,
+    ) {
         let feats = pos.get_policy_feats();
         let mut max = f32::NEG_INFINITY;
 
         let mut policies = Vec::new();
 
         for action in &self.actions {
-            let mov = T::Move::from(action.mov());
+            let mov = Move::from(action.mov());
             let policy = pos.get_policy(mov, &feats, policy);
             policies.push(policy);
             max = max.max(policy);

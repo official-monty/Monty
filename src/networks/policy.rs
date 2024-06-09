@@ -1,4 +1,4 @@
-use super::{moves::Move, Board};
+use crate::chess::{Board, Move};
 
 use goober::{activation, layer, FeedForwardNetwork, Matrix, SparseVector, Vector};
 
@@ -49,8 +49,8 @@ impl PolicyNetwork {
     pub fn get(&self, pos: &Board, mov: &Move, feats: &SparseVector, threats: u64) -> f32 {
         let flip = pos.flip_val();
 
-        let from_threat = usize::from(threats & (1 << mov.from()) > 0);
-        let from_subnet = &self.subnets[usize::from(mov.from() ^ flip)][from_threat];
+        let from_threat = usize::from(threats & (1 << mov.src()) > 0);
+        let from_subnet = &self.subnets[usize::from(mov.src() ^ flip)][from_threat];
         let from_vec = from_subnet.out(feats);
 
         let good_see = usize::from(pos.see(mov, -108));

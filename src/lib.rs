@@ -1,14 +1,14 @@
-mod comm;
-mod games;
+mod chess;
 mod mcts;
+mod networks;
 mod tree;
-mod value;
+mod uci;
 
-pub use comm::UciLike;
-pub use games::{ataxx, chess, shatranj, GameRep, GameState};
+pub use chess::{Board, Castling, ChessState, GameState, Move};
 pub use mcts::{Limits, MctsParams, Searcher};
+pub use networks::{PolicyNetwork, SubNet, ValueNetwork};
 pub use tree::Tree;
-pub use value::ValueNetwork;
+pub use uci::Uci;
 
 // Macro for calculating tables (until const fn pointers are stable).
 #[macro_export]

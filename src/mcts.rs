@@ -5,8 +5,9 @@ use helpers::SearchHelpers;
 pub use params::MctsParams;
 
 use crate::{
-    games::{GameRep, GameState},
+    chess::Move,
     tree::{Node, Tree},
+    ChessState, GameState, PolicyNetwork, ValueNetwork,
 };
 
 use std::time::Instant;
@@ -18,21 +19,21 @@ pub struct Limits {
     pub max_nodes: usize,
 }
 
-pub struct Searcher<'a, T: GameRep> {
-    root_position: T,
+pub struct Searcher<'a> {
+    root_position: ChessState,
     tree: Tree,
     params: MctsParams,
-    policy: &'a T::Policy,
-    value: &'a T::Value,
+    policy: &'a PolicyNetwork,
+    value: &'a ValueNetwork,
 }
 
-impl<'a, T: GameRep> Searcher<'a, T> {
+impl<'a> Searcher<'a> {
     pub fn new(
-        root_position: T,
+        root_position: ChessState,
         tree: Tree,
         params: MctsParams,
-        policy: &'a T::Policy,
-        value: &'a T::Value,
+        policy: &'a PolicyNetwork,
+        value: &'a ValueNetwork,
     ) -> Self {
         Self {
             root_position,
@@ -48,8 +49,8 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         limits: Limits,
         uci_output: bool,
         total_nodes: &mut usize,
-        prev_board: &Option<T>,
-    ) -> (T::Move, f32) {
+        prev_board: &Option<ChessState>,
+    ) -> (Move, f32) {
         let timer = Instant::now();
 
         // attempt to reuse the current tree stored in memory
@@ -60,7 +61,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         if self.tree[node].has_children() {
             self.tree[node].relabel_policy(&self.root_position, &self.params, self.policy);
         } else {
-            self.tree[node].expand::<T, true>(&self.root_position, &self.params, self.policy);
+            self.tree[node].expand::<true>(&self.root_position, &self.params, self.policy);
         }
 
         let mut nodes = 0;
@@ -115,10 +116,10 @@ impl<'a, T: GameRep> Searcher<'a, T> {
 
         let best_action = self.tree.get_best_child(self.tree.root_node());
         let best_child = &self.tree.edge(self.tree.root_node(), best_action);
-        (T::Move::from(best_child.mov()), best_child.q())
+        (Move::from(best_child.mov()), best_child.q())
     }
 
-    fn perform_one_iteration(&mut self, pos: &mut T, ptr: i32, depth: &mut usize) -> f32 {
+    fn perform_one_iteration(&mut self, pos: &mut ChessState, ptr: i32, depth: &mut usize) -> f32 {
         *depth += 1;
 
         self.tree.make_recently_used(ptr);
@@ -144,14 +145,14 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         } else {
             // expand node on the second visit
             if self.tree[ptr].is_not_expanded() {
-                self.tree[ptr].expand::<T, false>(pos, &self.params, self.policy);
+                self.tree[ptr].expand::<false>(pos, &self.params, self.policy);
             }
 
             // select action to take via PUCT
             let action = self.pick_action(ptr);
 
             let edge = self.tree.edge(ptr, action);
-            pos.make_move(T::Move::from(edge.mov()));
+            pos.make_move(Move::from(edge.mov()));
 
             let mut child_ptr = edge.ptr();
 
@@ -182,7 +183,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         u
     }
 
-    fn get_utility(&self, ptr: i32, pos: &T) -> f32 {
+    fn get_utility(&self, ptr: i32, pos: &ChessState) -> f32 {
         match self.tree[ptr].state() {
             GameState::Ongoing => pos.get_value_wdl(self.value),
             GameState::Draw => 0.5,
@@ -239,7 +240,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         println!();
     }
 
-    fn get_pv(&self, mut depth: usize) -> (Vec<T::Move>, f32) {
+    fn get_pv(&self, mut depth: usize) -> (Vec<Move>, f32) {
         let mate = self.tree[self.tree.root_node()].is_terminal();
 
         let idx = self.tree.get_best_child(self.tree.root_node());
@@ -259,7 +260,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         let mut pv = Vec::new();
 
         while (mate || depth > 0) && action.ptr() != -1 {
-            pv.push(T::Move::from(action.mov()));
+            pv.push(Move::from(action.mov()));
             let idx = self.tree.get_best_child(action.ptr());
 
             if idx == usize::MAX {
@@ -273,7 +274,7 @@ impl<'a, T: GameRep> Searcher<'a, T> {
         (pv, score)
     }
 
-    pub fn tree_and_board(self) -> (Tree, T) {
+    pub fn tree_and_board(self) -> (Tree, ChessState) {
         (self.tree, self.root_position)
     }
 

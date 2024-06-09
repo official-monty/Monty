@@ -1,6 +1,4 @@
-pub mod ataxx;
 pub mod chess;
-pub mod shatranj;
 
 use datagen::to_slice_with_lifetime;
 

@@ -1,24 +1,24 @@
 use crate::{
-    games::GameRep,
+    chess::{ChessState, Move},
     mcts::{Limits, Searcher},
-    MctsParams, Tree,
+    MctsParams, PolicyNetwork, Tree, ValueNetwork,
 };
 
 use std::time::Instant;
 
-pub trait UciLike: Sized {
-    type Game: GameRep;
-    const NAME: &'static str;
-    const NEWGAME: &'static str;
-    const OK: &'static str;
-    const FEN_STRING: &'static str;
+pub struct Uci;
 
-    fn options();
+impl Uci {
+    const FEN_STRING: &'static str = include_str!("../resources/chess-fens.txt");
 
-    fn run(policy: &<Self::Game as GameRep>::Policy, value: &<Self::Game as GameRep>::Value) {
+    pub fn options() {
+        println!("option name UCI_Chess960 type check default false");
+    }
+
+    pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
         let mut prev = None;
-        let mut pos = Self::Game::default();
-        let mut params = Self::Game::default_mcts_params();
+        let mut pos = ChessState::default();
+        let mut params = MctsParams::default();
         let mut tree = Tree::new_mb(64);
         let mut report_moves = false;
 
@@ -52,7 +52,7 @@ pub trait UciLike: Sized {
                     tree = res.0;
                     prev = Some(res.1);
                 }
-                "perft" => run_perft::<Self::Game>(&commands, &pos),
+                "perft" => run_perft(&commands, &pos),
                 "quit" => std::process::exit(0),
                 "eval" => {
                     println!("cp: {}%", pos.get_value(value));
@@ -94,27 +94,21 @@ pub trait UciLike: Sized {
                     println!("filled {u}/{c} ({pct:.2}%)");
 
                     let depth = commands.get(1).unwrap_or(&"5").parse().unwrap_or(5);
-                    tree.display::<Self::Game>(tree.root_node(), depth);
+                    tree.display(tree.root_node(), depth);
                 }
                 "d" => pos.display(policy),
-                _ => {
-                    if cmd == Self::NAME {
-                        preamble::<Self>();
-                    } else if cmd == Self::NEWGAME {
-                        prev = None;
-                        tree.clear();
-                    }
+                "uci" => preamble(),
+                "ucinewgame" => {
+                    prev = None;
+                    tree.clear();
                 }
+                _ => {}
             }
         }
     }
 
-    fn bench(
-        depth: usize,
-        policy: &<Self::Game as GameRep>::Policy,
-        value: &<Self::Game as GameRep>::Value,
-    ) {
-        let params = Self::Game::default_mcts_params();
+    pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork) {
+        let params = MctsParams::default();
         let mut total_nodes = 0;
         let bench_fens = Self::FEN_STRING.split('\n').collect::<Vec<&str>>();
         let mut time = 0.0;
@@ -128,7 +122,7 @@ pub trait UciLike: Sized {
         let mut tree = Tree::new_mb(32);
 
         for fen in bench_fens {
-            let pos = Self::Game::from_fen(fen);
+            let pos = ChessState::from_fen(fen);
             let mut searcher = Searcher::new(pos, tree, params.clone(), policy, value);
             let timer = Instant::now();
             searcher.search(limits, false, &mut total_nodes, &None);
@@ -144,14 +138,14 @@ pub trait UciLike: Sized {
     }
 }
 
-fn preamble<T: UciLike>() {
+fn preamble() {
     println!("id name monty {}", env!("CARGO_PKG_VERSION"));
     println!("id author Jamie Whiting");
     println!("option name Hash type spin default 64 min 1 max 8192");
     println!("option name report_moves type button");
-    T::options();
-    MctsParams::info(T::Game::default_mcts_params());
-    println!("{}", T::OK);
+    Uci::options();
+    MctsParams::info(MctsParams::default());
+    println!("uciok");
 }
 
 fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool, tree: &mut Tree) {
@@ -177,7 +171,12 @@ fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool
     }
 }
 
-fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T, prev: &mut Option<T>, tree: &mut Tree) {
+fn position(
+    commands: Vec<&str>,
+    pos: &mut ChessState,
+    prev: &mut Option<ChessState>,
+    tree: &mut Tree,
+) {
     let mut fen = String::new();
     let mut move_list = Vec::new();
     let mut moves = false;
@@ -185,7 +184,7 @@ fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T, prev: &mut Option<T>, 
     for cmd in commands {
         match cmd {
             "position" | "fen" => {}
-            "startpos" => fen = T::STARTPOS.to_string(),
+            "startpos" => fen = ChessState::STARTPOS.to_string(),
             "moves" => moves = true,
             _ => {
                 if moves {
@@ -197,10 +196,10 @@ fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T, prev: &mut Option<T>, 
         }
     }
 
-    *pos = T::from_fen(&fen);
+    *pos = ChessState::from_fen(&fen);
 
     for &m in move_list.iter() {
-        let mut this_mov = T::Move::default();
+        let mut this_mov = Move::default();
 
         pos.map_legal_moves(|mov| {
             if m == pos.conv_mov_to_str(mov) {
@@ -216,16 +215,16 @@ fn position<T: GameRep>(commands: Vec<&str>, pos: &mut T, prev: &mut Option<T>, 
 }
 
 #[allow(clippy::too_many_arguments)]
-fn go<T: GameRep>(
+fn go(
     commands: &[&str],
     tree: Tree,
-    prev: Option<T>,
-    pos: &T,
+    prev: Option<ChessState>,
+    pos: &ChessState,
     params: &MctsParams,
     report_moves: bool,
-    policy: &T::Policy,
-    value: &T::Value,
-) -> (Tree, T) {
+    policy: &PolicyNetwork,
+    value: &ValueNetwork,
+) -> (Tree, ChessState) {
     let mut max_nodes = 10_000_000;
     let mut max_time = None;
     let mut max_depth = 256;
@@ -303,7 +302,7 @@ fn go<T: GameRep>(
     searcher.tree_and_board()
 }
 
-fn run_perft<T: GameRep>(commands: &[&str], pos: &T) {
+fn run_perft(commands: &[&str], pos: &ChessState) {
     let depth = commands[1].parse().unwrap();
     let root_pos = pos.clone();
     let now = Instant::now();

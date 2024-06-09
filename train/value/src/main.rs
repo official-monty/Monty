@@ -3,7 +3,7 @@ use bullet::{
     inputs, outputs, Activation, LocalSettings, Loss, LrScheduler, TrainerBuilder,
     TrainingSchedule, WdlScheduler,
 };
-use monty::chess::Board;
+use monty::Board;
 
 const HIDDEN_SIZE: usize = 512;
 

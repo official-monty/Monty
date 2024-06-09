@@ -1,4 +1,4 @@
-use crate::{games::GameState, pop_lsb};
+use crate::{pop_lsb, GameState};
 
 use super::{
     attacks::Attacks,
@@ -340,7 +340,7 @@ impl Board {
         let mut next = if mov.is_promo() {
             mov.promo_pc()
         } else {
-            self.get_pc(1 << mov.from())
+            self.get_pc(1 << mov.src())
         };
         let mut score = self.gain(mov) - threshold - SEE_VALS[next];
 
@@ -348,7 +348,7 @@ impl Board {
             return true;
         }
 
-        let mut occ = (self.bb[Side::WHITE] | self.bb[Side::BLACK]) ^ (1 << mov.from()) ^ (1 << sq);
+        let mut occ = (self.bb[Side::WHITE] | self.bb[Side::BLACK]) ^ (1 << mov.src()) ^ (1 << sq);
         if mov.is_en_passant() {
             occ ^= 1 << (sq ^ 8);
         }
@@ -413,7 +413,7 @@ impl Board {
         // extracting move info
         let side = usize::from(self.stm);
         let bb_to = 1 << mov.to();
-        let moved = self.get_pc(1 << mov.from());
+        let moved = self.get_pc(1 << mov.src());
         let captured = if !mov.is_capture() {
             Piece::EMPTY
         } else {
@@ -423,8 +423,7 @@ impl Board {
         // updating state
         self.stm = !self.stm;
         self.enp_sq = 0;
-        self.rights &=
-            castling.mask(usize::from(mov.to())) & castling.mask(usize::from(mov.from()));
+        self.rights &= castling.mask(usize::from(mov.to())) & castling.mask(usize::from(mov.src()));
         self.halfm += 1;
 
         if moved == Piece::PAWN || mov.is_capture() {
@@ -432,7 +431,7 @@ impl Board {
         }
 
         // move piece
-        self.toggle(side, moved, mov.from());
+        self.toggle(side, moved, mov.src());
         self.toggle(side, moved, mov.to());
 
         // captures

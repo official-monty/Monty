@@ -1,12 +1,9 @@
-use monty::{
-    chess::{PolicyNetwork, Uci, ValueNetwork},
-    UciLike,
-};
+use monty::{ChessState, PolicyNetwork, Uci, ValueNetwork};
 
 #[repr(C)]
 struct Nets(ValueNetwork, PolicyNetwork);
 
-const NETS: Nets = unsafe { std::mem::transmute(*include_bytes!("../../resources/net.network")) };
+const NETS: Nets = unsafe { std::mem::transmute(*include_bytes!("../resources/net.network")) };
 
 static VALUE: ValueNetwork = NETS.0;
 static POLICY: PolicyNetwork = NETS.1;
@@ -16,7 +13,7 @@ fn main() {
     let arg1 = args.nth(1);
 
     if let Some("bench") = arg1.as_deref() {
-        monty::chess::Uci::bench(5, &POLICY, &VALUE);
+        Uci::bench(ChessState::BENCH_DEPTH, &POLICY, &VALUE);
         return;
     }
 

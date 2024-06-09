@@ -7,7 +7,10 @@ use hash::{HashEntry, HashTable};
 pub use node::Node;
 use std::time::Instant;
 
-use crate::games::{GameRep, GameState};
+use crate::{
+    chess::{ChessState, Move},
+    GameState,
+};
 
 pub struct Tree {
     tree: Vec<Node>,
@@ -244,7 +247,7 @@ impl Tree {
         }
     }
 
-    pub fn try_use_subtree<T: GameRep>(&mut self, root: &T, prev_board: &Option<T>) {
+    pub fn try_use_subtree(&mut self, root: &ChessState, prev_board: &Option<ChessState>) {
         let t = Instant::now();
 
         if self.is_empty() {
@@ -287,7 +290,13 @@ impl Tree {
         );
     }
 
-    fn recurse_find<T: GameRep>(&self, start: i32, this_board: &T, board: &T, depth: u8) -> i32 {
+    fn recurse_find(
+        &self,
+        start: i32,
+        this_board: &ChessState,
+        board: &ChessState,
+        depth: u8,
+    ) -> i32 {
         if this_board.is_same(board) {
             return start;
         }
@@ -302,7 +311,7 @@ impl Tree {
             let child_idx = action.ptr();
             let mut child_board = this_board.clone();
 
-            child_board.make_move(T::Move::from(action.mov()));
+            child_board.make_move(Move::from(action.mov()));
 
             let found = self.recurse_find(child_idx, &child_board, board, depth - 1);
 
@@ -347,12 +356,12 @@ impl Tree {
         })
     }
 
-    pub fn display<T: GameRep>(&self, idx: i32, depth: usize) {
+    pub fn display(&self, idx: i32, depth: usize) {
         let mut bars = vec![true; depth + 1];
-        self.display_recurse::<T>(Edge::new(idx, 0, 0), depth + 1, 0, &mut bars);
+        self.display_recurse(Edge::new(idx, 0, 0), depth + 1, 0, &mut bars);
     }
 
-    fn display_recurse<T: GameRep>(&self, edge: Edge, depth: usize, ply: usize, bars: &mut [bool]) {
+    fn display_recurse(&self, edge: Edge, depth: usize, ply: usize, bars: &mut [bool]) {
         let node = &self[edge.ptr()];
 
         if depth == 0 {
@@ -379,7 +388,7 @@ impl Tree {
                 print!("\u{2514}\u{2500}> ");
             }
 
-            let mov = T::Move::from(edge.mov()).to_string();
+            let mov = Move::from(edge.mov()).to_string();
 
             println!(
                 "{mov} Q({:.2}%) N({}) P({:.2}%) S({})",
@@ -406,7 +415,7 @@ impl Tree {
                 bars[ply] = false;
             }
             if action.visits() > 0 {
-                self.display_recurse::<T>(action, depth - 1, ply + 1, bars);
+                self.display_recurse(action, depth - 1, ply + 1, bars);
             }
             bars[ply] = true;
         }

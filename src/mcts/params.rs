@@ -62,8 +62,8 @@ macro_rules! make_mcts_params {
 }
 
 make_mcts_params! {
-    root_pst: 1.0, 1.0, 10.0,
-    cpuct: 1.41, 0.1, 5.0,
-    cpuct_var_weight: 0.0, 0.0, 2.0,
-    cpuct_var_scale: 0.4, 0.0, 2.0,
+    root_pst: 4.0, 1.0, 10.0,
+    cpuct: 0.65, 0.1, 5.0,
+    cpuct_var_weight: 0.85, 0.0, 2.0,
+    cpuct_var_scale: 0.2, 0.0, 2.0,
 }

@@ -11,16 +11,10 @@ else
 endif
 
 chess:
-	cargo rustc --release --package monty --bin monty -- -C target-cpu=native --emit link=$(NAME)
-
-ataxx:
-	cargo rustc --release --package monty --bin montyxx -- -C target-cpu=native --emit link=$(NAME)
-
-shatranj:
-	cargo rustc --release --package monty --bin montyj -- -C target-cpu=native --emit link=$(NAME)
+	cargo rustc --release --bin monty -- -C target-cpu=native --emit link=$(NAME)
 
 gen:
-	cargo rustc --release --package datagen --bin monty -- -C target-cpu=native --emit link=$(NAME)
+	cargo rustc --release --package datagen --bin datagen -- -C target-cpu=native --emit link=$(NAME)
 
 release:
 	cargo rustc --release --bin monty -- --emit link=$(OLD)

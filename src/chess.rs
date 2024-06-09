@@ -3,47 +3,41 @@ mod board;
 mod consts;
 mod frc;
 mod moves;
-mod policy;
-mod value;
 
-use crate::{
-    comm::UciLike,
-    games::{GameRep, GameState},
-    MctsParams,
-};
+use crate::{PolicyNetwork, ValueNetwork};
 
-pub use self::{
-    board::Board,
-    frc::Castling,
-    moves::Move,
-    policy::{PolicyNetwork, SubNet},
-    value::ValueNetwork,
-};
+pub use self::{board::Board, frc::Castling, moves::Move};
 
 const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-pub struct Uci;
-impl UciLike for Uci {
-    const NAME: &'static str = "uci";
-    const NEWGAME: &'static str = "ucinewgame";
-    const OK: &'static str = "uciok";
-    const FEN_STRING: &'static str = include_str!("../../resources/chess-fens.txt");
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum GameState {
+    #[default]
+    Ongoing,
+    Lost(u8),
+    Draw,
+    Won(u8),
+}
 
-    type Game = Chess;
-
-    fn options() {
-        println!("option name UCI_Chess960 type check default false");
+impl std::fmt::Display for GameState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GameState::Ongoing => write!(f, "O"),
+            GameState::Lost(n) => write!(f, "L{n}"),
+            GameState::Won(n) => write!(f, "W{n}"),
+            GameState::Draw => write!(f, "D"),
+        }
     }
 }
 
 #[derive(Clone)]
-pub struct Chess {
+pub struct ChessState {
     board: Board,
     castling: Castling,
     stack: Vec<u64>,
 }
 
-impl Default for Chess {
+impl Default for ChessState {
     fn default() -> Self {
         let mut castling = Castling::default();
         let board = Board::parse_fen(STARTPOS, &mut castling);
@@ -56,7 +50,10 @@ impl Default for Chess {
     }
 }
 
-impl Chess {
+impl ChessState {
+    pub const STARTPOS: &'static str = STARTPOS;
+    pub const BENCH_DEPTH: usize = 5;
+
     pub fn bbs(&self) -> [u64; 8] {
         self.board.bbs()
     }
@@ -68,37 +65,16 @@ impl Chess {
     pub fn castling(&self) -> Castling {
         self.castling
     }
-}
 
-impl GameRep for Chess {
-    type Move = Move;
-    type PolicyInputs = (goober::SparseVector, u64);
-
-    type Policy = PolicyNetwork;
-    type Value = ValueNetwork;
-
-    const STARTPOS: &'static str = STARTPOS;
-
-    const MAX_MOVES: usize = 512;
-
-    fn default_mcts_params() -> MctsParams {
-        let mut params = MctsParams::default();
-        params.set("root_pst", 4.0);
-        params.set("cpuct", 0.65);
-        params.set("cpuct_var_weight", 0.85);
-        params.set("cpuct_var_scale", 0.2);
-        params
-    }
-
-    fn is_same(&self, other: &Self) -> bool {
+    pub fn is_same(&self, other: &Self) -> bool {
         self.board == other.board
     }
 
-    fn conv_mov_to_str(&self, mov: Self::Move) -> String {
+    pub fn conv_mov_to_str(&self, mov: Move) -> String {
         mov.to_uci(&self.castling)
     }
 
-    fn from_fen(fen: &str) -> Self {
+    pub fn from_fen(fen: &str) -> Self {
         let mut castling = Castling::default();
         let board = Board::parse_fen(fen, &mut castling);
 
@@ -109,19 +85,19 @@ impl GameRep for Chess {
         }
     }
 
-    fn map_legal_moves<F: FnMut(Self::Move)>(&self, f: F) {
+    pub fn map_legal_moves<F: FnMut(Move)>(&self, f: F) {
         self.board.map_legal_moves(&self.castling, f);
     }
 
-    fn game_state(&self) -> GameState {
+    pub fn game_state(&self) -> GameState {
         self.board.game_state(&self.castling, &self.stack)
     }
 
-    fn hash(&self) -> u64 {
+    pub fn hash(&self) -> u64 {
         self.board.hash()
     }
 
-    fn make_move(&mut self, mov: Self::Move) {
+    pub fn make_move(&mut self, mov: Move) {
         self.stack.push(self.board.hash());
         self.board.make(mov, &self.castling);
 
@@ -130,38 +106,42 @@ impl GameRep for Chess {
         }
     }
 
-    fn stm(&self) -> usize {
+    pub fn stm(&self) -> usize {
         self.board.stm()
     }
 
-    fn tm_stm(&self) -> usize {
+    pub fn tm_stm(&self) -> usize {
         self.stm()
     }
 
-    fn get_policy_feats(&self) -> Self::PolicyInputs {
+    pub fn get_policy_feats(&self) -> (goober::SparseVector, u64) {
         let mut feats = goober::SparseVector::with_capacity(32);
         self.board.map_policy_features(|feat| feats.push(feat));
         (feats, self.board.threats())
     }
 
-    fn get_policy(
+    pub fn get_policy(
         &self,
-        mov: Self::Move,
-        (feats, threats): &Self::PolicyInputs,
-        policy: &Self::Policy,
+        mov: Move,
+        (feats, threats): &(goober::SparseVector, u64),
+        policy: &PolicyNetwork,
     ) -> f32 {
         policy.get(&self.board, &mov, feats, *threats)
     }
 
-    fn get_value(&self, value: &Self::Value) -> i32 {
+    pub fn get_value(&self, value: &ValueNetwork) -> i32 {
         value.eval(&self.board)
     }
 
-    fn perft(&self, depth: usize) -> u64 {
+    pub fn get_value_wdl(&self, value: &ValueNetwork) -> f32 {
+        1.0 / (1.0 + (-(self.get_value(value) as f32) / 400.0).exp())
+    }
+
+    pub fn perft(&self, depth: usize) -> u64 {
         perft::<true, true>(&self.board, depth as u8, &self.castling)
     }
 
-    fn display(&self, policy: &PolicyNetwork) {
+    pub fn display(&self, policy: &PolicyNetwork) {
         let feats = self.get_policy_feats();
         let mut moves = Vec::new();
         let mut max = f32::NEG_INFINITY;
@@ -189,7 +169,7 @@ impl GameRep for Chess {
         let mut count = [0; 64];
 
         for &(mov, policy) in moves.iter() {
-            let fr = usize::from(mov.from());
+            let fr = usize::from(mov.src());
             let to = usize::from(mov.to());
 
             w[fr] = w[fr].max(policy);

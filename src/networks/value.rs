@@ -1,4 +1,4 @@
-use super::Board;
+use crate::Board;
 
 const SCALE: i32 = 400;
 

@@ -28,7 +28,7 @@ impl std::fmt::Display for Move {
 impl Move {
     pub const NULL: Move = Move { mov: 0 };
 
-    pub fn from(&self) -> u16 {
+    pub fn src(&self) -> u16 {
         self.mov >> 10
     }
 
@@ -77,7 +77,7 @@ impl Move {
             self.to()
         };
 
-        format!("{}{}{}", idx_to_sq(self.from()), idx_to_sq(to), promo)
+        format!("{}{}{}", idx_to_sq(self.src()), idx_to_sq(to), promo)
     }
 }
 

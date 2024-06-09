@@ -1,11 +1,11 @@
 use datagen::{PolicyData, Rand};
 use goober::{FeedForwardNetwork, OutputLayer, SparseVector, Vector};
-use monty::chess::{Board, Chess, Move, PolicyNetwork, SubNet};
+use monty::{Board, Move, PolicyNetwork, SubNet};
 
 use crate::TrainablePolicy;
 
 impl TrainablePolicy for PolicyNetwork {
-    type Data = PolicyData<Chess, 112>;
+    type Data = PolicyData;
 
     fn update(
         policy: &mut Self,
@@ -49,9 +49,9 @@ impl TrainablePolicy for PolicyNetwork {
         for &(mov, visits) in &pos.moves[..pos.num] {
             let mov = <Move as From<u16>>::from(mov);
 
-            let from = usize::from(mov.from() ^ flip);
+            let from = usize::from(mov.src() ^ flip);
             let to = 64 + usize::from(mov.to() ^ flip);
-            let from_threat = usize::from(threats & (1 << mov.from()) > 0);
+            let from_threat = usize::from(threats & (1 << mov.src()) > 0);
             let good_see = usize::from(board.see(&mov, -108));
 
             let from_out = policy.subnets[from][from_threat].out_with_layers(&feats);
@@ -75,9 +75,9 @@ impl TrainablePolicy for PolicyNetwork {
         }
 
         for (from_out, to_out, hce_out, mov, visits, score, good_see) in policies {
-            let from = usize::from(mov.from() ^ flip);
+            let from = usize::from(mov.src() ^ flip);
             let to = 64 + usize::from(mov.to() ^ flip);
-            let from_threat = usize::from(threats & (1 << mov.from()) > 0);
+            let from_threat = usize::from(threats & (1 << mov.src()) > 0);
             let hce_feats = PolicyNetwork::get_hce_feats(&board, &mov);
 
             let ratio = score / total;

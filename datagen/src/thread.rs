@@ -1,6 +1,8 @@
-use crate::{to_slice_with_lifetime, BinpackType, DatagenSupport, PolicyData, Rand};
+use crate::{to_slice_with_lifetime, Binpack, PolicyData, Rand};
 
-use monty::{GameState, Limits, MctsParams, Searcher, Tree};
+use monty::{
+    ChessState, GameState, Limits, MctsParams, PolicyNetwork, Searcher, Tree, ValueNetwork,
+};
 
 use std::{
     fs::File,
@@ -9,7 +11,7 @@ use std::{
     time::Instant,
 };
 
-pub struct DatagenThread<'a, T: DatagenSupport> {
+pub struct DatagenThread<'a> {
     id: u32,
     rng: Rand,
     params: MctsParams,
@@ -18,10 +20,9 @@ pub struct DatagenThread<'a, T: DatagenSupport> {
     timer: Instant,
     stop: &'a AtomicBool,
     book: Option<Vec<&'a str>>,
-    marker: std::marker::PhantomData<T>,
 }
 
-impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
+impl<'a> DatagenThread<'a> {
     pub fn new(
         id: u32,
         params: MctsParams,
@@ -37,16 +38,15 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
             timer: Instant::now(),
             stop,
             book,
-            marker: std::marker::PhantomData,
         }
     }
 
-    pub fn run<const MAX_MOVES: usize>(
+    pub fn run(
         &mut self,
         node_limit: usize,
         output_policy: bool,
-        policy: &T::Policy,
-        value: &T::Value,
+        policy: &PolicyNetwork,
+        value: &ValueNetwork,
     ) {
         let pout_path = format!("monty-policy-{}.data", self.rng.rand_int());
         let vout_path = format!("monty-value-{}.binpack", self.rng.rand_int());
@@ -67,7 +67,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
                 break;
             }
 
-            self.run_game::<MAX_MOVES>(node_limit, &mut pout, &mut vout, policy, value);
+            self.run_game(node_limit, &mut pout, &mut vout, policy, value);
 
             if self.total > prev + 1024 {
                 prev = self.total;
@@ -82,19 +82,19 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
         }
     }
 
-    fn run_game<const MAX_MOVES: usize>(
+    fn run_game(
         &mut self,
         node_limit: usize,
         pout: &mut Option<BufWriter<File>>,
         vout: &mut BufWriter<File>,
-        policy: &T::Policy,
-        value: &T::Value,
+        policy: &PolicyNetwork,
+        value: &ValueNetwork,
     ) {
         let mut position = if let Some(book) = &self.book {
             let idx = self.rng.rand_int() as usize % book.len();
-            T::from_fen(book[idx])
+            ChessState::from_fen(book[idx])
         } else {
-            T::from_fen(T::STARTPOS)
+            ChessState::from_fen(ChessState::STARTPOS)
         };
 
         // play 8 or 9 random moves
@@ -129,7 +129,7 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
 
         let mut tree = Tree::new_mb(8);
 
-        let mut game = T::Binpack::new(position.clone());
+        let mut game = Binpack::new(position.clone());
 
         // play out game
         loop {
@@ -146,8 +146,8 @@ impl<'a, T: DatagenSupport> DatagenThread<'a, T> {
             position.map_legal_moves(|_| root_count += 1);
 
             // disallow positions with >106 moves and moves when in check
-            if root_count <= MAX_MOVES {
-                let mut policy_pos = PolicyData::<T, MAX_MOVES>::new(position.clone(), bm, score);
+            if root_count <= 112 {
+                let mut policy_pos = PolicyData::new(position.clone(), bm, score);
 
                 for action in tree[tree.root_node()].actions() {
                     policy_pos.push(action.mov().into(), action.visits());
