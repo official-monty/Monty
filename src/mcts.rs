@@ -1,10 +1,11 @@
 mod helpers;
+mod params;
 
 use helpers::SearchHelpers;
+pub use params::MctsParams;
 
 use crate::{
     games::{GameRep, GameState},
-    params::MctsParams,
     tree::{Node, Tree},
 };
 

@@ -1,4 +1,4 @@
-use crate::{params::MctsParams, tree::Edge};
+use crate::{mcts::MctsParams, tree::Edge};
 
 pub struct SearchHelpers;
 
