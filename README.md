@@ -54,3 +54,16 @@ Instead, **selection** is done via PUCT, a combination of a **policy network** w
 and the PUCT formula to control exploration vs exploitation of these child nodes.
 
 And **simulation** is replaced with a neural network evaluation, called the **value network**.
+
+## Terms of use
+
+Monty is free and distributed under the [**GNU General Public License version 3**][license-link] (GPL v3). Essentially,
+this means you are free to do almost exactly what you want with the program, including distributing it among your friends, 
+making it available for download from your website, selling it (either by itself or as part of some bigger software package), 
+or using it as the starting point for a software project of your own.
+
+The only real limitation is that whenever you distribute Monty in some way, you MUST always include the license and the full 
+source code (or a pointer to where the source code can be found) to generate the exact binary you are distributing. If you make 
+any changes to the source code, these changes must also be made available under GPL v3.
+
+[license-link]:       https://github.com/official-monty/Monty/blob/master/Copying.txt
