@@ -161,8 +161,10 @@ impl<'a, T: GameRep> Searcher<'a, T> {
                 self.tree.edge_mut(ptr, action).set_ptr(child_ptr);
             }
 
+            let u = self.perform_one_iteration(pos, child_ptr, depth);
             child_state = self.tree[child_ptr].state();
-            self.perform_one_iteration(pos, child_ptr, depth)
+
+            u
         };
 
         // flip perspective of score
