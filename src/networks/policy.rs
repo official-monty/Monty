@@ -2,6 +2,9 @@ use crate::chess::{Board, Move};
 
 use goober::{activation, layer, FeedForwardNetwork, Matrix, SparseVector, Vector};
 
+// DO NOT MOVE
+// PolicyFileDefaultName nn-6b5dc1d7fff9.network
+
 #[repr(C)]
 #[derive(Clone, Copy, FeedForwardNetwork)]
 pub struct SubNet {

@@ -1,12 +1,9 @@
 use monty::{ChessState, PolicyNetwork, Uci, ValueNetwork};
 
-#[repr(C)]
-struct Nets(ValueNetwork, PolicyNetwork);
-
-const NETS: Nets = unsafe { std::mem::transmute(*include_bytes!("../resources/net.network")) };
-
-static VALUE: ValueNetwork = NETS.0;
-static POLICY: PolicyNetwork = NETS.1;
+static VALUE: ValueNetwork =
+    unsafe { std::mem::transmute(*include_bytes!("../resources/value.network")) };
+static POLICY: PolicyNetwork =
+    unsafe { std::mem::transmute(*include_bytes!("../resources/policy.network")) };
 
 fn main() {
     let mut args = std::env::args();

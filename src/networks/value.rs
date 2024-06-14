@@ -1,5 +1,8 @@
 use crate::Board;
 
+// DO NOT MOVE
+// ValueFileDefaultName nn-031bf2c50080.network
+
 const SCALE: i32 = 400;
 
 #[repr(C)]

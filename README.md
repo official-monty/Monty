@@ -10,11 +10,9 @@
 </div>
 
 ## Compiling
-You need a network file, and run the following command
 ```
-make <name of game (lowercase)> EXE=<output path> EVALFILE=<path to network file>
+make EXE=<output path> EVALFILE=<path to value network file> POLICYFILE=<path to policy network file>
 ```
-to compile monty for the given game (chess, ataxx, shatranj).
 
 ## Originality Status
 
