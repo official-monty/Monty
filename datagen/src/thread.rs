@@ -133,8 +133,15 @@ impl<'a> DatagenThread<'a> {
 
         // play out game
         loop {
-            let mut searcher =
-                Searcher::new(position.clone(), tree, self.params.clone(), policy, value);
+            let abort = AtomicBool::new(false);
+            let mut searcher = Searcher::new(
+                position.clone(),
+                tree,
+                self.params.clone(),
+                policy,
+                value,
+                &abort,
+            );
 
             let (bm, score) = searcher.search(limits, false, &mut 0, &None);
 

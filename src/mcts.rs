@@ -10,7 +10,10 @@ use crate::{
     ChessState, GameState, PolicyNetwork, ValueNetwork,
 };
 
-use std::time::Instant;
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
+};
 
 #[derive(Clone, Copy)]
 pub struct Limits {
@@ -25,6 +28,7 @@ pub struct Searcher<'a> {
     params: MctsParams,
     policy: &'a PolicyNetwork,
     value: &'a ValueNetwork,
+    abort: &'a AtomicBool,
 }
 
 impl<'a> Searcher<'a> {
@@ -34,6 +38,7 @@ impl<'a> Searcher<'a> {
         params: MctsParams,
         policy: &'a PolicyNetwork,
         value: &'a ValueNetwork,
+        abort: &'a AtomicBool,
     ) -> Self {
         Self {
             root_position,
@@ -41,6 +46,7 @@ impl<'a> Searcher<'a> {
             params,
             policy,
             value,
+            abort,
         }
     }
 
@@ -87,9 +93,15 @@ impl<'a> Searcher<'a> {
 
             nodes += 1;
 
-            if let Some(time) = limits.max_time {
-                if nodes % 128 == 0 && timer.elapsed().as_millis() >= time {
+            if nodes % 128 == 0 {
+                if self.abort.load(Ordering::Relaxed) {
                     break;
+                }
+
+                if let Some(time) = limits.max_time {
+                    if timer.elapsed().as_millis() >= time {
+                        break;
+                    }
                 }
             }
 

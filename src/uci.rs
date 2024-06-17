@@ -4,7 +4,11 @@ use crate::{
     MctsParams, PolicyNetwork, Tree, ValueNetwork,
 };
 
-use std::time::Instant;
+use std::{
+    io, process,
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
+};
 
 pub struct Uci;
 
@@ -22,13 +26,24 @@ impl Uci {
         let mut tree = Tree::new_mb(64);
         let mut report_moves = false;
 
-        loop {
-            let mut input = String::new();
-            let bytes_read = std::io::stdin().read_line(&mut input).unwrap();
+        let mut stored_message: Option<String> = None;
 
-            if bytes_read == 0 {
-                break;
-            }
+        loop {
+            let input = if let Some(msg) = stored_message {
+                msg.clone()
+            } else {
+                let mut input = String::new();
+                let bytes_read = io::stdin().read_line(&mut input).unwrap();
+
+                // got EOF, exit (for OpenBench).
+                if bytes_read == 0 {
+                    break;
+                }
+
+                input
+            };
+
+            stored_message = None;
 
             let commands = input.split_whitespace().collect::<Vec<_>>();
 
@@ -47,6 +62,7 @@ impl Uci {
                         report_moves,
                         policy,
                         value,
+                        &mut stored_message,
                     );
 
                     tree = res.0;
@@ -120,10 +136,11 @@ impl Uci {
         };
 
         let mut tree = Tree::new_mb(32);
+        let abort = AtomicBool::new(false);
 
         for fen in bench_fens {
             let pos = ChessState::from_fen(fen);
-            let mut searcher = Searcher::new(pos, tree, params.clone(), policy, value);
+            let mut searcher = Searcher::new(pos, tree, params.clone(), policy, value, &abort);
             let timer = Instant::now();
             searcher.search(limits, false, &mut total_nodes, &None);
             time += timer.elapsed().as_secs_f32();
@@ -224,8 +241,9 @@ fn go(
     report_moves: bool,
     policy: &PolicyNetwork,
     value: &ValueNetwork,
+    stored_message: &mut Option<String>,
 ) -> (Tree, ChessState) {
-    let mut max_nodes = 10_000_000;
+    let mut max_nodes = i32::MAX as usize;
     let mut max_time = None;
     let mut max_depth = 256;
 
@@ -283,7 +301,9 @@ fn go(
         *t = t.saturating_sub(5);
     }
 
-    let mut searcher = Searcher::new(pos.clone(), tree, params.clone(), policy, value);
+    let abort = AtomicBool::new(false);
+
+    let mut searcher = Searcher::new(pos.clone(), tree, params.clone(), policy, value, &abort);
 
     let limits = Limits {
         max_time: time,
@@ -291,13 +311,18 @@ fn go(
         max_nodes,
     };
 
-    let (mov, _) = searcher.search(limits, true, &mut 0, &prev);
+    std::thread::scope(|s| {
+        s.spawn(|| {
+            let (mov, _) = searcher.search(limits, true, &mut 0, &prev);
+            println!("bestmove {}", pos.conv_mov_to_str(mov));
 
-    println!("bestmove {}", pos.conv_mov_to_str(mov));
+            if report_moves {
+                searcher.display_moves();
+            }
+        });
 
-    if report_moves {
-        searcher.display_moves();
-    }
+        *stored_message = handle_search_input(&abort);
+    });
 
     searcher.tree_and_board()
 }
@@ -313,4 +338,26 @@ fn run_perft(commands: &[&str], pos: &ChessState) {
         time / 1000,
         count as f32 / time as f32
     );
+}
+
+fn handle_search_input(abort: &AtomicBool) -> Option<String> {
+    loop {
+        let mut input = String::new();
+        let bytes_read = io::stdin().read_line(&mut input).unwrap();
+
+        // got EOF, exit (for OpenBench).
+        if bytes_read == 0 {
+            process::exit(0);
+        }
+
+        match input.as_str().trim() {
+            "isready" => println!("readyok"),
+            "quit" => std::process::exit(0),
+            "stop" => {
+                abort.store(true, Ordering::Relaxed);
+                return None;
+            }
+            _ => return Some(input),
+        };
+    }
 }
