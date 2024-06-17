@@ -184,7 +184,7 @@ fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool
     if name == "Hash" {
         *tree = Tree::new_mb(val as usize);
     } else {
-        params.set(name, val as f32 / 100.0);
+        params.set(name, val);
     }
 }
 

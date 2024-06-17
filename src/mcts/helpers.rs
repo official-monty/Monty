@@ -8,7 +8,8 @@ impl SearchHelpers {
         let mut cpuct = params.cpuct();
 
         // scale CPUCT as visits increase
-        cpuct *= 1.0 + (((parent.visits() + 8192) / 8192) as f32).ln();
+        let scale = params.cpuct_visits_scale() * 128;
+        cpuct *= 1.0 + (((parent.visits() + scale) / scale) as f32).ln();
 
         // scale CPUCT with variance of Q
         if parent.visits() > 1 {
@@ -17,6 +18,10 @@ impl SearchHelpers {
         }
 
         cpuct
+    }
+
+    pub fn get_explore_scaling(params: &MctsParams, parent: &Edge) -> f32 {
+        (params.expl_tau() * (parent.visits().max(1) as f32).ln()).exp()
     }
 
     pub fn get_fpu(parent: &Edge) -> f32 {

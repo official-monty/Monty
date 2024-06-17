@@ -1,17 +1,33 @@
 #[derive(Clone)]
-struct Param {
-    val: f32,
-    min: f32,
-    max: f32,
+struct Param<T> {
+    val: T,
+    min: T,
+    max: T,
 }
 
-impl Param {
-    fn new(val: f32, min: f32, max: f32) -> Self {
+impl<T> Param<T> {
+    fn new(val: T, min: T, max: T) -> Self {
         Self { val, min, max }
     }
+}
 
-    fn set(&mut self, val: f32) {
+impl Param<i32> {
+    fn set(&mut self, val: i32) {
         self.val = val.clamp(self.min, self.max);
+    }
+
+    fn info(&self, name: &str) {
+        println!(
+            "option name {} type spin default {:.0} min {:.0} max {:.0}",
+            name, self.val, self.min, self.max,
+        );
+    }
+}
+
+impl Param<f32> {
+    fn set(&mut self, val: i32) {
+        let actual = val as f32 / 100.0;
+        self.val = actual.clamp(self.min, self.max);
     }
 
     fn info(&self, name: &str) {
@@ -26,10 +42,10 @@ impl Param {
 }
 
 macro_rules! make_mcts_params {
-    ($($name:ident: $val:expr, $min:expr, $max:expr,)*) => {
+    ($($name:ident: $t:ty = $val:expr, $min:expr, $max:expr,)*) => {
         #[derive(Clone)]
         pub struct MctsParams {
-            $($name: Param,)*
+            $($name: Param<$t>,)*
         }
 
         impl Default for MctsParams {
@@ -42,7 +58,7 @@ macro_rules! make_mcts_params {
 
         impl MctsParams {
         $(
-            pub fn $name(&self) -> f32 {
+            pub fn $name(&self) -> $t {
                 self.$name.val
             }
         )*
@@ -51,7 +67,7 @@ macro_rules! make_mcts_params {
                 $(self.$name.info(stringify!($name));)*
             }
 
-            pub fn set(&mut self, name: &str, val: f32) {
+            pub fn set(&mut self, name: &str, val: i32) {
                 match name {
                     $(stringify!($name) => self.$name.set(val),)*
                     _ => println!("unknown option!"),
@@ -62,8 +78,11 @@ macro_rules! make_mcts_params {
 }
 
 make_mcts_params! {
-    root_pst: 4.0, 1.0, 10.0,
-    cpuct: 0.65, 0.1, 5.0,
-    cpuct_var_weight: 0.85, 0.0, 2.0,
-    cpuct_var_scale: 0.2, 0.0, 2.0,
+    root_pst: f32 = 4.0, 1.0, 10.0,
+    root_cpuct: f32 = 0.65, 0.1, 5.0,
+    cpuct: f32 = 0.65, 0.1, 5.0,
+    cpuct_var_weight: f32 = 0.85, 0.0, 2.0,
+    cpuct_var_scale: f32 = 0.2, 0.0, 2.0,
+    cpuct_visits_scale: i32 = 64, 1, 512,
+    expl_tau: f32 = 0.5, 0.1, 1.0,
 }

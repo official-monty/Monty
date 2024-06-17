@@ -21,8 +21,9 @@ fn main() {
     let mut params = MctsParams::default();
 
     // value data params
-    params.set("root_pst", 2.62);
-    params.set("cpuct", 1.08);
+    params.set("root_pst", 262);
+    params.set("root_cpuct", 108);
+    params.set("cpuct", 108);
 
     run_datagen(
         params, 5_000, threads, policy, "Chess", &POLICY, &VALUE, book,
