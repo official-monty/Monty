@@ -26,12 +26,7 @@ impl Param<i32> {
     fn list(&self, name: &str, step: i32, r: f32) {
         println!(
             "{}, {}, {}, {}, {}, {}",
-            name,
-            self.val,
-            self.min,
-            self.max,
-            step,
-            r,
+            name, self.val, self.min, self.max, step, r,
         );
     }
 }
