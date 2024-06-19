@@ -113,6 +113,7 @@ impl Uci {
                     tree.display(tree.root_node(), depth);
                 }
                 "d" => pos.display(policy),
+                "params" => params.list_spsa(),
                 "uci" => preamble(),
                 "ucinewgame" => {
                     prev = None;
