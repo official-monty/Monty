@@ -3,9 +3,13 @@ use crate::{mcts::MctsParams, tree::Edge};
 pub struct SearchHelpers;
 
 impl SearchHelpers {
-    pub fn get_cpuct(params: &MctsParams, parent: &Edge) -> f32 {
+    pub fn get_cpuct(params: &MctsParams, parent: &Edge, is_root: bool) -> f32 {
         // baseline CPUCT value
-        let mut cpuct = params.cpuct();
+        let mut cpuct = if is_root {
+            params.root_cpuct()
+        } else {
+            params.cpuct()
+        };
 
         // scale CPUCT as visits increase
         let scale = params.cpuct_visits_scale() * 128;
