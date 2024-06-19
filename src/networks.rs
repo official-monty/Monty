@@ -1,5 +1,5 @@
 mod policy;
 mod value;
 
-pub use policy::{PolicyNetwork, SubNet};
-pub use value::ValueNetwork;
+pub use policy::{PolicyNetwork, SubNet, PolicyFileDefaultName};
+pub use value::{ValueNetwork, ValueFileDefaultName};

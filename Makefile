@@ -13,6 +13,9 @@ endif
 chess:
 	cargo rustc --release --bin monty -- -C target-cpu=native --emit link=$(NAME)
 
+montytest:
+	cargo rustc --release --bin monty --features=nonet -- -C target-cpu=native --emit link=$(NAME)
+
 gen:
 	cargo rustc --release --package datagen --bin datagen -- -C target-cpu=native --emit link=$(NAME)
 
