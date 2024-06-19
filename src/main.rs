@@ -1,4 +1,3 @@
-
 fn main() {
     #[cfg(not(feature = "nonet"))]
     net::run();
@@ -12,7 +11,7 @@ mod net {
     use monty::{ChessState, PolicyNetwork, Uci, ValueNetwork};
 
     static VALUE: ValueNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../resources/value.network")) };
+        unsafe { std::mem::transmute(*include_bytes!("../resources/value.network")) };
     static POLICY: PolicyNetwork =
         unsafe { std::mem::transmute(*include_bytes!("../resources/policy.network")) };
 
@@ -53,13 +52,9 @@ mod nonet {
         let mut args = std::env::args();
         let arg1 = args.nth(1);
 
-        let policy = unsafe {
-            read_into_struct_unchecked(monty::PolicyFileDefaultName)
-        };
+        let policy = unsafe { read_into_struct_unchecked(monty::PolicyFileDefaultName) };
 
-        let value = unsafe {
-            read_into_struct_unchecked(monty::ValueFileDefaultName)
-        };
+        let value = unsafe { read_into_struct_unchecked(monty::ValueFileDefaultName) };
 
         if let Some("bench") = arg1.as_deref() {
             Uci::bench(ChessState::BENCH_DEPTH, &policy, &value);
