@@ -22,6 +22,18 @@ impl Param<i32> {
             name, self.val, self.min, self.max,
         );
     }
+
+    fn list(&self, name: &str, step: i32, r: f32) {
+        println!(
+            "{}, {}, {}, {}, {}, {}",
+            name,
+            self.val,
+            self.min,
+            self.max,
+            step,
+            r,
+        );
+    }
 }
 
 impl Param<f32> {
@@ -39,10 +51,22 @@ impl Param<f32> {
             self.max * 100.0,
         );
     }
+
+    fn list(&self, name: &str, step: f32, r: f32) {
+        println!(
+            "{}, {}, {}, {}, {}, {}",
+            name,
+            self.val * 100.0,
+            self.min * 100.0,
+            self.max * 100.0,
+            step * 100.0,
+            r,
+        );
+    }
 }
 
 macro_rules! make_mcts_params {
-    ($($name:ident: $t:ty = $val:expr, $min:expr, $max:expr,)*) => {
+    ($($name:ident: $t:ty = $val:expr, $min:expr, $max:expr, $step:expr, $r:expr;)*) => {
         #[derive(Clone)]
         pub struct MctsParams {
             $($name: Param<$t>,)*
@@ -73,16 +97,20 @@ macro_rules! make_mcts_params {
                     _ => println!("unknown option!"),
                 }
             }
+
+            pub fn list_spsa(&self) {
+                $(self.$name.list(stringify!($name), $step, $r);)*
+            }
         }
     };
 }
 
 make_mcts_params! {
-    root_pst: f32 = 4.0, 1.0, 10.0,
-    root_cpuct: f32 = 0.65, 0.1, 5.0,
-    cpuct: f32 = 0.65, 0.1, 5.0,
-    cpuct_var_weight: f32 = 0.85, 0.0, 2.0,
-    cpuct_var_scale: f32 = 0.2, 0.0, 2.0,
-    cpuct_visits_scale: i32 = 64, 1, 512,
-    expl_tau: f32 = 0.5, 0.1, 1.0,
+    root_pst: f32 = 4.0, 1.0, 10.0, 0.2, 0.002;
+    root_cpuct: f32 = 0.65, 0.1, 5.0, 0.1, 0.002;
+    cpuct: f32 = 0.65, 0.1, 5.0, 0.1, 0.002;
+    cpuct_var_weight: f32 = 0.85, 0.0, 2.0, 0.1, 0.002;
+    cpuct_var_scale: f32 = 0.2, 0.0, 2.0, 0.05, 0.002;
+    cpuct_visits_scale: i32 = 64, 1, 512, 4, 0.002;
+    expl_tau: f32 = 0.5, 0.1, 1.0, 0.05, 0.002;
 }
