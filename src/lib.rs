@@ -46,3 +46,21 @@ pub unsafe fn boxed_and_zeroed<T>() -> Box<T> {
         Box::from_raw(ptr.cast())
     }
 }
+
+/// # Safety
+/// Only to be used internally.
+pub unsafe fn read_into_struct_unchecked<T>(path: &str) -> Box<T> {
+    use std::io::Read;
+
+    let mut f = std::fs::File::open(path).unwrap();
+    let mut x: Box<T> = boxed_and_zeroed();
+
+    let size = std::mem::size_of::<T>();
+
+    unsafe {
+        let slice = std::slice::from_raw_parts_mut(x.as_mut() as *mut T as *mut u8, size);
+        f.read_exact(slice).unwrap();
+    }
+
+    x
+}

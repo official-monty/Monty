@@ -30,23 +30,7 @@ mod net {
 
 #[cfg(feature = "nonet")]
 mod nonet {
-    use std::{fs::File, io::Read};
-
-    use monty::{ChessState, Uci};
-
-    unsafe fn read_into_struct_unchecked<T>(path: &str) -> Box<T> {
-        let mut f = File::open(path).unwrap();
-        let mut x: Box<T> = monty::boxed_and_zeroed();
-
-        let size = std::mem::size_of::<T>();
-
-        unsafe {
-            let slice = std::slice::from_raw_parts_mut(x.as_mut() as *mut T as *mut u8, size);
-            f.read_exact(slice).unwrap();
-        }
-
-        x
-    }
+    use monty::{read_into_struct_unchecked, ChessState, Uci};
 
     pub fn run() {
         let mut args = std::env::args();
