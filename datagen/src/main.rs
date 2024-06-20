@@ -1,5 +1,5 @@
 use datagen::{parse_args, run_datagen};
-use monty::{ChessState, MctsParams, Uci, read_into_struct_unchecked};
+use monty::{read_into_struct_unchecked, ChessState, MctsParams, Uci};
 
 fn main() {
     let args = std::env::args();

@@ -13,7 +13,7 @@ use std::{
 pub struct Uci;
 
 impl Uci {
-    const FEN_STRING: &'static str = include_str!("../resources/chess-fens.txt");
+    const FEN_STRING: &'static str = include_str!("../resources/bench.txt");
 
     pub fn options() {
         println!("option name UCI_Chess960 type check default false");

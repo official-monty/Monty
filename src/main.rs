@@ -30,7 +30,7 @@ mod net {
 
 #[cfg(feature = "nonet")]
 mod nonet {
-    use monty::{ChessState, Uci, read_into_struct_unchecked};
+    use monty::{read_into_struct_unchecked, ChessState, Uci};
 
     pub fn run() {
         let mut args = std::env::args();
