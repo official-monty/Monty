@@ -32,34 +32,28 @@ pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {
 #[allow(clippy::too_many_arguments)]
 pub fn run_datagen(
     params: MctsParams,
-    nodes: usize,
-    threads: usize,
-    use_policy: bool,
-    name: &str,
+    opts: RunOptions,
     policy: &PolicyNetwork,
     value: &ValueNetwork,
-    book: Option<String>,
 ) {
-    println!("Generating: {name}");
-
     let stop_base = AtomicBool::new(false);
     let stop = &stop_base;
 
     let mut buf = String::new();
 
-    let book = book.map(|path| {
+    let book = opts.book.map(|path| {
         File::open(path).unwrap().read_to_string(&mut buf).unwrap();
         buf.split('\n').collect::<Vec<&str>>()
     });
 
     std::thread::scope(|s| {
-        for i in 0..threads {
+        for i in 0..opts.threads {
             let params = params.clone();
             std::thread::sleep(Duration::from_millis(10));
             let this_book = book.clone();
             s.spawn(move || {
                 let mut thread = DatagenThread::new(i as u32, params.clone(), stop, this_book);
-                thread.run(nodes, use_policy, policy, value);
+                thread.run(opts.nodes, opts.policy_data, policy, value);
             });
         }
 
@@ -75,27 +69,38 @@ pub fn run_datagen(
     });
 }
 
-pub fn parse_args(mut args: Args) -> (usize, Option<String>, bool) {
+#[derive(Default)]
+pub struct RunOptions {
+    threads: usize,
+    book: Option<String>,
+    policy_data: bool,
+    nodes: usize,
+}
+
+pub fn parse_args(mut args: Args) -> RunOptions {
     args.next();
 
-    let mut threads = None;
-    let mut policy = false;
-    let mut book = None;
+    let mut opts = RunOptions::default();
 
     let mut mode = 0;
 
     for arg in args {
         match arg.as_str() {
-            "--policy" => policy = true,
+            "--policy-data" => opts.policy_data = true,
             "--threads" => mode = 1,
             "--book" => mode = 2,
+            "--nodes" => mode = 3,
             _ => match mode {
                 1 => {
-                    threads = Some(arg.parse().expect("can't parse"));
+                    opts.threads = arg.parse().expect("can't parse");
                     mode = 0;
                 }
                 2 => {
-                    book = Some(arg);
+                    opts.book = Some(arg);
+                    mode = 0;
+                }
+                3 => {
+                    opts.nodes = arg.parse().expect("can't parse");
                     mode = 0;
                 }
                 _ => println!("unrecognised argument {arg}"),
@@ -103,5 +108,5 @@ pub fn parse_args(mut args: Args) -> (usize, Option<String>, bool) {
         }
     }
 
-    (threads.expect("must pass thread count!"), book, policy)
+    opts
 }

@@ -1,22 +1,14 @@
 use datagen::{parse_args, run_datagen};
-use monty::{ChessState, MctsParams, PolicyNetwork, Uci, ValueNetwork};
-
-static VALUE: ValueNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/value.network")) };
-static POLICY: PolicyNetwork =
-    unsafe { std::mem::transmute(*include_bytes!("../../resources/policy.network")) };
+use monty::{ChessState, MctsParams, Uci, read_into_struct_unchecked};
 
 fn main() {
     let args = std::env::args();
-    let (threads, book, policy) = parse_args(args);
+    let opts = parse_args(args);
 
-    Uci::bench(ChessState::BENCH_DEPTH, &POLICY, &VALUE);
+    let policy = unsafe { read_into_struct_unchecked(monty::PolicyFileDefaultName) };
+    let value = unsafe { read_into_struct_unchecked(monty::ValueFileDefaultName) };
 
-    if let Some(path) = &book {
-        println!("Using book: {path}")
-    } else {
-        println!("Not using a book.")
-    }
+    Uci::bench(ChessState::BENCH_DEPTH, &policy, &value);
 
     let mut params = MctsParams::default();
 
@@ -25,7 +17,5 @@ fn main() {
     params.set("root_cpuct", 108);
     params.set("cpuct", 108);
 
-    run_datagen(
-        params, 5_000, threads, policy, "Chess", &POLICY, &VALUE, book,
-    );
+    run_datagen(params, opts, &policy, &value);
 }
