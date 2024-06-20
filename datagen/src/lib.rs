@@ -36,6 +36,8 @@ pub fn run_datagen(
     policy: &PolicyNetwork,
     value: &ValueNetwork,
 ) {
+    println!("{opts:#?}");
+
     let stop_base = AtomicBool::new(false);
     let stop = &stop_base;
 
@@ -69,7 +71,7 @@ pub fn run_datagen(
     });
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct RunOptions {
     threads: usize,
     book: Option<String>,
@@ -77,15 +79,14 @@ pub struct RunOptions {
     nodes: usize,
 }
 
-pub fn parse_args(mut args: Args) -> RunOptions {
-    args.next();
-
+pub fn parse_args(args: Args) -> Option<RunOptions> {
     let mut opts = RunOptions::default();
 
     let mut mode = 0;
 
     for arg in args {
         match arg.as_str() {
+            "bench" => return None,
             "--policy-data" => opts.policy_data = true,
             "--threads" => mode = 1,
             "--book" => mode = 2,
@@ -108,5 +109,5 @@ pub fn parse_args(mut args: Args) -> RunOptions {
         }
     }
 
-    opts
+    Some(opts)
 }

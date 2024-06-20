@@ -2,13 +2,11 @@ use datagen::{parse_args, run_datagen};
 use monty::{read_into_struct_unchecked, ChessState, MctsParams, Uci};
 
 fn main() {
-    let args = std::env::args();
-    let opts = parse_args(args);
+    let mut args = std::env::args();
+    args.next();
 
     let policy = unsafe { read_into_struct_unchecked(monty::PolicyFileDefaultName) };
     let value = unsafe { read_into_struct_unchecked(monty::ValueFileDefaultName) };
-
-    Uci::bench(ChessState::BENCH_DEPTH, &policy, &value);
 
     let mut params = MctsParams::default();
 
@@ -17,5 +15,9 @@ fn main() {
     params.set("root_cpuct", 108);
     params.set("cpuct", 108);
 
-    run_datagen(params, opts, &policy, &value);
+    if let Some(opts) = parse_args(args) {
+        run_datagen(params, opts, &policy, &value);
+    } else {
+        Uci::bench(ChessState::BENCH_DEPTH, &policy, &value);
+    }
 }
