@@ -5,10 +5,7 @@ use monty::{
 };
 
 use std::{
-    fs::File,
-    io::{BufWriter, Write},
-    sync::atomic::{AtomicBool, Ordering},
-    time::Instant,
+    fs::File, io::{BufWriter, Write}, sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex}, time::Instant
 };
 
 pub struct DatagenThread<'a> {
@@ -18,6 +15,7 @@ pub struct DatagenThread<'a> {
     skipped: usize,
     total: usize,
     timer: Instant,
+    vout: Arc<Mutex<BufWriter<File>>>,
     stop: &'a AtomicBool,
     book: Option<Vec<&'a str>>,
 }
@@ -28,6 +26,7 @@ impl<'a> DatagenThread<'a> {
         params: MctsParams,
         stop: &'a AtomicBool,
         book: Option<Vec<&'a str>>,
+        vout: Arc<Mutex<BufWriter<File>>>,
     ) -> Self {
         Self {
             id,
@@ -36,6 +35,7 @@ impl<'a> DatagenThread<'a> {
             skipped: 0,
             total: 0,
             timer: Instant::now(),
+            vout,
             stop,
             book,
         }
@@ -49,9 +49,6 @@ impl<'a> DatagenThread<'a> {
         value: &ValueNetwork,
     ) {
         let pout_path = format!("monty-policy-{}.data", self.rng.rand_int());
-        let vout_path = format!("monty-value-{}.binpack", self.rng.rand_int());
-        let mut vout =
-            BufWriter::new(File::create(vout_path.as_str()).expect("Provide a correct path!"));
         let mut pout = if output_policy {
             Some(BufWriter::new(
                 File::create(pout_path.as_str()).expect("Provide a correct path!"),
@@ -67,7 +64,7 @@ impl<'a> DatagenThread<'a> {
                 break;
             }
 
-            self.run_game(node_limit, &mut pout, &mut vout, policy, value);
+            self.run_game(node_limit, &mut pout, policy, value);
 
             if self.total > prev + 1024 {
                 prev = self.total;
@@ -86,7 +83,6 @@ impl<'a> DatagenThread<'a> {
         &mut self,
         node_limit: usize,
         pout: &mut Option<BufWriter<File>>,
-        vout: &mut BufWriter<File>,
         policy: &PolicyNetwork,
         value: &ValueNetwork,
     ) {
@@ -202,6 +198,9 @@ impl<'a> DatagenThread<'a> {
         }
 
         game.set_result(result);
+
+        let mut v = self.vout.lock().unwrap();
+        let vout = v.by_ref();
         game.serialise_into(vout).unwrap();
     }
 }
