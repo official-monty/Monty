@@ -5,7 +5,13 @@ use monty::{
 };
 
 use std::{
-    fs::File, io::{BufWriter, Write}, sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex}, time::Instant
+    fs::File,
+    io::{BufWriter, Write},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
+    time::Instant,
 };
 
 pub struct DatagenThread<'a> {

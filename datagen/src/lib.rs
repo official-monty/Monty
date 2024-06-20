@@ -12,7 +12,10 @@ use std::{
     env::Args,
     fs::File,
     io::{BufWriter, Read},
-    sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     time::Duration,
 };
 
@@ -59,7 +62,8 @@ pub fn run_datagen(
             let this_book = book.clone();
             let this_vout = vout.clone();
             s.spawn(move || {
-                let mut thread = DatagenThread::new(i as u32, params.clone(), stop, this_book, this_vout);
+                let mut thread =
+                    DatagenThread::new(i as u32, params.clone(), stop, this_book, this_vout);
                 thread.run(opts.nodes, opts.policy_data, policy, value);
             });
         }
