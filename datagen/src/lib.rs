@@ -63,10 +63,7 @@ impl Destination {
     pub fn report(&self) {
         println!(
             "finished games {} losses {} draws {} wins {}",
-            self.games,
-            self.results[0],
-            self.results[1],
-            self.results[2],
+            self.games, self.results[0], self.results[1], self.results[2],
         )
     }
 }
@@ -108,12 +105,7 @@ pub fn run_datagen(
             let this_book = book.clone();
             let this_dest = dest_mutex.clone();
             s.spawn(move || {
-                let mut thread = DatagenThread::new(
-                    params.clone(),
-                    stop,
-                    this_book,
-                    this_dest,
-                );
+                let mut thread = DatagenThread::new(params.clone(), stop, this_book, this_dest);
                 thread.run(opts.nodes, opts.policy_data, policy, value);
             });
         }
