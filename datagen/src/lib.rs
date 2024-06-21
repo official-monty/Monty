@@ -95,7 +95,7 @@ pub fn run_datagen(
 
     let book = opts.book.map(|path| {
         File::open(path).unwrap().read_to_string(&mut buf).unwrap();
-        buf.split('\n').collect::<Vec<&str>>()
+        buf.trim().split('\n').collect::<Vec<&str>>()
     });
 
     std::thread::scope(|s| {
