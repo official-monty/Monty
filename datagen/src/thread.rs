@@ -1,4 +1,4 @@
-use crate::{to_slice_with_lifetime, Binpack, PolicyData, Rand};
+use crate::{to_slice_with_lifetime, Binpack, Destination, PolicyData, Rand};
 
 use monty::{
     ChessState, GameState, Limits, MctsParams, PolicyNetwork, Searcher, Tree, ValueNetwork,
@@ -11,37 +11,27 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
-    time::Instant,
 };
 
 pub struct DatagenThread<'a> {
-    id: u32,
     rng: Rand,
     params: MctsParams,
-    skipped: usize,
-    total: usize,
-    timer: Instant,
-    vout: Arc<Mutex<BufWriter<File>>>,
+    dest: Arc<Mutex<Destination>>,
     stop: &'a AtomicBool,
     book: Option<Vec<&'a str>>,
 }
 
 impl<'a> DatagenThread<'a> {
     pub fn new(
-        id: u32,
         params: MctsParams,
         stop: &'a AtomicBool,
         book: Option<Vec<&'a str>>,
-        vout: Arc<Mutex<BufWriter<File>>>,
+        dest: Arc<Mutex<Destination>>,
     ) -> Self {
         Self {
-            id,
             rng: Rand::with_seed(),
             params,
-            skipped: 0,
-            total: 0,
-            timer: Instant::now(),
-            vout,
+            dest,
             stop,
             book,
         }
@@ -63,25 +53,12 @@ impl<'a> DatagenThread<'a> {
             None
         };
 
-        let mut prev = 0;
-
         loop {
             if self.stop.load(Ordering::Relaxed) {
                 break;
             }
 
             self.run_game(node_limit, &mut pout, policy, value);
-
-            if self.total > prev + 1024 {
-                prev = self.total;
-                println!(
-                    "thread {} count {} skipped {} pos/sec {:.2}",
-                    self.id,
-                    self.total,
-                    self.skipped,
-                    self.total as f32 / self.timer.elapsed().as_secs_f32()
-                );
-            }
         }
     }
 
@@ -135,6 +112,10 @@ impl<'a> DatagenThread<'a> {
 
         // play out game
         loop {
+            if self.stop.load(Ordering::Relaxed) {
+                return;
+            }
+
             let abort = AtomicBool::new(false);
             let mut searcher = Searcher::new(
                 position.clone(),
@@ -163,9 +144,6 @@ impl<'a> DatagenThread<'a> {
                 }
 
                 records.push(policy_pos);
-                self.total += 1;
-            } else {
-                self.skipped += 1;
             }
 
             position.make_move(bm);
@@ -205,9 +183,12 @@ impl<'a> DatagenThread<'a> {
 
         game.set_result(result);
 
-        let mut v = self.vout.lock().unwrap();
-        let vout = v.by_ref();
-        game.serialise_into(vout).unwrap();
+        if self.stop.load(Ordering::Relaxed) {
+            return;
+        }
+
+        let mut dest = self.dest.lock().unwrap();
+        dest.push(&game, self.stop);
     }
 }
 
