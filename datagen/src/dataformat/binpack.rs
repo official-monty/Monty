@@ -21,6 +21,10 @@ impl Binpack {
         self.result = (2.0 * result) as u8;
     }
 
+    pub fn result(&self) -> u8 {
+        self.result
+    }
+
     pub fn push(&mut self, stm: usize, best_move: Move, mut score: f32) {
         if stm == 1 {
             score = 1.0 - score;

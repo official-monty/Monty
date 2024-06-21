@@ -32,6 +32,42 @@ pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {
     unsafe { std::slice::from_raw_parts(slice.as_ptr().cast(), len) }
 }
 
+pub struct Destination {
+    writer: BufWriter<File>,
+    games: usize,
+    limit: usize,
+    results: [usize; 3],
+}
+
+impl Destination {
+    pub fn push(&mut self, game: &Binpack, stop: &AtomicBool) {
+        if stop.load(Ordering::SeqCst) {
+            return;
+        }
+
+        let result = usize::from(game.result());
+        self.results[result] += 1;
+        self.games += 1;
+        game.serialise_into(&mut self.writer).unwrap();
+
+        if self.games >= self.limit {
+            stop.store(true, Ordering::SeqCst);
+            return;
+        }
+
+        if self.games % 32 == 0 {
+            self.report();
+        }
+    }
+
+    pub fn report(&self) {
+        println!(
+            "finished games {} losses {} draws {} wins {}",
+            self.games, self.results[0], self.results[1], self.results[2],
+        )
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn run_datagen(
     params: MctsParams,
@@ -48,7 +84,14 @@ pub fn run_datagen(
 
     let vout = File::create(opts.out_path.as_str()).unwrap();
     let vout = BufWriter::new(vout);
-    let vout = Arc::new(Mutex::new(vout));
+    let dest = Destination {
+        writer: vout,
+        games: 0,
+        limit: opts.games,
+        results: [0; 3],
+    };
+
+    let dest_mutex = Arc::new(Mutex::new(dest));
 
     let book = opts.book.map(|path| {
         File::open(path).unwrap().read_to_string(&mut buf).unwrap();
@@ -56,32 +99,26 @@ pub fn run_datagen(
     });
 
     std::thread::scope(|s| {
-        for i in 0..opts.threads {
+        for _ in 0..opts.threads {
             let params = params.clone();
             std::thread::sleep(Duration::from_millis(10));
             let this_book = book.clone();
-            let this_vout = vout.clone();
+            let this_dest = dest_mutex.clone();
             s.spawn(move || {
-                let mut thread =
-                    DatagenThread::new(i as u32, params.clone(), stop, this_book, this_vout);
+                let mut thread = DatagenThread::new(params.clone(), stop, this_book, this_dest);
                 thread.run(opts.nodes, opts.policy_data, policy, value);
             });
         }
-
-        loop {
-            let mut input = String::new();
-            std::io::stdin().read_line(&mut input).unwrap();
-            let commands = input.split_whitespace().collect::<Vec<_>>();
-            if let Some(&"stop") = commands.first() {
-                stop.store(true, Ordering::Relaxed);
-                break;
-            }
-        }
     });
+
+    let dest = dest_mutex.lock().unwrap();
+
+    dest.report();
 }
 
 #[derive(Debug, Default)]
 pub struct RunOptions {
+    games: usize,
     threads: usize,
     book: Option<String>,
     policy_data: bool,
@@ -102,6 +139,7 @@ pub fn parse_args(args: Args) -> Option<RunOptions> {
             "-b" | "--book" => mode = 2,
             "-n" | "--nodes" => mode = 3,
             "-o" | "--output" => mode = 4,
+            "-g" | "--games" => mode = 5,
             _ => match mode {
                 1 => {
                     opts.threads = arg.parse().expect("can't parse");
@@ -117,6 +155,10 @@ pub fn parse_args(args: Args) -> Option<RunOptions> {
                 }
                 4 => {
                     opts.out_path = arg;
+                    mode = 0;
+                }
+                5 => {
+                    opts.games = arg.parse().expect("can't parse");
                     mode = 0;
                 }
                 _ => println!("unrecognised argument {arg}"),
