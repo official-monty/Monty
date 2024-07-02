@@ -106,6 +106,6 @@ make_mcts_params! {
     cpuct: f32 = 0.65, 0.1, 5.0, 0.1, 0.002;
     cpuct_var_weight: f32 = 0.85, 0.0, 2.0, 0.1, 0.002;
     cpuct_var_scale: f32 = 0.2, 0.0, 2.0, 0.05, 0.002;
-    cpuct_visits_scale: i32 = 64, 1, 512, 4, 0.002;
+    cpuct_visits_scale: i32 = 32, 1, 512, 4, 0.002;
     expl_tau: f32 = 0.5, 0.1, 1.0, 0.05, 0.002;
 }
