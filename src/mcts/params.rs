@@ -33,7 +33,7 @@ impl Param<i32> {
 
 impl Param<f32> {
     fn set(&mut self, val: i32) {
-        let actual = val as f32 / 100.0;
+        let actual = val as f32 / 1000.0;
         self.val = actual.clamp(self.min, self.max);
     }
 
@@ -41,9 +41,9 @@ impl Param<f32> {
         println!(
             "option name {} type spin default {:.0} min {:.0} max {:.0}",
             name,
-            self.val * 100.0,
-            self.min * 100.0,
-            self.max * 100.0,
+            self.val * 1000.0,
+            self.min * 1000.0,
+            self.max * 1000.0,
         );
     }
 
@@ -51,10 +51,10 @@ impl Param<f32> {
         println!(
             "{}, {}, {}, {}, {}, {}",
             name,
-            self.val * 100.0,
-            self.min * 100.0,
-            self.max * 100.0,
-            step * 100.0,
+            self.val * 1000.0,
+            self.min * 1000.0,
+            self.max * 1000.0,
+            step * 1000.0,
             r,
         );
     }
