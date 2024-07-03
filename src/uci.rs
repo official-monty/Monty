@@ -297,9 +297,9 @@ fn go(
         time = Some(time.unwrap_or(u128::MAX).min(max));
     }
 
-    // 5ms move overhead
+    // 10ms move overhead
     if let Some(t) = time.as_mut() {
-        *t = t.saturating_sub(5);
+        *t = t.saturating_sub(10);
     }
 
     let abort = AtomicBool::new(false);
