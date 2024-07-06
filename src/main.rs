@@ -1,12 +1,12 @@
 fn main() {
-    #[cfg(not(feature = "nonet"))]
+    #[cfg(feature = "embed")]
     net::run();
 
-    #[cfg(feature = "nonet")]
+    #[cfg(not(feature = "embed"))]
     nonet::run();
 }
 
-#[cfg(not(feature = "nonet"))]
+#[cfg(feature = "embed")]
 mod net {
     use monty::{ChessState, PolicyNetwork, Uci, ValueNetwork};
 
@@ -28,7 +28,7 @@ mod net {
     }
 }
 
-#[cfg(feature = "nonet")]
+#[cfg(not(feature = "embed"))]
 mod nonet {
     use monty::{read_into_struct_unchecked, ChessState, Uci};
 

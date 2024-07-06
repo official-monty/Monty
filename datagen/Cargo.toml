@@ -5,4 +5,4 @@ edition = "2021"
 authors = ["Jamie Whiting"]
 
 [dependencies]
-monty = { path = "../", features = ["nonet"] }
+monty = { path = "../" }
