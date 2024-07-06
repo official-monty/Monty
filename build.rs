@@ -1,13 +1,13 @@
-#[cfg(not(feature = "nonet"))]
+#[cfg(feature = "embed")]
 use std::env;
 
-#[cfg(not(feature = "nonet"))]
+#[cfg(feature = "embed")]
 const DEFAULT_VALUE_PATH: &str = "resources/value.network";
 
-#[cfg(not(feature = "nonet"))]
+#[cfg(feature = "embed")]
 const DEFAULT_POLICY_PATH: &str = "resources/policy.network";
 
-#[cfg(not(feature = "nonet"))]
+#[cfg(feature = "embed")]
 fn main() {
     println!("cargo:rerun-if-env-changed=EVALFILE");
     println!("cargo:rerun-if-changed=resources/value.network");
@@ -26,5 +26,5 @@ fn main() {
     }
 }
 
-#[cfg(feature = "nonet")]
+#[cfg(not(feature = "embed"))]
 fn main() {}
