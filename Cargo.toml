@@ -15,6 +15,7 @@ goober = { git = 'https://github.com/jw1912/goober.git' }
 
 [features]
 embed = []
+datagen = []
 
 [workspace]
 members = ["datagen", "train/policy", "train/value"]
