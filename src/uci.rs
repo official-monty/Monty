@@ -1,6 +1,6 @@
 use crate::{
     chess::{ChessState, Move},
-    mcts::{Limits, Searcher},
+    mcts::{Limits, SearchHelpers, Searcher},
     MctsParams, PolicyNetwork, Tree, ValueNetwork,
 };
 
@@ -250,9 +250,11 @@ fn go(
 
     let mut times = [None; 2];
     let mut incs = [None; 2];
-    let mut movestogo = 30;
+    let mut movestogo = None;
 
     let mut mode = "";
+
+    let saturating_parse = |s: &str| s.parse::<i64>().ok().map(|val| val.max(0) as u64);
 
     for cmd in commands {
         match *cmd {
@@ -268,11 +270,11 @@ fn go(
                 "nodes" => max_nodes = cmd.parse().unwrap_or(max_nodes),
                 "movetime" => max_time = cmd.parse().ok(),
                 "depth" => max_depth = cmd.parse().unwrap_or(max_depth),
-                "wtime" => times[0] = Some(cmd.parse().unwrap_or(0)),
-                "btime" => times[1] = Some(cmd.parse().unwrap_or(0)),
-                "winc" => incs[0] = Some(cmd.parse().unwrap_or(0)),
-                "binc" => incs[1] = Some(cmd.parse().unwrap_or(0)),
-                "movestogo" => movestogo = cmd.parse().unwrap_or(30),
+                "wtime" => times[0] = saturating_parse(cmd),
+                "btime" => times[1] = saturating_parse(cmd),
+                "winc" => incs[0] = saturating_parse(cmd),
+                "binc" => incs[1] = saturating_parse(cmd),
+                "movestogo" => movestogo = saturating_parse(cmd),
                 _ => mode = "none",
             },
         }
@@ -281,14 +283,8 @@ fn go(
     let mut time = None;
 
     // `go wtime <wtime> btime <btime> winc <winc> binc <binc>``
-    if let Some(t) = times[pos.tm_stm()] {
-        let mut base = t / movestogo.max(1);
-
-        if let Some(i) = incs[pos.tm_stm()] {
-            base += i * 3 / 4;
-        }
-
-        time = Some(base);
+    if let Some(remaining) = times[pos.tm_stm()] {
+        time = Some(SearchHelpers::get_time(remaining, incs[pos.stm()], movestogo));
     }
 
     // `go movetime <time>`
