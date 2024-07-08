@@ -1,7 +1,7 @@
 mod helpers;
 mod params;
 
-use helpers::SearchHelpers;
+pub use helpers::SearchHelpers;
 pub use params::MctsParams;
 
 use crate::{
