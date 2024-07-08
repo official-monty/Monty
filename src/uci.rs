@@ -284,7 +284,11 @@ fn go(
 
     // `go wtime <wtime> btime <btime> winc <winc> binc <binc>``
     if let Some(remaining) = times[pos.tm_stm()] {
-        time = Some(SearchHelpers::get_time(remaining, incs[pos.stm()], movestogo));
+        time = Some(SearchHelpers::get_time(
+            remaining,
+            incs[pos.stm()],
+            movestogo,
+        ));
     }
 
     // `go movetime <time>`
