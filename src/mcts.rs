@@ -197,7 +197,7 @@ impl<'a> Searcher<'a> {
 
     fn get_utility(&self, ptr: i32, pos: &ChessState) -> f32 {
         match self.tree[ptr].state() {
-            GameState::Ongoing => pos.get_value_wdl(self.value),
+            GameState::Ongoing => pos.get_value_wdl(self.value, &self.params),
             GameState::Draw => 0.5,
             GameState::Lost(_) => 0.0,
             GameState::Won(_) => 1.0,
