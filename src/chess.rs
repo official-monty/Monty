@@ -129,28 +129,28 @@ impl ChessState {
         policy.get(&self.board, &mov, feats, *threats)
     }
 
-    #[cfg(not(feature="datagen"))]
+    #[cfg(not(feature = "datagen"))]
     fn piece_count(&self, piece: usize) -> i32 {
         self.board.piece(piece).count_ones() as i32
     }
 
     pub fn get_value(&self, value: &ValueNetwork, _params: &MctsParams) -> i32 {
-        #[cfg(not(feature="datagen"))]
+        #[cfg(not(feature = "datagen"))]
         {
-        use consts::Piece;
-        let raw_eval = value.eval(&self.board);
+            use consts::Piece;
+            let raw_eval = value.eval(&self.board);
 
-        let mut mat = self.piece_count(Piece::KNIGHT) * _params.knight_value()
-            + self.piece_count(Piece::BISHOP) * _params.bishop_value()
-            + self.piece_count(Piece::ROOK) * _params.rook_value()
-            + self.piece_count(Piece::QUEEN) * _params.queen_value();
+            let mut mat = self.piece_count(Piece::KNIGHT) * _params.knight_value()
+                + self.piece_count(Piece::BISHOP) * _params.bishop_value()
+                + self.piece_count(Piece::ROOK) * _params.rook_value()
+                + self.piece_count(Piece::QUEEN) * _params.queen_value();
 
-        mat = 700 + mat / 32;
+            mat = _params.material_offset() + mat / _params.material_div1();
 
-        raw_eval * mat / 1024
+            raw_eval * mat / _params.material_div2()
         }
 
-        #[cfg(feature="datagen")]
+        #[cfg(feature = "datagen")]
         value.eval(&self.board)
     }
 
