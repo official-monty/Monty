@@ -220,6 +220,7 @@ fn position(
     }
 
     *pos = ChessState::from_fen(&fen);
+    *root_game_ply = 0;
 
     for &m in move_list.iter() {
         let mut this_mov = Move::default();
