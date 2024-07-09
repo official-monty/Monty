@@ -72,10 +72,10 @@ impl SearchHelpers {
         // Maximum move horizon of 30 moves
         let tm_mode; // true for increment mode, false for cyclic
         let mtg = if let Some(m) = movestogo {
-            tm_mode = true;
+            tm_mode = false;
             m.min(30).max(1)
         } else {
-            tm_mode = false;
+            tm_mode = true;
             30
         };
 
