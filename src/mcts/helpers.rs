@@ -71,18 +71,13 @@ impl SearchHelpers {
 
         // Maximum move horizon of 30 moves
         let tm_mode; // true for increment mode, false for cyclic
-        let mut mtg = if let Some(m) = movestogo {
+        let mtg = if let Some(m) = movestogo {
             tm_mode = true;
             m.min(30).max(1)
         } else {
             tm_mode = false;
             30
         };
-
-        // If less than one second, gradually reduce mtg
-        if time < 1000 && mtg as f32 / inc as f32 > 0.03 {
-            mtg = (time as f64 * 0.03).max(2.0) as u64;
-        }
 
         let time_left = (time + inc * (mtg - 1) - 10 * (2 + mtg)).max(1) as f64;
 
