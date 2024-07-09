@@ -17,11 +17,10 @@ pub struct Board {
     enp_sq: u8,
     rights: u8,
     halfm: u8,
-    ply: u16,
 }
 
 impl Board {
-    pub fn from_raw(bb: [u64; 8], stm: bool, enp_sq: u8, rights: u8, halfm: u8, ply: u16) -> Self {
+    pub fn from_raw(bb: [u64; 8], stm: bool, enp_sq: u8, rights: u8, halfm: u8) -> Self {
         Self {
             bb,
             hash: 0,
@@ -30,7 +29,6 @@ impl Board {
             enp_sq,
             rights,
             halfm,
-            ply,
         }
     }
 
@@ -63,11 +61,6 @@ impl Board {
     #[must_use]
     pub fn halfm(&self) -> u8 {
         self.halfm
-    }
-
-    #[must_use]
-    pub fn ply(&self) -> u16 {
-        self.ply
     }
 
     #[must_use]
@@ -432,7 +425,6 @@ impl Board {
         self.enp_sq = 0;
         self.rights &= castling.mask(usize::from(mov.to())) & castling.mask(usize::from(mov.src()));
         self.halfm += 1;
-        self.ply += 1;
 
         if moved == Piece::PAWN || mov.is_capture() {
             self.halfm = 0;

@@ -60,7 +60,7 @@ impl SearchHelpers {
     /// This will be overriden by a `go movetime` command,
     /// and a move overhead will be applied to this, so no
     /// need for it here.
-    pub fn get_time(time: u64, increment: Option<u64>, ply: u16, movestogo: Option<u64>) -> u128 {
+    pub fn get_time(time: u64, increment: Option<u64>, ply: u32, movestogo: Option<u64>) -> u128 {
         let inc = increment.unwrap_or(0);
 
         let mut max_time = if let Some(mtg) = movestogo {

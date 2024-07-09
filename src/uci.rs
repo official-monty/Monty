@@ -22,6 +22,7 @@ impl Uci {
     pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
         let mut prev = None;
         let mut pos = ChessState::default();
+        let mut root_game_ply = 0;
         let mut params = MctsParams::default();
         let mut tree = Tree::new_mb(64);
         let mut report_moves = false;
@@ -51,13 +52,16 @@ impl Uci {
             match cmd {
                 "isready" => println!("readyok"),
                 "setoption" => setoption(&commands, &mut params, &mut report_moves, &mut tree),
-                "position" => position(commands, &mut pos, &mut prev, &mut tree),
+                "position" => {
+                    position(commands, &mut pos, &mut root_game_ply, &mut prev, &mut tree)
+                }
                 "go" => {
                     let res = go(
                         &commands,
                         tree,
                         prev,
                         &pos,
+                        root_game_ply,
                         &params,
                         report_moves,
                         policy,
@@ -192,6 +196,7 @@ fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool
 fn position(
     commands: Vec<&str>,
     pos: &mut ChessState,
+    root_game_ply: &mut u32,
     prev: &mut Option<ChessState>,
     tree: &mut Tree,
 ) {
@@ -226,6 +231,7 @@ fn position(
         });
 
         pos.make_move(this_mov);
+        *root_game_ply += 1;
     }
 
     tree.try_use_subtree(pos, prev);
@@ -238,6 +244,7 @@ fn go(
     tree: Tree,
     prev: Option<ChessState>,
     pos: &ChessState,
+    root_game_ply: u32,
     params: &MctsParams,
     report_moves: bool,
     policy: &PolicyNetwork,
@@ -287,7 +294,7 @@ fn go(
         time = Some(SearchHelpers::get_time(
             remaining,
             incs[pos.stm()],
-            pos.ply(),
+            root_game_ply,
             movestogo,
         ));
     }
