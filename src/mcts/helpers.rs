@@ -61,36 +61,31 @@ impl SearchHelpers {
     /// and a move overhead will be applied to this, so no
     /// need for it here.
     pub fn get_time(time: u64, increment: Option<u64>, ply: u16, movestogo: Option<u64>) -> u128 {
-        let mut max_time;
-        let inc = if let Some(i) = increment { i as u64 } else { 0 };
+        let inc = increment.unwrap_or(0);
 
-        // Maximum move horizon of 30 moves
-        let tm_mode; // true for increment mode, false for cyclic
-        let mtg = if let Some(m) = movestogo {
-            tm_mode = false;
-            m.min(30).max(1)
+        let mut max_time = if let Some(mtg) = movestogo {
+            // Cyclic time control (x moves in y seconds)
+            time as f64 / (mtg as f64).clamp(1.0, 30.0)
         } else {
-            tm_mode = true;
-            30
-        };
+            // Increment time control (x seconds + y increment)
+            let mtg = 30;
 
-        let time_left = (time + inc * (mtg - 1) - 10 * (2 + mtg)).max(1) as f64;
-
-        if tm_mode {
+            let time_left = (time + inc * (mtg - 1) - 10 * (2 + mtg)).max(1) as f64;
             let log_time = (time_left / 1000.0).log10();
+
             let opt_constant = (0.0048 + 0.00032 * log_time).min(0.0060);
             let opt_scale = (0.0125 + (ply as f64 + 2.5).sqrt() * opt_constant)
                 .min(0.25 * time as f64 / time_left);
+
             // More time at the start of the game
             let bonus = if ply <= 10 {
                 1.0 + (11.0 - ply as f64).log10() * 0.5
             } else {
                 1.0
             };
-            max_time = (opt_scale * bonus * time_left) as u128;
-        } else {
-            max_time = (time / mtg) as u128;
-        }
+
+            opt_scale * bonus * time_left
+        } as u128;
 
         max_time = max_time.min((time * 850 / 1000) as u128);
 
