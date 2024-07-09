@@ -60,6 +60,35 @@ impl Param<f32> {
     }
 }
 
+impl Param<f64> {
+    fn set(&mut self, val: i32) {
+        let actual = val as f64 / 1000.0;
+        self.val = actual.clamp(self.min, self.max);
+    }
+
+    fn info(&self, name: &str) {
+        println!(
+            "option name {} type spin default {:.0} min {:.0} max {:.0}",
+            name,
+            self.val * 1000.0,
+            self.min * 1000.0,
+            self.max * 1000.0,
+        );
+    }
+
+    fn list(&self, name: &str, step: f64, r: f64) {
+        println!(
+            "{}, {}, {}, {}, {}, {}",
+            name,
+            self.val * 1000.0,
+            self.min * 1000.0,
+            self.max * 1000.0,
+            step * 1000.0,
+            r,
+        );
+    }
+}
+
 macro_rules! make_mcts_params {
     ($($name:ident: $t:ty = $val:expr, $min:expr, $max:expr, $step:expr, $r:expr;)*) => {
         #[derive(Clone)]
@@ -115,4 +144,14 @@ make_mcts_params! {
     material_offset: i32 = 700, 400, 1200, 40, 0.002;
     material_div1: i32 = 32, 16, 64, 3, 0.002;
     material_div2: i32 = 1024, 512, 1536, 64, 0.002;
+    tm_opt_value1: f64 = 0.48, 0.1, 1.0, 0.05, 0.002;
+    tm_opt_value2: f64 = 0.32, 0.1, 1.0, 0.03, 0.002;
+    tm_opt_value3: f64 = 0.60, 0.1, 1.0, 0.06, 0.002;
+    tm_scale_value1: f64 = 1.25, 0.1, 2.0, 0.1, 0.002;
+    tm_scale_value2: f64 = 2.5, 0.1, 5.0, 0.15, 0.002;
+    tm_scale_value3: f64 = 0.50, 0.1, 1.0, 0.05, 0.002;
+    tm_scale_value4: f64 = 0.25, 0.1, 1.0, 0.02, 0.002;
+    tm_bonus_ply: f64 = 11.0, 1.0, 30.0, 1.5, 0.002;
+    tm_bonus_value1: f64 = 0.5, 0.1, 2.0, 0.05, 0.002;
+    tm_max_time: i32 = 850, 400, 990, 85, 0.002;
 }

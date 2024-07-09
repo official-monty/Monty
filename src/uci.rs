@@ -296,6 +296,7 @@ fn go(
             incs[pos.stm()],
             root_game_ply,
             movestogo,
+            &params,
         ));
     }
 
