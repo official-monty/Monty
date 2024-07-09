@@ -52,10 +52,11 @@ impl Uci {
             match cmd {
                 "isready" => println!("readyok"),
                 "setoption" => setoption(&commands, &mut params, &mut report_moves, &mut tree),
-                "position" => {
-                    position(commands, &mut pos, &mut root_game_ply, &mut prev, &mut tree)
-                }
+                "position" => position(commands, &mut pos, &mut prev, &mut tree),
                 "go" => {
+                    // increment game ply every time `go` is called
+                    root_game_ply += 2;
+
                     let res = go(
                         &commands,
                         tree,
@@ -121,6 +122,7 @@ impl Uci {
                 "uci" => preamble(),
                 "ucinewgame" => {
                     prev = None;
+                    root_game_ply = 0;
                     tree.clear();
                 }
                 _ => {}
@@ -196,7 +198,6 @@ fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool
 fn position(
     commands: Vec<&str>,
     pos: &mut ChessState,
-    root_game_ply: &mut u32,
     prev: &mut Option<ChessState>,
     tree: &mut Tree,
 ) {
@@ -220,7 +221,6 @@ fn position(
     }
 
     *pos = ChessState::from_fen(&fen);
-    *root_game_ply = 0;
 
     for &m in move_list.iter() {
         let mut this_mov = Move::default();
@@ -232,7 +232,6 @@ fn position(
         });
 
         pos.make_move(this_mov);
-        *root_game_ply += 1;
     }
 
     tree.try_use_subtree(pos, prev);
