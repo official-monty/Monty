@@ -1,0 +1,38 @@
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+
+name: Basic Checks
+jobs:
+  check:
+    name: cargo check
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v4
+        - uses: dtolnay/rust-toolchain@stable
+        - run: cargo check --all-features
+        - run: cargo check --package datagen --all-features
+
+  clippy:
+    name: cargo clippy
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v4
+        - uses: dtolnay/rust-toolchain@stable
+          with:
+            component: clippy
+        - run: cargo clippy --all-features -- -D warnings
+        - run: cargo clippy --package datagen --all-features -- -D warnings
+
+  fmt:
+    name: cargo fmt
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v4
+        - uses: dtolnay/rust-toolchain@stable
+          with:
+            component: rustfmt
+        - run: cargo fmt --all --all-features -- --check
