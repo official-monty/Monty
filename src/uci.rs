@@ -287,6 +287,7 @@ fn go(
         time = Some(SearchHelpers::get_time(
             remaining,
             incs[pos.stm()],
+            pos.ply(),
             movestogo,
         ));
     }
