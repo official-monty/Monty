@@ -22,6 +22,7 @@ impl Uci {
     pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
         let mut prev = None;
         let mut pos = ChessState::default();
+        let mut root_game_ply = 0;
         let mut params = MctsParams::default();
         let mut tree = Tree::new_mb(64);
         let mut report_moves = false;
@@ -53,11 +54,15 @@ impl Uci {
                 "setoption" => setoption(&commands, &mut params, &mut report_moves, &mut tree),
                 "position" => position(commands, &mut pos, &mut prev, &mut tree),
                 "go" => {
+                    // increment game ply every time `go` is called
+                    root_game_ply += 2;
+
                     let res = go(
                         &commands,
                         tree,
                         prev,
                         &pos,
+                        root_game_ply,
                         &params,
                         report_moves,
                         policy,
@@ -117,6 +122,7 @@ impl Uci {
                 "uci" => preamble(),
                 "ucinewgame" => {
                     prev = None;
+                    root_game_ply = 0;
                     tree.clear();
                 }
                 _ => {}
@@ -238,6 +244,7 @@ fn go(
     tree: Tree,
     prev: Option<ChessState>,
     pos: &ChessState,
+    root_game_ply: u32,
     params: &MctsParams,
     report_moves: bool,
     policy: &PolicyNetwork,
@@ -287,6 +294,7 @@ fn go(
         time = Some(SearchHelpers::get_time(
             remaining,
             incs[pos.stm()],
+            root_game_ply,
             movestogo,
         ));
     }
