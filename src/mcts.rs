@@ -78,6 +78,7 @@ impl<'a> Searcher<'a> {
 
         let mut best_move = Move::NULL;
         let mut best_move_changes = 0;
+        let mut previous_score = f32::NEG_INFINITY;
 
         // search loop
         loop {
@@ -134,14 +135,29 @@ impl<'a> Searcher<'a> {
                 if let Some(time) = limits.opt_time {
                     let elapsed = timer.elapsed().as_millis();
 
-                    let best_move_instability = 1.0 + (best_move_changes as f32 + 1.0).ln();
+                    let (_, mut score) = self.get_pv(0);
+                    score = self.get_cp(score);
+                    let eval_diff = if previous_score == f32::NEG_INFINITY {
+                        0.0
+                    } else {
+                        if previous_score > score {
+                            previous_score - score
+                        } else {
+                            (score - previous_score) * 0.5
+                        }
+                    };
+                    let falling_eval = (1.0 + eval_diff * 0.02).clamp(0.60, 1.80);
 
-                    let total_time = time * best_move_instability as u128;
+                    let best_move_instability =
+                        (1.0 + (best_move_changes as f32 * 0.3 + 1.0).ln()).min(3.0);
+
+                    let total_time = (time as f32 * falling_eval * best_move_instability) as u128;
                     if elapsed >= total_time {
                         break;
                     }
 
                     best_move_changes = 0;
+                    previous_score = score;
                 }
             }
         }
@@ -260,7 +276,7 @@ impl<'a> Searcher<'a> {
         } else if score < 0.0 {
             print!("score mate -{} ", pv_line.len() / 2);
         } else {
-            let cp = -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln();
+            let cp = self.get_cp(score);
             print!("score cp {cp:.0} ");
         }
 
@@ -316,6 +332,10 @@ impl<'a> Searcher<'a> {
         let idx = self.tree.get_best_child(self.tree.root_node());
         let action = self.tree.edge(self.tree.root_node(), idx);
         Move::from(action.mov())
+    }
+
+    fn get_cp(&self, score: f32) -> f32 {
+        -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln()
     }
 
     pub fn tree_and_board(self) -> (Tree, ChessState) {
