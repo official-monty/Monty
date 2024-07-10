@@ -67,7 +67,6 @@ impl SearchHelpers {
         movestogo: Option<u64>,
         params: &MctsParams,
     ) -> u128 {
-        println!("{}", params.tm_scale_value1());
         let inc = increment.unwrap_or(0);
 
         let mut max_time = if let Some(mtg) = movestogo {
@@ -99,7 +98,7 @@ impl SearchHelpers {
             opt_scale * bonus * time_left
         } as u128;
 
-        max_time = max_time.min((time * params.tm_max_time() as u64 / 1000) as u128);
+        max_time = max_time.min((time as f64 * params.tm_max_time()) as u128);
 
         max_time
     }
