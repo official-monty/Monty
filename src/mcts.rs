@@ -106,11 +106,6 @@ impl<'a> Searcher<'a> {
                         break;
                     }
                 }
-                if let Some(time) = limits.opt_time {
-                    if elapsed >= time {
-                        break;
-                    }
-                }
             }
 
             // define "depth" as the average depth of selection
