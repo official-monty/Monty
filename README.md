@@ -1,6 +1,6 @@
 <div align="center">
 
-# monty
+# monty 
 #### "MCTS is cool."
 
 ![License](https://img.shields.io/github/license/jw1912/monty?style=for-the-badge)
