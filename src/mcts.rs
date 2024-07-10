@@ -149,7 +149,7 @@ impl<'a> Searcher<'a> {
                     let falling_eval = (1.0 + eval_diff * 0.02).clamp(0.60, 1.80);
 
                     let best_move_instability =
-                        (1.0 + (best_move_changes as f32 * 0.3 + 1.0).ln()).min(3.0);
+                        (1.0 + (best_move_changes as f32 * 0.3 + 1.0).ln()).clamp(1.0, 3.0);
 
                     let total_time = (time as f32 * falling_eval * best_move_instability) as u128;
                     if elapsed >= total_time {
