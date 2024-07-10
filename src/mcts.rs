@@ -18,6 +18,7 @@ use std::{
 #[derive(Clone, Copy)]
 pub struct Limits {
     pub max_time: Option<u128>,
+    pub opt_time: Option<u128>,
     pub max_depth: usize,
     pub max_nodes: usize,
 }
@@ -97,9 +98,16 @@ impl<'a> Searcher<'a> {
                 if self.abort.load(Ordering::Relaxed) {
                     break;
                 }
+                
+                let elapsed = timer.elapsed().as_millis();
 
                 if let Some(time) = limits.max_time {
-                    if timer.elapsed().as_millis() >= time {
+                    if elapsed >= time {
+                        break;
+                    }
+                }
+                if let Some(time) = limits.opt_time {
+                    if elapsed >= time {
                         break;
                     }
                 }

@@ -66,12 +66,16 @@ impl SearchHelpers {
         ply: u32,
         movestogo: Option<u64>,
         params: &MctsParams,
-    ) -> u128 {
+    ) -> (u128, u128) {
         let inc = increment.unwrap_or(0);
 
-        let mut max_time = if let Some(mtg) = movestogo {
+        let mut opt_time;
+        let mut max_time;
+
+        if let Some(mtg) = movestogo {
             // Cyclic time control (x moves in y seconds)
-            time as f64 / (mtg as f64).clamp(1.0, 30.0)
+            opt_time = (time as f64 / (mtg as f64).clamp(1.0, 30.0)) as u128;
+            max_time = (time as f64 / (mtg as f64).clamp(1.0, 30.0)) as u128;
         } else {
             // Increment time control (x seconds + y increment)
             let mtg = 30;
@@ -82,10 +86,15 @@ impl SearchHelpers {
             let opt_constant = (params.tm_opt_value1() / 100.0
                 + params.tm_opt_value2() / 1000.0 * log_time)
                 .min(params.tm_opt_value3() / 100.0);
-            let opt_scale = (params.tm_scale_value1() / 100.0
-                + (ply as f64 + params.tm_scale_value2()).powf(params.tm_scale_value3())
+            let opt_scale = (params.tm_optscale_value1() / 100.0
+                + (ply as f64 + params.tm_optscale_value2()).powf(params.tm_optscale_value3())
                     * opt_constant)
-                .min(params.tm_scale_value4() * time as f64 / time_left);
+                .min(params.tm_optscale_value4() * time as f64 / time_left);
+
+            let max_constant = (params.tm_max_value1() + params.tm_max_value2() * log_time)
+                .max(params.tm_max_value3());
+            let max_scale = (max_constant + ply as f64 / params.tm_maxscale_value1()).min(params.tm_maxscale_value2());
+            max_time = (max_scale * time_left) as u128;
 
             // More time at the start of the game
             let bonus_ply = params.tm_bonus_ply();
@@ -95,11 +104,11 @@ impl SearchHelpers {
                 1.0
             };
 
-            opt_scale * bonus * time_left
-        } as u128;
+            opt_time = (opt_scale * bonus * time_left) as u128;
+        };
 
         max_time = max_time.min((time as f64 * params.tm_max_time()) as u128);
 
-        max_time
+        (opt_time, max_time)
     }
 }
