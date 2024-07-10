@@ -25,6 +25,12 @@ impl std::fmt::Display for Move {
     }
 }
 
+impl PartialEq for Move {
+    fn eq(&self, other: &Self) -> bool {
+        self.mov == other.mov
+    }
+}
+
 impl Move {
     pub const NULL: Move = Move { mov: 0 };
 

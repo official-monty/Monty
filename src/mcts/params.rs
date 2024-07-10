@@ -154,8 +154,8 @@ make_mcts_params! {
     tm_max_value1: f64 = 3.39, 1.0, 10.0, 0.4, 0.002;
     tm_max_value2: f64 = 3.01, 1.0, 10.0, 0.4, 0.002;
     tm_max_value3: f64 = 2.93, 1.0, 10.0, 0.4, 0.002;
-    tm_maxscale_value1: f64 = 6.64, 1.0, 12.0, 0.6, 0.002;
-    tm_maxscale_value2: f64 = 12.0, 1.0, 24.0, 1.2, 0.002;
+    tm_maxscale_value1: f64 = 12.0, 1.0, 24.0, 1.2, 0.002;
+    tm_maxscale_value2: f64 = 6.64, 1.0, 12.0, 0.6, 0.002;
     tm_bonus_ply: f64 = 11.0, 1.0, 30.0, 1.5, 0.002;
     tm_bonus_value1: f64 = 0.5, 0.1, 2.0, 0.05, 0.002;
     tm_max_time: f64 = 0.850, 0.400, 0.990, 0.085, 0.002;

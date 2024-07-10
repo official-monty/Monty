@@ -93,8 +93,8 @@ impl SearchHelpers {
 
             let max_constant = (params.tm_max_value1() + params.tm_max_value2() * log_time)
                 .max(params.tm_max_value3());
-            let max_scale = (max_constant + ply as f64 / params.tm_maxscale_value1()).min(params.tm_maxscale_value2());
-            max_time = (max_scale * time_left) as u128;
+            let max_scale = (max_constant + ply as f64 / params.tm_maxscale_value1())
+                .min(params.tm_maxscale_value2());
 
             // More time at the start of the game
             let bonus_ply = params.tm_bonus_ply();
@@ -105,9 +105,9 @@ impl SearchHelpers {
             };
 
             opt_time = (opt_scale * bonus * time_left) as u128;
+            max_time =
+                (max_scale * opt_time as f64).min(time as f64 * params.tm_max_time()) as u128;
         };
-
-        max_time = max_time.min((time as f64 * params.tm_max_time()) as u128);
 
         (opt_time, max_time)
     }
