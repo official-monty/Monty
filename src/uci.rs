@@ -309,12 +309,12 @@ fn go(
         max_time = Some(max_time.unwrap_or(u128::MAX).min(max));
     }
 
-    // 10ms move overhead
+    // 20ms move overhead
     if let Some(t) = opt_time.as_mut() {
-        *t = t.saturating_sub(10);
+        *t = t.saturating_sub(20);
     }
     if let Some(t) = max_time.as_mut() {
-        *t = t.saturating_sub(10);
+        *t = t.saturating_sub(20);
     }
 
     let abort = AtomicBool::new(false);
