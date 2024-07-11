@@ -119,7 +119,7 @@ impl<'a> Searcher<'a> {
                 }
             }
 
-            if nodes % 20000 == 0 {
+            if nodes % 15000 == 0 {
                 // Time management
                 if let Some(time) = limits.opt_time {
                     let elapsed = timer.elapsed().as_millis();
@@ -131,7 +131,7 @@ impl<'a> Searcher<'a> {
                     } else {
                         previous_score - score
                     };
-                    let falling_eval = (1.0 + eval_diff * 0.03).clamp(0.60, 1.80);
+                    let falling_eval = (1.0 + eval_diff * 0.05).clamp(0.60, 1.80);
 
                     let best_move_instability =
                         (1.0 + (best_move_changes as f32 * 0.3).ln_1p()).clamp(1.0, 3.2);
