@@ -74,7 +74,7 @@ impl<'a> Searcher<'a> {
 
         let mut nodes = 0;
         let mut depth = 0;
-        let mut next_depth_nodes = 64;
+        let mut cumulative_depth = 0;
 
         let mut best_move = Move::NULL;
         let mut best_move_changes = 0;
@@ -83,7 +83,10 @@ impl<'a> Searcher<'a> {
         // search loop
         loop {
             let mut pos = self.root_position.clone();
-            self.perform_one_iteration(&mut pos, self.tree.root_node());
+            let mut this_depth = 0;
+            self.perform_one_iteration(&mut pos, self.tree.root_node(), &mut this_depth);
+
+            cumulative_depth += this_depth - 1;
 
             // proven checkmate
             if self.tree[self.tree.root_node()].is_terminal() {
@@ -96,7 +99,7 @@ impl<'a> Searcher<'a> {
 
             nodes += 1;
 
-            if nodes & 127 == 0 {
+            if nodes & 255 == 0 {
                 if self.abort.load(Ordering::Relaxed) {
                     break;
                 }
@@ -109,28 +112,14 @@ impl<'a> Searcher<'a> {
                     }
                 }
 
-                if nodes & 2047 == 0 {
-                    let new_best_move = self.get_best_move();
-                    if new_best_move != best_move {
-                        best_move = new_best_move;
-                        best_move_changes += 1;
-                    }
+                let new_best_move = self.get_best_move();
+                if new_best_move != best_move {
+                    best_move = new_best_move;
+                    best_move_changes += 1;
                 }
             }
 
-            // define "depth" as a function of nodes
-            if nodes >= next_depth_nodes {
-                depth += 1;
-                next_depth_nodes = nodes * 3 / 2;
-
-                if depth >= limits.max_depth {
-                    break;
-                }
-
-                if uci_output {
-                    self.search_report(depth, &timer, nodes);
-                }
-
+            if nodes % 20000 == 0 {
                 // Time management
                 if let Some(time) = limits.opt_time {
                     let elapsed = timer.elapsed().as_millis();
@@ -140,16 +129,12 @@ impl<'a> Searcher<'a> {
                     let eval_diff = if previous_score == f32::NEG_INFINITY {
                         0.0
                     } else {
-                        if previous_score > score {
-                            previous_score - score
-                        } else {
-                            (score - previous_score) * 0.5
-                        }
+                        previous_score - score
                     };
-                    let falling_eval = (1.0 + eval_diff * 0.02).clamp(0.60, 1.80);
+                    let falling_eval = (1.0 + eval_diff * 0.03).clamp(0.60, 1.80);
 
                     let best_move_instability =
-                        (1.0 + (best_move_changes as f32 * 0.3 + 1.0).ln()).clamp(1.0, 3.0);
+                        (1.0 + (best_move_changes as f32 * 0.3).ln_1p()).clamp(1.0, 3.2);
 
                     let total_time = (time as f32 * falling_eval * best_move_instability) as u128;
                     if elapsed >= total_time {
@@ -157,7 +142,24 @@ impl<'a> Searcher<'a> {
                     }
 
                     best_move_changes = 0;
-                    previous_score = score;
+                    previous_score = if previous_score == f32::NEG_INFINITY {
+                        score
+                    } else {
+                        (score + previous_score) / 2.0
+                    };
+                }
+            }
+
+            // define "depth" as the average depth of selection
+            let avg_depth = cumulative_depth / nodes;
+            if avg_depth > depth {
+                depth = avg_depth;
+                if depth >= limits.max_depth {
+                    break;
+                }
+
+                if uci_output {
+                    self.search_report(depth, &timer, nodes);
                 }
             }
         }
@@ -173,7 +175,9 @@ impl<'a> Searcher<'a> {
         (Move::from(best_child.mov()), best_child.q())
     }
 
-    fn perform_one_iteration(&mut self, pos: &mut ChessState, ptr: i32) -> f32 {
+    fn perform_one_iteration(&mut self, pos: &mut ChessState, ptr: i32, depth: &mut usize) -> f32 {
+        *depth += 1;
+
         self.tree.make_recently_used(ptr);
 
         let hash = self.tree[ptr].hash();
@@ -215,7 +219,7 @@ impl<'a> Searcher<'a> {
                 self.tree.edge_mut(ptr, action).set_ptr(child_ptr);
             }
 
-            let u = self.perform_one_iteration(pos, child_ptr);
+            let u = self.perform_one_iteration(pos, child_ptr, depth);
             child_state = self.tree[child_ptr].state();
 
             u
