@@ -8,16 +8,11 @@ fn main() {
     let policy = unsafe { read_into_struct_unchecked(monty::PolicyFileDefaultName) };
     let value = unsafe { read_into_struct_unchecked(monty::ValueFileDefaultName) };
 
-    let mut params = MctsParams::default();
-
-    // value data params
-    params.set("root_pst", 262);
-    params.set("root_cpuct", 108);
-    params.set("cpuct", 108);
+    let params = MctsParams::default();
 
     if let Some(opts) = parse_args(args) {
         run_datagen(params, opts, &policy, &value);
     } else {
-        Uci::bench(ChessState::BENCH_DEPTH, &policy, &value);
+        Uci::bench(ChessState::BENCH_DEPTH, &policy, &value, &params);
     }
 }
