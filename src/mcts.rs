@@ -119,7 +119,7 @@ impl<'a> Searcher<'a> {
                 }
             }
 
-            if nodes % 15000 == 0 {
+            if nodes & 16383 == 0 {
                 // Time management
                 if let Some(time) = limits.opt_time {
                     let elapsed = timer.elapsed().as_millis();
