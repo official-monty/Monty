@@ -76,20 +76,6 @@ impl<'a> DatagenThread<'a> {
             ChessState::from_fen(ChessState::STARTPOS)
         };
 
-        // play 8 or 9 random moves
-        for _ in 0..(8 + (self.rng.rand_int() % 2)) {
-            let mut moves = Vec::new();
-            position.map_legal_moves(|mov| moves.push(mov));
-
-            if moves.is_empty() {
-                return;
-            }
-
-            let mov = moves[self.rng.rand_int() as usize % moves.len()];
-
-            position.make_move(mov);
-        }
-
         let mut moves = Vec::new();
         position.map_legal_moves(|mov| moves.push(mov));
 
