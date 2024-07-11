@@ -130,8 +130,7 @@ impl Uci {
         }
     }
 
-    pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork) {
-        let params = MctsParams::default();
+    pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork, params: &MctsParams) {
         let mut total_nodes = 0;
         let bench_fens = Self::FEN_STRING.split('\n').collect::<Vec<&str>>();
         let mut time = 0.0;
