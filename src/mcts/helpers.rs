@@ -69,8 +69,8 @@ impl SearchHelpers {
     ) -> (u128, u128) {
         let inc = increment.unwrap_or(0);
 
-        let mut opt_time;
-        let mut max_time;
+        let opt_time;
+        let max_time;
 
         if let Some(mtg) = movestogo {
             // Cyclic time control (x moves in y seconds)
@@ -98,7 +98,7 @@ impl SearchHelpers {
 
             // More time at the start of the game
             let bonus_ply = params.tm_bonus_ply();
-            let bonus = if ply <= bonus_ply as u32 - 1 {
+            let bonus = if ply < bonus_ply as u32 {
                 1.0 + (bonus_ply - ply as f64).log10() * params.tm_bonus_value1()
             } else {
                 1.0

@@ -291,13 +291,8 @@ fn go(
 
     // `go wtime <wtime> btime <btime> winc <winc> binc <binc>``
     if let Some(remaining) = times[pos.tm_stm()] {
-        let timeman = SearchHelpers::get_time(
-            remaining,
-            incs[pos.stm()],
-            root_game_ply,
-            movestogo,
-            &params,
-        ); // returns a pair of (u128, u128)
+        let timeman =
+            SearchHelpers::get_time(remaining, incs[pos.stm()], root_game_ply, movestogo, params);
 
         opt_time = Some(timeman.0);
         max_time = Some(timeman.1);

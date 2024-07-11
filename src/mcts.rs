@@ -10,7 +10,6 @@ use crate::{
     ChessState, GameState, PolicyNetwork, ValueNetwork,
 };
 
-use std::cmp::PartialEq;
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
