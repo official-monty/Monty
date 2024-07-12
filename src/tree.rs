@@ -195,7 +195,7 @@ impl Tree {
 
     pub fn make_root_node(&mut self, node: i32) {
         self.root = node;
-        self.parent_edge = *self.edge(self[node].parent(), self[node].action());
+        self.parent_edge = self.edge(self[node].parent(), self[node].action()).clone();
         self[node].clear_parent();
         self[node].set_state(GameState::Ongoing);
     }
@@ -358,10 +358,10 @@ impl Tree {
 
     pub fn display(&self, idx: i32, depth: usize) {
         let mut bars = vec![true; depth + 1];
-        self.display_recurse(Edge::new(idx, 0, 0), depth + 1, 0, &mut bars);
+        self.display_recurse(&Edge::new(idx, 0, 0), depth + 1, 0, &mut bars);
     }
 
-    fn display_recurse(&self, edge: Edge, depth: usize, ply: usize, bars: &mut [bool]) {
+    fn display_recurse(&self, edge: &Edge, depth: usize, ply: usize, bars: &mut [bool]) {
         let node = &self[edge.ptr()];
 
         if depth == 0 {
@@ -402,7 +402,7 @@ impl Tree {
         }
 
         let mut active = Vec::new();
-        for &action in node.actions() {
+        for action in node.actions() {
             if action.ptr() != -1 {
                 active.push(action);
             }
@@ -410,7 +410,7 @@ impl Tree {
 
         let end = active.len() - 1;
 
-        for (i, &action) in active.iter().enumerate() {
+        for (i, action) in active.iter().enumerate() {
             if i == end {
                 bars[ply] = false;
             }

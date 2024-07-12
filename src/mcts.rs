@@ -188,7 +188,7 @@ impl<'a> Searcher<'a> {
             // probe hash table to use in place of network
             if self.tree[ptr].state() == GameState::Ongoing {
                 if let Some(entry) = self.tree.probe_hash(hash) {
-                    1.0 - entry.wins / entry.visits as f32
+                    1.0 - entry.q
                 } else {
                     self.get_utility(ptr, pos)
                 }
@@ -227,7 +227,7 @@ impl<'a> Searcher<'a> {
         self.tree.edge_mut(parent, action).update(u);
 
         let edge = self.tree.edge(parent, action);
-        self.tree.push_hash(hash, edge.visits(), edge.wins());
+        self.tree.push_hash(hash, edge.visits(), edge.q());
 
         self.tree.propogate_proven_mates(ptr, child_state);
 
