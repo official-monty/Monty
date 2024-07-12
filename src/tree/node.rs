@@ -167,4 +167,20 @@ impl Node {
             action.set_policy(policies[i] / total);
         }
     }
+
+    #[cfg(feature = "datagen")]
+    pub fn add_dirichlet_noise(&mut self, alpha: f32, prop: f32) {
+        use rand::prelude::*;
+        use rand_distr::Dirichlet;
+
+        let mut rng = rand::thread_rng();
+        let dist = Dirichlet::new(&vec![alpha; self.actions.len()]).unwrap();
+        let samples = dist.sample(&mut rng);
+
+        for (action, &noise) in self.actions.iter_mut().zip(samples.iter()) {
+            let policy = (1.0 - prop) * action.policy() + prop * noise;
+
+            action.set_policy(policy);
+        }
+    }
 }

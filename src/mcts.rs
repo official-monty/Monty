@@ -56,6 +56,8 @@ impl<'a> Searcher<'a> {
         uci_output: bool,
         total_nodes: &mut usize,
         prev_board: &Option<ChessState>,
+        #[cfg(feature = "datagen")]
+        use_dirichlet_noise: bool,
     ) -> (Move, f32) {
         let timer = Instant::now();
 
@@ -68,6 +70,12 @@ impl<'a> Searcher<'a> {
             self.tree[node].relabel_policy(&self.root_position, &self.params, self.policy);
         } else {
             self.tree[node].expand::<true>(&self.root_position, &self.params, self.policy);
+        }
+
+        // add dirichlet noise in datagen
+        #[cfg(feature = "datagen")]
+        if use_dirichlet_noise {
+            self.tree[node].add_dirichlet_noise(0.03, 0.25);
         }
 
         let mut nodes = 0;

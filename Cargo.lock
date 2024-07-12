@@ -241,6 +241,8 @@ name = "monty"
 version = "1.0.0"
 dependencies = [
  "goober",
+ "rand",
+ "rand_distr",
 ]
 
 [[package]]
