@@ -173,6 +173,10 @@ impl Node {
         use rand::prelude::*;
         use rand_distr::Dirichlet;
 
+        if self.actions.len() <= 1 {
+            return;
+        }
+
         let mut rng = rand::thread_rng();
         let dist = Dirichlet::new(&vec![alpha; self.actions.len()]).unwrap();
         let samples = dist.sample(&mut rng);
