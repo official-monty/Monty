@@ -137,6 +137,7 @@ impl Uci {
 
         let limits = Limits {
             max_time: None,
+            opt_time: None,
             max_depth: depth,
             max_nodes: 1_000_000,
         };
@@ -257,6 +258,7 @@ fn go(
     let mut times = [None; 2];
     let mut incs = [None; 2];
     let mut movestogo = None;
+    let mut opt_time = None;
 
     let mut mode = "";
 
@@ -286,27 +288,27 @@ fn go(
         }
     }
 
-    let mut time = None;
-
     // `go wtime <wtime> btime <btime> winc <winc> binc <binc>``
     if let Some(remaining) = times[pos.tm_stm()] {
-        time = Some(SearchHelpers::get_time(
-            remaining,
-            incs[pos.stm()],
-            root_game_ply,
-            movestogo,
-        ));
+        let timeman =
+            SearchHelpers::get_time(remaining, incs[pos.stm()], root_game_ply, movestogo, params);
+
+        opt_time = Some(timeman.0);
+        max_time = Some(timeman.1);
     }
 
     // `go movetime <time>`
     if let Some(max) = max_time {
         // if both movetime and increment time controls given, use
-        time = Some(time.unwrap_or(u128::MAX).min(max));
+        max_time = Some(max_time.unwrap_or(u128::MAX).min(max));
     }
 
-    // 10ms move overhead
-    if let Some(t) = time.as_mut() {
-        *t = t.saturating_sub(10);
+    // 20ms move overhead
+    if let Some(t) = opt_time.as_mut() {
+        *t = t.saturating_sub(20);
+    }
+    if let Some(t) = max_time.as_mut() {
+        *t = t.saturating_sub(20);
     }
 
     let abort = AtomicBool::new(false);
@@ -314,7 +316,8 @@ fn go(
     let mut searcher = Searcher::new(pos.clone(), tree, params.clone(), policy, value, &abort);
 
     let limits = Limits {
-        max_time: time,
+        max_time,
+        opt_time,
         max_depth,
         max_nodes,
     };
