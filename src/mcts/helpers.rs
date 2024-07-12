@@ -67,17 +67,13 @@ impl SearchHelpers {
         movestogo: Option<u64>,
         params: &MctsParams,
     ) -> (u128, u128) {
-        let inc = increment.unwrap_or(0);
-
-        let opt_time;
-        let max_time;
-
         if let Some(mtg) = movestogo {
             // Cyclic time control (x moves in y seconds)
-            opt_time = (time as f64 / (mtg as f64).clamp(1.0, 30.0)) as u128;
-            max_time = (time as f64 / (mtg as f64).clamp(1.0, 30.0)) as u128;
+            let max_time = (time as f64 / (mtg as f64).clamp(1.0, 30.0)) as u128;
+            (max_time, max_time)
         } else {
             // Increment time control (x seconds + y increment)
+            let inc = increment.unwrap_or(0);
             let mtg = 30;
 
             let time_left = (time + inc * (mtg - 1) - 10 * (2 + mtg)).max(1) as f64;
@@ -104,11 +100,11 @@ impl SearchHelpers {
                 1.0
             };
 
-            opt_time = (opt_scale * bonus * time_left) as u128;
-            max_time =
+            let opt_time = (opt_scale * bonus * time_left) as u128;
+            let max_time =
                 (max_scale * opt_time as f64).min(time as f64 * params.tm_max_time()) as u128;
-        };
 
-        (opt_time, max_time)
+            (opt_time, max_time)
+        }
     }
 }

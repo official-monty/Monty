@@ -2,7 +2,7 @@ use crate::pop_lsb;
 
 use super::{consts::Flag, frc::Castling};
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct Move {
     mov: u16,
 }
@@ -22,12 +22,6 @@ impl From<u16> for Move {
 impl std::fmt::Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_uci(&Castling::default()))
-    }
-}
-
-impl PartialEq for Move {
-    fn eq(&self, other: &Self) -> bool {
-        self.mov == other.mov
     }
 }
 

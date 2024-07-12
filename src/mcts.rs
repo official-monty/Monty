@@ -98,15 +98,13 @@ impl<'a> Searcher<'a> {
 
             nodes += 1;
 
-            if nodes & 255 == 0 {
+            if nodes % 256 == 0 {
                 if self.abort.load(Ordering::Relaxed) {
                     break;
                 }
 
-                let elapsed = timer.elapsed().as_millis();
-
                 if let Some(time) = limits.max_time {
-                    if elapsed >= time {
+                    if timer.elapsed().as_millis() >= time {
                         break;
                     }
                 }
@@ -118,13 +116,13 @@ impl<'a> Searcher<'a> {
                 }
             }
 
-            if nodes & 16383 == 0 {
+            if nodes % 16384 == 0 {
                 // Time management
                 if let Some(time) = limits.opt_time {
                     let elapsed = timer.elapsed().as_millis();
 
                     let (_, mut score) = self.get_pv(0);
-                    score = self.get_cp(score);
+                    score = Searcher::get_cp(score);
                     let eval_diff = if previous_score == f32::NEG_INFINITY {
                         0.0
                     } else {
@@ -279,7 +277,7 @@ impl<'a> Searcher<'a> {
         } else if score < 0.0 {
             print!("score mate -{} ", pv_line.len() / 2);
         } else {
-            let cp = self.get_cp(score);
+            let cp = Searcher::get_cp(score);
             print!("score cp {cp:.0} ");
         }
 
@@ -337,7 +335,7 @@ impl<'a> Searcher<'a> {
         Move::from(action.mov())
     }
 
-    fn get_cp(&self, score: f32) -> f32 {
+    fn get_cp(score: f32) -> f32 {
         -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln()
     }
 
