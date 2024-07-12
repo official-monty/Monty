@@ -38,10 +38,6 @@ impl Node {
         &self.actions
     }
 
-    pub fn actions_mut(&mut self) -> &mut [Edge] {
-        &mut self.actions
-    }
-
     pub fn state(&self) -> GameState {
         self.state
     }

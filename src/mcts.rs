@@ -213,7 +213,7 @@ impl<'a> Searcher<'a> {
             if child_ptr == -1 {
                 let state = pos.game_state();
                 child_ptr = self.tree.push(Node::new(state, pos.hash(), ptr, action));
-                self.tree.edge_mut(ptr, action).set_ptr(child_ptr);
+                self.tree.edge(ptr, action).set_ptr(child_ptr);
             }
 
             let u = self.perform_one_iteration(pos, child_ptr, depth);
@@ -224,7 +224,7 @@ impl<'a> Searcher<'a> {
 
         // flip perspective of score
         u = 1.0 - u;
-        self.tree.edge_mut(parent, action).update(u);
+        self.tree.edge(parent, action).update(u);
 
         let edge = self.tree.edge(parent, action);
         self.tree.push_hash(hash, edge.visits(), edge.q());

@@ -75,7 +75,7 @@ impl Tree {
             let parent = self[new].parent();
             let action = self[new].action();
 
-            self.edge_mut(parent, action).set_ptr(-1);
+            self.edge(parent, action).set_ptr(-1);
 
             self.delete(new);
         }
@@ -205,14 +205,6 @@ impl Tree {
             &self.parent_edge
         } else {
             &self[ptr].actions()[idx]
-        }
-    }
-
-    pub fn edge_mut(&mut self, ptr: i32, idx: usize) -> &mut Edge {
-        if ptr == -1 {
-            &mut self.parent_edge
-        } else {
-            &mut self[ptr].actions_mut()[idx]
         }
     }
 

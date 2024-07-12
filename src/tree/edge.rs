@@ -80,15 +80,15 @@ impl Edge {
         (self.sq_q() - self.q64().powi(2)).max(0.0) as f32
     }
 
-    pub fn set_ptr(&mut self, ptr: i32) {
+    pub fn set_ptr(&self, ptr: i32) {
         self.ptr.store(ptr, Ordering::SeqCst);
     }
 
-    pub fn set_policy(&mut self, policy: f32) {
+    pub fn set_policy(&self, policy: f32) {
         self.policy.store((policy * f32::from(i16::MAX)) as i16, Ordering::SeqCst)
     }
 
-    pub fn update(&mut self, result: f32) {
+    pub fn update(&self, result: f32) {
         let r = f64::from(result);
         let v = f64::from(self.visits());
 

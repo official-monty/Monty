@@ -74,7 +74,7 @@ impl HashTable {
         }
     }
 
-    pub fn push(&mut self, hash: u64, visits: i32, q: f32) {
+    pub fn push(&self, hash: u64, visits: i32, q: f32) {
         let idx = hash % (self.table.len() as u64);
 
         let entry = HashEntry {
