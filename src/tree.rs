@@ -44,7 +44,7 @@ impl Tree {
     }
 
     fn new(cap: usize) -> Self {
-        let mut tree = Self {
+        let tree = Self {
             tree: vec![Node::new(GameState::Ongoing, 0, -1, 0); cap / 8],
             hash: HashTable::new(cap / 16),
             root: -1,

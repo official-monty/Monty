@@ -19,6 +19,32 @@ pub enum GameState {
     Won(u8),
 }
 
+impl From<GameState> for u16 {
+    fn from(value: GameState) -> Self {
+        match value {
+            GameState::Ongoing => 0,
+            GameState::Draw => 1 << 8,
+            GameState::Lost(x) => (2 << 8) ^ u16::from(x),
+            GameState::Won(x) => (3 << 8) ^ u16::from(x),
+        }
+    }
+}
+
+impl From<u16> for GameState {
+    fn from(value: u16) -> Self {
+        let discr = value >> 8;
+        let x = value as u8;
+
+        match discr {
+            0 => GameState::Ongoing,
+            1 => GameState::Draw,
+            2 => GameState::Lost(x),
+            3 => GameState::Won(x),
+            _ => unreachable!(),
+        }
+    }
+}
+
 impl std::fmt::Display for GameState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
