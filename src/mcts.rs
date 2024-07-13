@@ -137,7 +137,7 @@ impl<'a> Searcher<'a> {
 
                     // Use less time if our best move has a large percentage of visits, and vice versa
                     let nodes_effort = self.get_best_action().visits() as f32 / nodes as f32;
-                    let best_move_visits = (2.5 - (nodes_effort * 0.6).ln_1p() * 5.0).clamp(0.45, 1.50);
+                    let best_move_visits = (2.4 - ((nodes_effort + 0.3) * 0.5).ln_1p() * 4.0).clamp(0.45, 1.50);
 
                     let total_time = (time as f32 * falling_eval * best_move_instability * best_move_visits) as u128;
                     if elapsed >= total_time {
