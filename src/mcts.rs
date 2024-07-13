@@ -163,22 +163,24 @@ impl<'a> Searcher<'a> {
             // select action to take via PUCT
             let action = self.pick_action(ptr);
 
-            let edge = self.tree.edge(ptr, action);
-            pos.make_move(Move::from(edge.mov()));
+            if action == usize::MAX {
+                self.get_utility(ptr, pos)
+            } else {
+                let edge = self.tree.edge(ptr, action);
+                pos.make_move(Move::from(edge.mov()));
 
-            let mut child_ptr = edge.ptr();
+                let mut child_ptr = edge.ptr();
 
-            // create and push node if not present
-            if child_ptr == -1 {
-                let state = pos.game_state();
-                child_ptr = self.tree.push(Node::new(state, pos.hash(), ptr, action));
-                self.tree.edge_mut(ptr, action).set_ptr(child_ptr);
+                // create and push node if not present
+                if child_ptr == -1 {
+                    let state = pos.game_state();
+                    child_ptr = self.tree.push(Node::new(state, pos.hash(), ptr, action));
+                    self.tree.edge_mut(ptr, action).set_ptr(child_ptr);
+                }
+
+                child_state = self.tree[child_ptr].state();
+                self.perform_one_iteration(pos, child_ptr, depth)
             }
-
-            let u = self.perform_one_iteration(pos, child_ptr, depth);
-            child_state = self.tree[child_ptr].state();
-
-            u
         };
 
         // flip perspective of score
@@ -188,7 +190,9 @@ impl<'a> Searcher<'a> {
         let edge = self.tree.edge(parent, action);
         self.tree.push_hash(hash, edge.visits(), edge.wins());
 
-        self.tree.propogate_proven_mates(ptr, child_state);
+        if let GameState::Lost(n) = child_state {
+            self.tree[ptr].set_state(GameState::Won(n + 1));
+        }
 
         self.tree.make_recently_used(ptr);
 
@@ -204,7 +208,7 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    fn pick_action(&self, ptr: i32) -> usize {
+    fn pick_action(&mut self, ptr: i32) -> usize {
         if !self.tree[ptr].has_children() {
             panic!("trying to pick from no children!");
         }
@@ -219,12 +223,36 @@ impl<'a> Searcher<'a> {
 
         let expl = cpuct * expl_scale;
 
-        self.tree.get_best_child_by_key(ptr, |action| {
+        let mut proven_loss = true;
+        let mut win_len = 0;
+
+        let best = self.tree.get_best_child_by_key(ptr, |action| {
+            if action.visits() == 0 {
+                proven_loss = false;
+            } else if action.ptr() != -1 {
+                let child = &self.tree[action.ptr()];
+
+                if let GameState::Won(n) = child.state() {
+                    win_len = n.max(win_len);
+                } else {
+                    proven_loss = false;
+                }
+            } else {
+                proven_loss = false;
+            }
+
             let q = SearchHelpers::get_action_value(action, fpu);
             let u = expl * action.policy() / (1 + action.visits()) as f32;
 
             q + u
-        })
+        });
+
+        if proven_loss {
+            self.tree[ptr].set_state(GameState::Lost(win_len + 1));
+            return usize::MAX;
+        }
+
+        best
     }
 
     fn search_report(&self, depth: usize, timer: &Instant, nodes: usize) {
