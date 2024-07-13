@@ -6,7 +6,7 @@ pub use params::MctsParams;
 
 use crate::{
     chess::Move,
-    tree::{Node, Tree},
+    tree::{Node, Tree, Edge},
     ChessState, GameState, PolicyNetwork, ValueNetwork,
 };
 
@@ -121,6 +121,7 @@ impl<'a> Searcher<'a> {
                 if let Some(time) = limits.opt_time {
                     let elapsed = timer.elapsed().as_millis();
 
+                    // Use more time if our eval is falling, and vice versa
                     let (_, mut score) = self.get_pv(0);
                     score = Searcher::get_cp(score);
                     let eval_diff = if previous_score == f32::NEG_INFINITY {
@@ -130,10 +131,15 @@ impl<'a> Searcher<'a> {
                     };
                     let falling_eval = (1.0 + eval_diff * 0.05).clamp(0.60, 1.80);
 
+                    // Use more time if our best move is changing frequently
                     let best_move_instability =
                         (1.0 + (best_move_changes as f32 * 0.3).ln_1p()).clamp(1.0, 3.2);
 
-                    let total_time = (time as f32 * falling_eval * best_move_instability) as u128;
+                    // Use less time if our best move has a large percentage of visits, and vice versa
+                    let nodes_effort = self.get_best_action().visits() as f32 / nodes as f32;
+                    let best_move_visits = (2.5 - (nodes_effort * 0.6).ln_1p() * 5.0).clamp(0.45, 1.50);
+
+                    let total_time = (time as f32 * falling_eval * best_move_instability * best_move_visits) as u128;
                     if elapsed >= total_time {
                         break;
                     }
@@ -327,6 +333,11 @@ impl<'a> Searcher<'a> {
         }
 
         (pv, score)
+    }
+
+    fn get_best_action(&self) -> &Edge {
+        let idx = self.tree.get_best_child(self.tree.root_node());
+        self.tree.edge(self.tree.root_node(), idx)
     }
 
     fn get_best_move(&self) -> Move {
