@@ -11,26 +11,6 @@ impl<T> Param<T> {
     }
 }
 
-impl Param<i32> {
-    fn set(&mut self, val: i32) {
-        self.val = val.clamp(self.min, self.max);
-    }
-
-    fn info(&self, name: &str) {
-        println!(
-            "option name {} type spin default {:.0} min {:.0} max {:.0}",
-            name, self.val, self.min, self.max,
-        );
-    }
-
-    fn list(&self, name: &str, step: i32, r: f32) {
-        println!(
-            "{}, {}, {}, {}, {}, {}",
-            name, self.val, self.min, self.max, step, r,
-        );
-    }
-}
-
 impl Param<f32> {
     fn set(&mut self, val: i32) {
         let actual = val as f32 / 1000.0;
@@ -101,11 +81,7 @@ macro_rules! make_mcts_params {
 }
 
 make_mcts_params! {
-    root_pst: f32 = 4.0, 1.0, 10.0, 0.2, 0.002;
-    root_cpuct: f32 = 0.65, 0.1, 5.0, 0.1, 0.002;
-    cpuct: f32 = 0.65, 0.1, 5.0, 0.1, 0.002;
-    cpuct_var_weight: f32 = 0.85, 0.0, 2.0, 0.1, 0.002;
-    cpuct_var_scale: f32 = 0.2, 0.0, 2.0, 0.05, 0.002;
-    cpuct_visits_scale: i32 = 64, 1, 512, 4, 0.002;
-    expl_tau: f32 = 0.5, 0.1, 1.0, 0.05, 0.002;
+    root_pst: f32 = 4.55, 1.0, 10.0, 0.2, 0.002;
+    root_cpuct: f32 = 4.02, 0.1, 5.0, 0.1, 0.002;
+    cpuct: f32 = 0.82, 0.1, 5.0, 0.1, 0.002;
 }
