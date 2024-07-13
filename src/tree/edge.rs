@@ -48,6 +48,15 @@ impl Edge {
         }
     }
 
+    pub fn set_new(&self, ptr: i32, mov: u16, policy: i16) {
+        self.ptr.store(ptr, Ordering::SeqCst);
+        self.mov.store(mov, Ordering::SeqCst);
+        self.policy.store(policy, Ordering::SeqCst);
+        self.visits.store(0, Ordering::SeqCst);
+        self.q.store(0, Ordering::SeqCst);
+        self.sq_q.store(0, Ordering::SeqCst);
+    }
+
     pub fn ptr(&self) -> i32 {
         self.ptr.load(Ordering::SeqCst)
     }

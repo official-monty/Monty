@@ -42,6 +42,14 @@ impl Node {
         }
     }
 
+    pub fn set_new(&mut self, state: GameState, hash: u64, parent: i32, action: usize) {
+        self.clear();
+        self.state.store(u16::from(state), Ordering::SeqCst);
+        self.hash.store(hash, Ordering::SeqCst);
+        self.parent.store(parent, Ordering::SeqCst);
+        self.action.store(action as u16, Ordering::SeqCst);
+    }
+
     pub fn parent(&self) -> i32 {
         self.parent.load(Ordering::SeqCst)
     }

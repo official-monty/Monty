@@ -6,7 +6,7 @@ pub use params::MctsParams;
 
 use crate::{
     chess::Move,
-    tree::{Node, Tree},
+    tree::Tree,
     ChessState, GameState, PolicyNetwork, ValueNetwork,
 };
 
@@ -212,7 +212,7 @@ impl<'a> Searcher<'a> {
             // create and push node if not present
             if child_ptr == -1 {
                 let state = pos.game_state();
-                child_ptr = self.tree.push(Node::new(state, pos.hash(), ptr, action));
+                child_ptr = self.tree.push_new(state, pos.hash(), ptr, action);
                 self.tree.edge(ptr, action).set_ptr(child_ptr);
             }
 

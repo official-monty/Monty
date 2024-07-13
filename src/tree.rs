@@ -44,8 +44,8 @@ impl Tree {
     }
 
     fn new(cap: usize) -> Self {
-        let tree = Self {
-            tree: vec![Node::new(GameState::Ongoing, 0, -1, 0); cap / 8],
+        let mut tree = Self {
+            tree: Vec::new(),
             hash: HashTable::new(cap / 16),
             root: -1,
             empty: 0,
@@ -54,6 +54,10 @@ impl Tree {
             lru_tail: -1,
             parent_edge: Edge::new(0, 0, 0),
         };
+
+        for _ in 0..cap / 8 {
+            tree.tree.push(Node::new(GameState::Ongoing, 0, -1, 0));
+        }
 
         let end = tree.cap() as i32 - 1;
 
@@ -66,7 +70,7 @@ impl Tree {
         tree
     }
 
-    pub fn push(&mut self, node: Node) -> i32 {
+    pub fn push_new(&mut self, state: GameState, hash: u64, parent: i32, action: usize) -> i32 {
         let mut new = self.empty;
 
         // tree is full, do some LRU pruning
@@ -84,7 +88,7 @@ impl Tree {
 
         self.used += 1;
         self.empty = self[self.empty].fwd_link();
-        self[new] = node;
+        self[new].set_new(state, hash, parent, action);
 
         self.append_to_lru(new);
 
@@ -186,7 +190,7 @@ impl Tree {
         let end = self.cap() as i32 - 1;
 
         for i in 0..end {
-            self[i] = Node::new(GameState::Ongoing, 0, -1, 0);
+            self[i].set_new(GameState::Ongoing, 0, -1, 0);
             self[i].set_fwd_link(i + 1);
         }
 
@@ -243,7 +247,7 @@ impl Tree {
         let t = Instant::now();
 
         if self.is_empty() {
-            let node = self.push(Node::new(GameState::Ongoing, root.hash(), -1, 0));
+            let node = self.push_new(GameState::Ongoing, root.hash(), -1, 0);
             self.make_root_node(node);
 
             return;
@@ -272,7 +276,7 @@ impl Tree {
 
         if !found {
             println!("info string no subtree found");
-            let node = self.push(Node::new(GameState::Ongoing, root.hash(), -1, 0));
+            let node = self.push_new(GameState::Ongoing, root.hash(), -1, 0);
             self.make_root_node(node);
         }
 
