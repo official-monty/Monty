@@ -18,14 +18,14 @@ struct HashEntryInternal(AtomicU64);
 
 impl Clone for HashEntryInternal {
     fn clone(&self) -> Self {
-        Self(AtomicU64::new(self.0.load(Ordering::SeqCst)))
+        Self(AtomicU64::new(self.0.load(Ordering::Relaxed)))
     }
 }
 
 impl From<&HashEntryInternal> for HashEntry {
     fn from(value: &HashEntryInternal) -> Self {
         unsafe {
-            std::mem::transmute(value.0.load(Ordering::SeqCst))
+            std::mem::transmute(value.0.load(Ordering::Relaxed))
         }
     }
 }
@@ -83,6 +83,6 @@ impl HashTable {
             q: (q * f32::from(u16::MAX)) as u16,
         };
 
-        self.table[idx as usize].0.store(u64::from(entry), Ordering::SeqCst)
+        self.table[idx as usize].0.store(u64::from(entry), Ordering::Relaxed)
     }
 }

@@ -15,10 +15,10 @@ impl Clone for Edge {
         Self {
             ptr: AtomicI32::new(self.ptr()),
             mov: AtomicU16::new(self.mov()),
-            policy: AtomicI16::new(self.policy.load(Ordering::SeqCst)),
+            policy: AtomicI16::new(self.policy.load(Ordering::Relaxed)),
             visits: AtomicI32::new(self.visits()),
-            q: AtomicU32::new(self.q.load(Ordering::SeqCst)),
-            sq_q: AtomicU32::new(self.sq_q.load(Ordering::SeqCst)),
+            q: AtomicU32::new(self.q.load(Ordering::Relaxed)),
+            sq_q: AtomicU32::new(self.sq_q.load(Ordering::Relaxed)),
         }
     }
 }
@@ -49,32 +49,32 @@ impl Edge {
     }
 
     pub fn set_new(&self, ptr: i32, mov: u16, policy: i16) {
-        self.ptr.store(ptr, Ordering::SeqCst);
-        self.mov.store(mov, Ordering::SeqCst);
-        self.policy.store(policy, Ordering::SeqCst);
-        self.visits.store(0, Ordering::SeqCst);
-        self.q.store(0, Ordering::SeqCst);
-        self.sq_q.store(0, Ordering::SeqCst);
+        self.ptr.store(ptr, Ordering::Relaxed);
+        self.mov.store(mov, Ordering::Relaxed);
+        self.policy.store(policy, Ordering::Relaxed);
+        self.visits.store(0, Ordering::Relaxed);
+        self.q.store(0, Ordering::Relaxed);
+        self.sq_q.store(0, Ordering::Relaxed);
     }
 
     pub fn ptr(&self) -> i32 {
-        self.ptr.load(Ordering::SeqCst)
+        self.ptr.load(Ordering::Relaxed)
     }
 
     pub fn mov(&self) -> u16 {
-        self.mov.load(Ordering::SeqCst)
+        self.mov.load(Ordering::Relaxed)
     }
 
     pub fn visits(&self) -> i32 {
-        self.visits.load(Ordering::SeqCst)
+        self.visits.load(Ordering::Relaxed)
     }
 
     pub fn policy(&self) -> f32 {
-        f32::from(self.policy.load(Ordering::SeqCst)) / f32::from(i16::MAX)
+        f32::from(self.policy.load(Ordering::Relaxed)) / f32::from(i16::MAX)
     }
 
     fn q64(&self) -> f64 {
-        f64::from(self.q.load(Ordering::SeqCst)) / f64::from(u32::MAX)
+        f64::from(self.q.load(Ordering::Relaxed)) / f64::from(u32::MAX)
     }
 
     pub fn q(&self) -> f32 {
@@ -82,7 +82,7 @@ impl Edge {
     }
 
     pub fn sq_q(&self) -> f64 {
-        f64::from(self.sq_q.load(Ordering::SeqCst)) / f64::from(u32::MAX)
+        f64::from(self.sq_q.load(Ordering::Relaxed)) / f64::from(u32::MAX)
     }
 
     pub fn var(&self) -> f32 {
@@ -90,11 +90,11 @@ impl Edge {
     }
 
     pub fn set_ptr(&self, ptr: i32) {
-        self.ptr.store(ptr, Ordering::SeqCst);
+        self.ptr.store(ptr, Ordering::Relaxed);
     }
 
     pub fn set_policy(&self, policy: f32) {
-        self.policy.store((policy * f32::from(i16::MAX)) as i16, Ordering::SeqCst)
+        self.policy.store((policy * f32::from(i16::MAX)) as i16, Ordering::Relaxed)
     }
 
     pub fn update(&self, result: f32) {
@@ -104,9 +104,9 @@ impl Edge {
         let q = (self.q64() * v + r) / (v + 1.0);
         let sq_q = (self.sq_q() * v + r.powi(2)) / (v + 1.0);
 
-        self.q.store((q * f64::from(u32::MAX)) as u32, Ordering::SeqCst);
-        self.sq_q.store((sq_q * f64::from(u32::MAX)) as u32, Ordering::SeqCst);
+        self.q.store((q * f64::from(u32::MAX)) as u32, Ordering::Relaxed);
+        self.sq_q.store((sq_q * f64::from(u32::MAX)) as u32, Ordering::Relaxed);
 
-        self.visits.fetch_add(1, Ordering::SeqCst);
+        self.visits.fetch_add(1, Ordering::Relaxed);
     }
 }

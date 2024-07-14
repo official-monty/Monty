@@ -19,12 +19,12 @@ impl Clone for Node {
     fn clone(&self) -> Self {
         Self {
             actions: self.actions.clone(),
-            state: AtomicU16::new(self.state.load(Ordering::SeqCst)),
+            state: AtomicU16::new(self.state.load(Ordering::Relaxed)),
             hash: AtomicU64::new(self.hash()),
             bwd_link: AtomicI32::new(self.bwd_link()),
             fwd_link: AtomicI32::new(self.fwd_link()),
             parent: AtomicI32::new(self.parent()),
-            action: AtomicU16::new(self.action.load(Ordering::SeqCst)),
+            action: AtomicU16::new(self.action.load(Ordering::Relaxed)),
         }
     }
 }
@@ -44,14 +44,14 @@ impl Node {
 
     pub fn set_new(&mut self, state: GameState, hash: u64, parent: i32, action: usize) {
         self.clear();
-        self.state.store(u16::from(state), Ordering::SeqCst);
-        self.hash.store(hash, Ordering::SeqCst);
-        self.parent.store(parent, Ordering::SeqCst);
-        self.action.store(action as u16, Ordering::SeqCst);
+        self.state.store(u16::from(state), Ordering::Relaxed);
+        self.hash.store(hash, Ordering::Relaxed);
+        self.parent.store(parent, Ordering::Relaxed);
+        self.action.store(action as u16, Ordering::Relaxed);
     }
 
     pub fn parent(&self) -> i32 {
-        self.parent.load(Ordering::SeqCst)
+        self.parent.load(Ordering::Relaxed)
     }
 
     pub fn is_terminal(&self) -> bool {
@@ -63,23 +63,23 @@ impl Node {
     }
 
     pub fn state(&self) -> GameState {
-        GameState::from(self.state.load(Ordering::SeqCst))
+        GameState::from(self.state.load(Ordering::Relaxed))
     }
 
     pub fn hash(&self) -> u64 {
-        self.hash.load(Ordering::SeqCst)
+        self.hash.load(Ordering::Relaxed)
     }
 
     pub fn bwd_link(&self) -> i32 {
-        self.bwd_link.load(Ordering::SeqCst)
+        self.bwd_link.load(Ordering::Relaxed)
     }
 
     pub fn fwd_link(&self) -> i32 {
-        self.fwd_link.load(Ordering::SeqCst)
+        self.fwd_link.load(Ordering::Relaxed)
     }
 
     pub fn set_state(&self, state: GameState) {
-        self.state.store(u16::from(state), Ordering::SeqCst);
+        self.state.store(u16::from(state), Ordering::Relaxed);
     }
 
     pub fn has_children(&self) -> bool {
@@ -87,12 +87,12 @@ impl Node {
     }
 
     pub fn action(&self) -> usize {
-        usize::from(self.action.load(Ordering::SeqCst))
+        usize::from(self.action.load(Ordering::Relaxed))
     }
 
     pub fn clear_parent(&self) {
-        self.parent.store(-1, Ordering::SeqCst);
-        self.action.store(0, Ordering::SeqCst);
+        self.parent.store(-1, Ordering::Relaxed);
+        self.action.store(0, Ordering::Relaxed);
     }
 
     pub fn is_not_expanded(&self) -> bool {
@@ -102,17 +102,17 @@ impl Node {
     pub fn clear(&mut self) {
         self.actions.clear();
         self.set_state(GameState::Ongoing);
-        self.hash.store(0, Ordering::SeqCst);
+        self.hash.store(0, Ordering::Relaxed);
         self.set_bwd_link(-1);
         self.set_fwd_link(-1);
     }
 
     pub fn set_fwd_link(&self, ptr: i32) {
-        self.fwd_link.store(ptr, Ordering::SeqCst);
+        self.fwd_link.store(ptr, Ordering::Relaxed);
     }
 
     pub fn set_bwd_link(&self, ptr: i32) {
-        self.bwd_link.store(ptr, Ordering::SeqCst);
+        self.bwd_link.store(ptr, Ordering::Relaxed);
     }
 
     pub fn expand<const ROOT: bool>(
