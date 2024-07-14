@@ -361,6 +361,10 @@ impl Tree {
         use rand::prelude::*;
         use rand_distr::Uniform;
 
+        if temp == 0.0 {
+            return self.get_best_child(ptr);
+        }
+
         let mut rng = rand::thread_rng();
         let dist = Uniform::new(0.0, 1.0);
         let rand = dist.sample(&mut rng);

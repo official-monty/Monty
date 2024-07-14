@@ -116,7 +116,10 @@ impl<'a> DatagenThread<'a> {
 
             let (bm, score) = searcher.search(limits, false, &mut 0, &None, true, temp);
 
-            temp = (0.9 * temp).max(0.1);
+            temp *= 0.9;
+            if temp <= 0.2 {
+                temp = 0.0;
+            }
 
             game.push(position.stm(), bm, score);
 
