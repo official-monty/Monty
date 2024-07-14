@@ -356,6 +356,39 @@ impl Tree {
         })
     }
 
+    #[cfg(feature = "datagen")]
+    pub fn get_best_child_temp(&self, ptr: i32, temp: f32) -> usize {
+        use rand::prelude::*;
+        use rand_distr::Uniform;
+
+        let mut rng = rand::thread_rng();
+        let dist = Uniform::new(0.0, 1.0);
+        let rand = dist.sample(&mut rng);
+
+        let node = &self[ptr];
+
+        let mut total = 0.0;
+        let mut distribution = vec![0.0; node.actions().len()];
+        let t = 1.0 / f64::from(temp);
+
+        for (i, action) in node.actions().iter().enumerate() {
+            distribution[i] = f64::from(action.visits()).powf(t);
+            total += distribution[i];
+        }
+
+        let mut cumulative = 0.0;
+
+        for (i, weight) in distribution.iter().enumerate() {
+            cumulative += weight;
+
+            if cumulative / total > rand {
+                return i;
+            }
+        }
+
+        node.actions().len() - 1
+    }
+
     pub fn display(&self, idx: i32, depth: usize) {
         let mut bars = vec![true; depth + 1];
         self.display_recurse(Edge::new(idx, 0, 0), depth + 1, 0, &mut bars);

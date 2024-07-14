@@ -96,6 +96,8 @@ impl<'a> DatagenThread<'a> {
 
         let mut game = Binpack::new(position.clone());
 
+        let mut temp = 0.8;
+
         // play out game
         loop {
             if self.stop.load(Ordering::Relaxed) {
@@ -112,7 +114,9 @@ impl<'a> DatagenThread<'a> {
                 &abort,
             );
 
-            let (bm, score) = searcher.search(limits, false, &mut 0, &None, true);
+            let (bm, score) = searcher.search(limits, false, &mut 0, &None, true, temp);
+
+            temp = (0.9 * temp).max(0.1);
 
             game.push(position.stm(), bm, score);
 

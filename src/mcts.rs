@@ -58,6 +58,8 @@ impl<'a> Searcher<'a> {
         prev_board: &Option<ChessState>,
         #[cfg(feature = "datagen")]
         use_dirichlet_noise: bool,
+        #[cfg(feature = "datagen")]
+        temp: f32,
     ) -> (Move, f32) {
         let timer = Instant::now();
 
@@ -134,7 +136,12 @@ impl<'a> Searcher<'a> {
             self.search_report(depth.max(1), &timer, nodes);
         }
 
+        #[cfg(not(feature = "datagen"))]
         let best_action = self.tree.get_best_child(self.tree.root_node());
+
+        #[cfg(feature = "datagen")]
+        let best_action = self.tree.get_best_child_temp(self.tree.root_node(), temp);
+
         let best_child = &self.tree.edge(self.tree.root_node(), best_action);
         (Move::from(best_child.mov()), best_child.q())
     }

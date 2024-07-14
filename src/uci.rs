@@ -68,6 +68,8 @@ impl Uci {
                         policy,
                         value,
                         &mut stored_message,
+                        #[cfg(feature = "datagen")]
+                        1.0,
                     );
 
                     tree = res.0;
@@ -157,6 +159,8 @@ impl Uci {
                 &None,
                 #[cfg(feature = "datagen")]
                 false,
+                #[cfg(feature = "datagen")]
+                1.0,
             );
 
             time += timer.elapsed().as_secs_f32();
@@ -260,6 +264,8 @@ fn go(
     policy: &PolicyNetwork,
     value: &ValueNetwork,
     stored_message: &mut Option<String>,
+    #[cfg(feature = "datagen")]
+    temp: f32,
 ) -> (Tree, ChessState) {
     let mut max_nodes = i32::MAX as usize;
     let mut max_time = None;
@@ -339,6 +345,8 @@ fn go(
                 &prev,
                 #[cfg(feature = "datagen")]
                 false,
+                #[cfg(feature = "datagen")]
+                temp,
             );
             println!("bestmove {}", pos.conv_mov_to_str(mov));
 
