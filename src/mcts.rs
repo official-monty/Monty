@@ -323,7 +323,7 @@ impl<'a> Searcher<'a> {
             }
 
             action = self.tree.edge(action.ptr(), idx);
-            depth -= 1;
+            depth = depth.saturating_sub(1);
         }
 
         (pv, score)
