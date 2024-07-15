@@ -5,7 +5,10 @@ mod node;
 pub use edge::Edge;
 use hash::{HashEntry, HashTable};
 pub use node::Node;
-use std::time::Instant;
+use std::{
+    sync::atomic::{AtomicI32, AtomicUsize, Ordering},
+    time::Instant,
+};
 
 use crate::{
     chess::{ChessState, Move},
@@ -15,11 +18,11 @@ use crate::{
 pub struct Tree {
     tree: Vec<Node>,
     hash: HashTable,
-    root: i32,
-    empty: i32,
-    used: usize,
-    lru_head: i32,
-    lru_tail: i32,
+    root: AtomicI32,
+    empty: AtomicI32,
+    used: AtomicUsize,
+    lru_head: AtomicI32,
+    lru_tail: AtomicI32,
     parent_edge: Edge,
 }
 
@@ -28,12 +31,6 @@ impl std::ops::Index<i32> for Tree {
 
     fn index(&self, index: i32) -> &Self::Output {
         &self.tree[index as usize]
-    }
-}
-
-impl std::ops::IndexMut<i32> for Tree {
-    fn index_mut(&mut self, index: i32) -> &mut Self::Output {
-        &mut self.tree[index as usize]
     }
 }
 
@@ -47,11 +44,11 @@ impl Tree {
         let mut tree = Self {
             tree: Vec::new(),
             hash: HashTable::new(cap / 16),
-            root: -1,
-            empty: 0,
-            used: 0,
-            lru_head: -1,
-            lru_tail: -1,
+            root: AtomicI32::new(-1),
+            empty: AtomicI32::new(0),
+            used: AtomicUsize::new(0),
+            lru_head: AtomicI32::new(-1),
+            lru_tail: AtomicI32::new(-1),
             parent_edge: Edge::new(0, 0, 0),
         };
 
@@ -70,12 +67,12 @@ impl Tree {
         tree
     }
 
-    pub fn push_new(&mut self, state: GameState, hash: u64, parent: i32, action: usize) -> i32 {
-        let mut new = self.empty;
+    pub fn push_new(&self, state: GameState, hash: u64, parent: i32, action: usize) -> i32 {
+        let mut new = self.empty.load(Ordering::Relaxed);
 
         // tree is full, do some LRU pruning
         if new == -1 {
-            new = self.lru_tail;
+            new = self.lru_tail.load(Ordering::Relaxed);
             let parent = self[new].parent();
             let action = self[new].action();
 
@@ -86,14 +83,14 @@ impl Tree {
 
         assert_ne!(new, -1);
 
-        self.used += 1;
-        self.empty = self[self.empty].fwd_link();
+        self.used.fetch_add(1, Ordering::Relaxed);
+        self.empty.store(self[self.empty.load(Ordering::Relaxed)].fwd_link(), Ordering::Relaxed);
         self[new].set_new(state, hash, parent, action);
 
         self.append_to_lru(new);
 
-        if self.used == 1 {
-            self.lru_tail = new;
+        if self.used.load(Ordering::Relaxed) == 1 {
+            self.lru_tail.store(new, Ordering::Relaxed);
         }
 
         new
@@ -103,51 +100,51 @@ impl Tree {
         self.hash.get(hash)
     }
 
-    pub fn push_hash(&mut self, hash: u64, visits: i32, wins: f32) {
+    pub fn push_hash(&self, hash: u64, visits: i32, wins: f32) {
         self.hash.push(hash, visits, wins);
     }
 
-    pub fn delete(&mut self, ptr: i32) {
+    pub fn delete(&self, ptr: i32) {
         self.remove_from_lru(ptr);
         self[ptr].clear();
 
-        let empty = self.empty;
+        let empty = self.empty.load(Ordering::Relaxed);
         self[ptr].set_fwd_link(empty);
 
-        self.empty = ptr;
-        self.used -= 1;
-        assert!(self.used < self.cap());
+        self.empty.store(ptr, Ordering::Relaxed);
+        let used = self.used.fetch_sub(1, Ordering::Relaxed);
+        assert!(used - 1 < self.cap());
     }
 
-    pub fn make_recently_used(&mut self, ptr: i32) {
+    pub fn make_recently_used(&self, ptr: i32) {
         self.remove_from_lru(ptr);
         self.append_to_lru(ptr);
     }
 
-    fn append_to_lru(&mut self, ptr: i32) {
-        let old_head = self.lru_head;
+    fn append_to_lru(&self, ptr: i32) {
+        let old_head = self.lru_head.load(Ordering::Relaxed);
         if old_head != -1 {
             self[old_head].set_bwd_link(ptr);
         }
-        self.lru_head = ptr;
+        self.lru_head.store(ptr, Ordering::Relaxed);
         self[ptr].set_fwd_link(old_head);
         self[ptr].set_bwd_link(-1);
     }
 
-    fn remove_from_lru(&mut self, ptr: i32) {
+    fn remove_from_lru(&self, ptr: i32) {
         let bwd = self[ptr].bwd_link();
         let fwd = self[ptr].fwd_link();
 
         if bwd != -1 {
             self[bwd].set_fwd_link(fwd);
         } else {
-            self.lru_head = fwd;
+            self.lru_head.store(fwd, Ordering::Relaxed);
         }
 
         if fwd != -1 {
             self[fwd].set_bwd_link(bwd);
         } else {
-            self.lru_tail = bwd;
+            self.lru_tail.store(bwd, Ordering::Relaxed);
         }
 
         self[ptr].set_bwd_link(-1);
@@ -155,7 +152,7 @@ impl Tree {
     }
 
     pub fn root_node(&self) -> i32 {
-        self.root
+        self.root.load(Ordering::Relaxed)
     }
 
     pub fn cap(&self) -> usize {
@@ -163,7 +160,7 @@ impl Tree {
     }
 
     pub fn len(&self) -> usize {
-        self.used
+        self.used.load(Ordering::Relaxed)
     }
 
     pub fn remaining(&self) -> usize {
@@ -175,16 +172,16 @@ impl Tree {
     }
 
     pub fn clear(&mut self) {
-        if self.used == 0 {
+        if self.is_empty() {
             return;
         }
 
         self.hash.clear();
-        self.root = -1;
-        self.empty = 0;
-        self.used = 0;
-        self.lru_head = -1;
-        self.lru_tail = -1;
+        self.root.store(-1, Ordering::Relaxed);
+        self.empty.store(0, Ordering::Relaxed);
+        self.used.store(0, Ordering::Relaxed);
+        self.lru_head.store(-1, Ordering::Relaxed);
+        self.lru_tail.store(-1, Ordering::Relaxed);
         self.parent_edge = Edge::new(0, 0, 0);
 
         let end = self.cap() as i32 - 1;
@@ -198,7 +195,7 @@ impl Tree {
     }
 
     pub fn make_root_node(&mut self, node: i32) {
-        self.root = node;
+        self.root.store(node, Ordering::Relaxed);
         self.parent_edge = self.edge(self[node].parent(), self[node].action()).clone();
         self[node].clear_parent();
         self[node].set_state(GameState::Ongoing);
@@ -212,7 +209,7 @@ impl Tree {
         }
     }
 
-    pub fn propogate_proven_mates(&mut self, ptr: i32, child_state: GameState) {
+    pub fn propogate_proven_mates(&self, ptr: i32, child_state: GameState) {
         match child_state {
             // if the child node resulted in a loss, then
             // this node has a guaranteed win
@@ -260,7 +257,7 @@ impl Tree {
         if let Some(board) = prev_board {
             println!("info string searching for subtree");
 
-            let root = self.recurse_find(self.root, board, root, 2);
+            let root = self.recurse_find(self.root_node(), board, root, 2);
 
             if root != -1 && self[root].has_children() {
                 found = true;

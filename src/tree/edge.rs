@@ -48,10 +48,10 @@ impl Edge {
         }
     }
 
-    pub fn set_new(&self, ptr: i32, mov: u16, policy: i16) {
-        self.ptr.store(ptr, Ordering::Relaxed);
+    pub fn set_new(&self, mov: u16, policy: f32) {
+        self.ptr.store(-1, Ordering::Relaxed);
         self.mov.store(mov, Ordering::Relaxed);
-        self.policy.store(policy, Ordering::Relaxed);
+        self.set_policy(policy);
         self.visits.store(0, Ordering::Relaxed);
         self.q.store(0, Ordering::Relaxed);
         self.sq_q.store(0, Ordering::Relaxed);
