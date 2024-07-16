@@ -1,9 +1,8 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct HashEntry {
-    pub hash: u16,
-    pub visits: i32,
+    hash: u16,
     q: u16,
 }
 
@@ -14,11 +13,11 @@ impl HashEntry {
 }
 
 #[derive(Default)]
-struct HashEntryInternal(AtomicU64);
+struct HashEntryInternal(AtomicU32);
 
 impl Clone for HashEntryInternal {
     fn clone(&self) -> Self {
-        Self(AtomicU64::new(self.0.load(Ordering::Relaxed)))
+        Self(AtomicU32::new(self.0.load(Ordering::Relaxed)))
     }
 }
 
@@ -30,7 +29,7 @@ impl From<&HashEntryInternal> for HashEntry {
     }
 }
 
-impl From<HashEntry> for u64 {
+impl From<HashEntry> for u32 {
     fn from(value: HashEntry) -> Self {
         unsafe {
             std::mem::transmute(value)
@@ -74,15 +73,14 @@ impl HashTable {
         }
     }
 
-    pub fn push(&self, hash: u64, visits: i32, q: f32) {
+    pub fn push(&self, hash: u64, q: f32) {
         let idx = hash % (self.table.len() as u64);
 
         let entry = HashEntry {
             hash: Self::key(hash),
-            visits,
             q: (q * f32::from(u16::MAX)) as u16,
         };
 
-        self.table[idx as usize].0.store(u64::from(entry), Ordering::Relaxed)
+        self.table[idx as usize].0.store(u32::from(entry), Ordering::Relaxed)
     }
 }

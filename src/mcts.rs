@@ -252,7 +252,7 @@ impl<'a> Searcher<'a> {
         self.tree.edge(parent, action).update(u);
 
         let edge = self.tree.edge(parent, action);
-        self.tree.push_hash(hash, edge.visits(), edge.q());
+        self.tree.push_hash(hash, edge.q());
 
         self.tree.propogate_proven_mates(ptr, child_state);
 
