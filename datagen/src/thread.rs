@@ -118,20 +118,19 @@ impl<'a> DatagenThread<'a> {
             }
 
             let abort = AtomicBool::new(false);
+            tree.try_use_subtree(&position, &None);
             let mut searcher = Searcher::new(
                 position.clone(),
-                tree,
-                self.params.clone(),
+                &tree,
+                &self.params,
                 policy,
                 value,
                 &abort,
             );
 
-            let (bm, score) = searcher.search(limits, false, &mut 0, &None);
+            let (bm, score) = searcher.search(limits, false, &mut 0);
 
             game.push(position.stm(), bm, score);
-
-            tree = searcher.tree_and_board().0;
 
             let mut root_count = 0;
             position.map_legal_moves(|_| root_count += 1);

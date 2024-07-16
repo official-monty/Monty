@@ -26,6 +26,7 @@ impl Uci {
         let mut params = MctsParams::default();
         let mut tree = Tree::new_mb(64);
         let mut report_moves = false;
+        let mut threads = 1;
 
         let mut stored_message: Option<String> = None;
 
@@ -51,15 +52,15 @@ impl Uci {
             let cmd = *commands.first().unwrap_or(&"oops");
             match cmd {
                 "isready" => println!("readyok"),
-                "setoption" => setoption(&commands, &mut params, &mut report_moves, &mut tree),
+                "setoption" => setoption(&commands, &mut params, &mut report_moves, &mut tree, &mut threads),
                 "position" => position(commands, &mut pos, &mut prev, &mut tree),
                 "go" => {
                     // increment game ply every time `go` is called
                     root_game_ply += 2;
 
-                    let res = go(
+                    go(
                         &commands,
-                        tree,
+                        &mut tree,
                         prev,
                         &pos,
                         root_game_ply,
@@ -68,10 +69,10 @@ impl Uci {
                         policy,
                         value,
                         &mut stored_message,
+                        threads,
                     );
 
-                    tree = res.0;
-                    prev = Some(res.1);
+                    prev = Some(pos.clone());
                 }
                 "perft" => run_perft(&commands, &pos),
                 "quit" => std::process::exit(0),
@@ -143,15 +144,15 @@ impl Uci {
         };
 
         let mut tree = Tree::new_mb(32);
-        let abort = AtomicBool::new(false);
 
         for fen in bench_fens {
+            let abort = AtomicBool::new(false);
             let pos = ChessState::from_fen(fen);
-            let mut searcher = Searcher::new(pos, tree, params.clone(), policy, value, &abort);
+            tree.try_use_subtree(&pos, &None);
+            let mut searcher = Searcher::new(pos, &tree, params, policy, value, &abort);
             let timer = Instant::now();
-            searcher.search(limits, false, &mut total_nodes, &None);
+            searcher.search(limits, false, &mut total_nodes);
             time += timer.elapsed().as_secs_f32();
-            tree = searcher.tree_and_board().0;
             tree.clear();
         }
 
@@ -172,7 +173,7 @@ fn preamble() {
     println!("uciok");
 }
 
-fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool, tree: &mut Tree) {
+fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool, tree: &mut Tree, threads: &mut usize) {
     if let ["setoption", "name", "report_moves"] = commands {
         *report_moves = !*report_moves;
         return;
@@ -181,6 +182,11 @@ fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool
     let (name, val) = if let ["setoption", "name", x, "value", y] = commands {
         if *x == "UCI_Chess960" {
             return;
+        }
+
+        if *x == "Threads" {
+            *threads = y.parse().unwrap();
+            return
         }
 
         (*x, y.parse::<i32>().unwrap_or(0))
@@ -241,7 +247,7 @@ fn position(
 #[allow(clippy::too_many_arguments)]
 fn go(
     commands: &[&str],
-    tree: Tree,
+    tree: &mut Tree,
     prev: Option<ChessState>,
     pos: &ChessState,
     root_game_ply: u32,
@@ -250,7 +256,8 @@ fn go(
     policy: &PolicyNetwork,
     value: &ValueNetwork,
     stored_message: &mut Option<String>,
-) -> (Tree, ChessState) {
+    threads: usize,
+) {
     let mut max_nodes = i32::MAX as usize;
     let mut max_time = None;
     let mut max_depth = 256;
@@ -313,7 +320,7 @@ fn go(
 
     let abort = AtomicBool::new(false);
 
-    let mut searcher = Searcher::new(pos.clone(), tree, params.clone(), policy, value, &abort);
+    tree.try_use_subtree(pos, &prev);
 
     let limits = Limits {
         max_time,
@@ -324,7 +331,8 @@ fn go(
 
     std::thread::scope(|s| {
         s.spawn(|| {
-            let (mov, _) = searcher.search(limits, true, &mut 0, &prev);
+            let mut searcher = Searcher::new(pos.clone(), tree, params, policy, value, &abort);
+            let (mov, _) = searcher.search(limits, true, &mut 0);
             println!("bestmove {}", pos.conv_mov_to_str(mov));
 
             if report_moves {
@@ -332,10 +340,13 @@ fn go(
             }
         });
 
+        for _ in 0..threads - 1 {
+            let mut searcher = Searcher::new(pos.clone(), tree, params, policy, value, &abort);
+            searcher.secondary_search();
+        }
+
         *stored_message = handle_search_input(&abort);
     });
-
-    searcher.tree_and_board()
 }
 
 fn run_perft(commands: &[&str], pos: &ChessState) {

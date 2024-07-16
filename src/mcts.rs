@@ -25,8 +25,8 @@ pub struct Limits {
 
 pub struct Searcher<'a> {
     root_position: ChessState,
-    tree: Tree,
-    params: MctsParams,
+    tree: &'a Tree,
+    params: &'a MctsParams,
     policy: &'a PolicyNetwork,
     value: &'a ValueNetwork,
     abort: &'a AtomicBool,
@@ -35,8 +35,8 @@ pub struct Searcher<'a> {
 impl<'a> Searcher<'a> {
     pub fn new(
         root_position: ChessState,
-        tree: Tree,
-        params: MctsParams,
+        tree: &'a Tree,
+        params: &'a MctsParams,
         policy: &'a PolicyNetwork,
         value: &'a ValueNetwork,
         abort: &'a AtomicBool,
@@ -56,19 +56,17 @@ impl<'a> Searcher<'a> {
         limits: Limits,
         uci_output: bool,
         total_nodes: &mut usize,
-        prev_board: &Option<ChessState>,
     ) -> (Move, f32) {
         let timer = Instant::now();
 
         // attempt to reuse the current tree stored in memory
-        self.tree.try_use_subtree(&self.root_position, prev_board);
         let node = self.tree.root_node();
 
         // relabel root policies with root PST value
         if self.tree[node].has_children() {
-            self.tree[node].relabel_policy(&self.root_position, &self.params, self.policy);
+            self.tree[node].relabel_policy(&self.root_position, self.params, self.policy);
         } else {
-            self.tree[node].expand::<true>(&self.root_position, &self.params, self.policy);
+            self.tree[node].expand::<true>(&self.root_position, self.params, self.policy);
         }
 
         let mut nodes = 0;
@@ -96,13 +94,13 @@ impl<'a> Searcher<'a> {
                 break;
             }
 
+            if self.abort.load(Ordering::Relaxed) {
+                break;
+            }
+
             nodes += 1;
 
             if nodes % 256 == 0 {
-                if self.abort.load(Ordering::Relaxed) {
-                    break;
-                }
-
                 if let Some(time) = limits.max_time {
                     if timer.elapsed().as_millis() >= time {
                         break;
@@ -170,6 +168,8 @@ impl<'a> Searcher<'a> {
             }
         }
 
+        self.abort.store(true, Ordering::Relaxed);
+
         *total_nodes += nodes;
 
         if uci_output {
@@ -179,6 +179,22 @@ impl<'a> Searcher<'a> {
         let best_action = self.tree.get_best_child(self.tree.root_node());
         let best_child = &self.tree.edge(self.tree.root_node(), best_action);
         (Move::from(best_child.mov()), best_child.q())
+    }
+
+    pub fn secondary_search(&mut self) {
+        loop {
+            let mut pos = self.root_position.clone();
+            self.perform_one_iteration(&mut pos, self.tree.root_node(), &mut 0);
+
+            if self.abort.load(Ordering::Relaxed) {
+                break;
+            }
+
+            if self.tree[self.tree.root_node()].is_terminal() {
+                self.abort.store(true, Ordering::Relaxed);
+                break;
+            }
+        }
     }
 
     fn perform_one_iteration(&mut self, pos: &mut ChessState, ptr: i32, depth: &mut usize) -> f32 {
@@ -207,7 +223,7 @@ impl<'a> Searcher<'a> {
         } else {
             // expand node on the second visit
             if self.tree[ptr].is_not_expanded() {
-                self.tree[ptr].expand::<false>(pos, &self.params, self.policy);
+                self.tree[ptr].expand::<false>(pos, self.params, self.policy);
             }
 
             // select action to take via PUCT
@@ -247,7 +263,7 @@ impl<'a> Searcher<'a> {
 
     fn get_utility(&self, ptr: i32, pos: &ChessState) -> f32 {
         match self.tree[ptr].state() {
-            GameState::Ongoing => pos.get_value_wdl(self.value, &self.params),
+            GameState::Ongoing => pos.get_value_wdl(self.value, self.params),
             GameState::Draw => 0.5,
             GameState::Lost(_) => 0.0,
             GameState::Won(_) => 1.0,
@@ -263,9 +279,9 @@ impl<'a> Searcher<'a> {
         let edge = self.tree.edge(node.parent(), node.action());
         let is_root = edge.ptr() == self.tree.root_node();
 
-        let cpuct = SearchHelpers::get_cpuct(&self.params, edge, is_root);
+        let cpuct = SearchHelpers::get_cpuct(self.params, edge, is_root);
         let fpu = SearchHelpers::get_fpu(edge);
-        let expl_scale = SearchHelpers::get_explore_scaling(&self.params, edge);
+        let expl_scale = SearchHelpers::get_explore_scaling(self.params, edge);
 
         let expl = cpuct * expl_scale;
 
@@ -353,9 +369,9 @@ impl<'a> Searcher<'a> {
         -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln()
     }
 
-    pub fn tree_and_board(self) -> (Tree, ChessState) {
-        (self.tree, self.root_position)
-    }
+    //pub fn tree_and_board(self) -> (Tree, ChessState) {
+    //    (self.tree, self.root_position)
+    //}
 
     pub fn display_moves(&self) {
         for action in self.tree[self.tree.root_node()].actions() {
