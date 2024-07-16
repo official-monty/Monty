@@ -36,13 +36,13 @@ impl std::ops::Index<i32> for Tree {
 
 impl Tree {
     pub fn new_mb(mb: usize) -> Self {
-        let cap = mb * 1024 * 1024 / std::mem::size_of::<Node>();
+        let cap = mb * 1024 * 1024 / 48;
         Self::new(cap)
     }
 
     fn new(cap: usize) -> Self {
         let mut tree = Self {
-            tree: Vec::new(),
+            tree: Vec::with_capacity(cap / 8),
             hash: HashTable::new(cap / 16),
             root: AtomicI32::new(-1),
             empty: AtomicI32::new(0),
