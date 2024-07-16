@@ -202,7 +202,7 @@ impl<'a> Searcher<'a> {
 
         self.tree.make_recently_used(ptr);
 
-        let hash = self.tree[ptr].hash();
+        let hash = pos.hash();
         let parent = self.tree[ptr].parent();
         let action = self.tree[ptr].action();
 
@@ -237,7 +237,7 @@ impl<'a> Searcher<'a> {
             // create and push node if not present
             if child_ptr == -1 {
                 let state = pos.game_state();
-                child_ptr = self.tree.push_new(state, pos.hash(), ptr, action);
+                child_ptr = self.tree.push_new(state, ptr, action);
                 self.tree.edge(ptr, action).set_ptr(child_ptr);
             }
 

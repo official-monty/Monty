@@ -53,7 +53,7 @@ impl Tree {
         };
 
         for _ in 0..cap / 8 {
-            tree.tree.push(Node::new(GameState::Ongoing, 0, -1, 0));
+            tree.tree.push(Node::new(GameState::Ongoing, -1, 0));
         }
 
         let end = tree.cap() as i32 - 1;
@@ -67,7 +67,7 @@ impl Tree {
         tree
     }
 
-    pub fn push_new(&self, state: GameState, hash: u64, parent: i32, action: usize) -> i32 {
+    pub fn push_new(&self, state: GameState, parent: i32, action: usize) -> i32 {
         let mut new = self.empty.load(Ordering::Relaxed);
 
         // tree is full, do some LRU pruning
@@ -85,7 +85,7 @@ impl Tree {
 
         self.used.fetch_add(1, Ordering::Relaxed);
         self.empty.store(self[self.empty.load(Ordering::Relaxed)].fwd_link(), Ordering::Relaxed);
-        self[new].set_new(state, hash, parent, action);
+        self[new].set_new(state, parent, action);
 
         self.append_to_lru(new);
 
@@ -187,7 +187,7 @@ impl Tree {
         let end = self.cap() as i32 - 1;
 
         for i in 0..end {
-            self[i].set_new(GameState::Ongoing, 0, -1, 0);
+            self[i].set_new(GameState::Ongoing, -1, 0);
             self[i].set_fwd_link(i + 1);
         }
 
@@ -244,7 +244,7 @@ impl Tree {
         let t = Instant::now();
 
         if self.is_empty() {
-            let node = self.push_new(GameState::Ongoing, root.hash(), -1, 0);
+            let node = self.push_new(GameState::Ongoing, -1, 0);
             self.make_root_node(node);
 
             return;
@@ -273,7 +273,7 @@ impl Tree {
 
         if !found {
             println!("info string no subtree found");
-            let node = self.push_new(GameState::Ongoing, root.hash(), -1, 0);
+            let node = self.push_new(GameState::Ongoing, -1, 0);
             self.make_root_node(node);
         }
 

@@ -1,6 +1,6 @@
 use std::{
     alloc::{self, Layout},
-    sync::atomic::{AtomicI32, AtomicPtr, AtomicU16, AtomicU64, Ordering}
+    sync::atomic::{AtomicI32, AtomicPtr, AtomicU16, Ordering}
 };
 
 use crate::{chess::Move, tree::Edge, ChessState, GameState, MctsParams, PolicyNetwork};
@@ -13,7 +13,6 @@ pub struct Node {
     actions: AtomicPtr<Edge>,
     num_actions: AtomicU16,
     state: AtomicU16,
-    hash: AtomicU64,
 
     // used for lru
     bwd_link: AtomicI32,
@@ -23,12 +22,11 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(state: GameState, hash: u64, parent: i32, action: usize) -> Self {
+    pub fn new(state: GameState, parent: i32, action: usize) -> Self {
         Node {
             actions: AtomicPtr::new(std::ptr::null_mut()),
             num_actions: AtomicU16::new(0),
             state: AtomicU16::new(u16::from(state)),
-            hash: AtomicU64::new(hash),
             parent: AtomicI32::new(parent),
             bwd_link: AtomicI32::new(-1),
             fwd_link: AtomicI32::new(-1),
@@ -36,10 +34,9 @@ impl Node {
         }
     }
 
-    pub fn set_new(&self, state: GameState, hash: u64, parent: i32, action: usize) {
+    pub fn set_new(&self, state: GameState, parent: i32, action: usize) {
         self.clear();
         self.state.store(u16::from(state), Ordering::Relaxed);
-        self.hash.store(hash, Ordering::Relaxed);
         self.parent.store(parent, Ordering::Relaxed);
         self.action.store(action as u16, Ordering::Relaxed);
     }
@@ -72,9 +69,9 @@ impl Node {
         GameState::from(self.state.load(Ordering::Relaxed))
     }
 
-    pub fn hash(&self) -> u64 {
-        self.hash.load(Ordering::Relaxed)
-    }
+    //pub fn hash(&self) -> u64 {
+    //    self.hash.load(Ordering::Relaxed)
+    //}
 
     pub fn bwd_link(&self) -> i32 {
         self.bwd_link.load(Ordering::Relaxed)
@@ -115,7 +112,6 @@ impl Node {
         self.actions.store(std::ptr::null_mut(), Ordering::Relaxed);
         self.num_actions.store(0, Ordering::Relaxed);
         self.set_state(GameState::Ongoing);
-        self.hash.store(0, Ordering::Relaxed);
         self.set_bwd_link(-1);
         self.set_fwd_link(-1);
     }
