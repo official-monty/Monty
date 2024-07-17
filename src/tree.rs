@@ -1,7 +1,6 @@
 mod edge;
 mod hash;
 mod node;
-mod vec;
 
 pub use edge::Edge;
 use hash::{HashEntry, HashTable};
@@ -77,7 +76,7 @@ impl Tree {
             let parent = self[new].parent();
             let action = self[new].action();
 
-            self.edge(parent, action).set_ptr(-1);
+            self.set_edge_ptr(parent, action, -1);
 
             self.delete(new);
         }
@@ -197,17 +196,44 @@ impl Tree {
 
     pub fn make_root_node(&mut self, node: i32) {
         self.root.store(node, Ordering::Relaxed);
-        self.parent_edge = self.edge(self[node].parent(), self[node].action()).clone();
+        self.parent_edge = self.edge_copy(self[node].parent(), self[node].action());
         self[node].clear_parent();
         self[node].set_state(GameState::Ongoing);
     }
 
-    pub fn edge(&self, ptr: i32, idx: usize) -> &Edge {
+    pub fn edge_copy(&self, ptr: i32, idx: usize) -> Edge {
         if ptr == -1 {
+            self.parent_edge.clone()
+        } else {
+            self[ptr].actions()[idx].clone()
+        }
+    }
+
+    pub fn set_edge_ptr(&self, ptr: i32, idx: usize, set: i32) {
+        if ptr == -1 {
+            self.parent_edge.set_ptr(set);
+        } else {
+            self[ptr].actions()[idx].set_ptr(set);
+        }
+    }
+
+    pub fn get_edge_visits(&self, ptr: i32, idx: usize) -> i32 {
+        if ptr == -1 {
+            self.parent_edge.visits()
+        } else {
+            self[ptr].actions()[idx].visits()
+        }
+    }
+
+    pub fn update_edge(&self, ptr: i32, idx: usize, u: f32) -> f32 {
+        let edge = if ptr == -1 {
             &self.parent_edge
         } else {
             &self[ptr].actions()[idx]
-        }
+        };
+
+        edge.update(u);
+        edge.q()
     }
 
     pub fn propogate_proven_mates(&self, ptr: i32, child_state: GameState) {
@@ -220,7 +246,7 @@ impl Tree {
             GameState::Won(n) => {
                 let mut proven_loss = true;
                 let mut max_win_len = n;
-                for action in self[ptr].actions() {
+                for action in self[ptr].actions().iter() {
                     if action.ptr() == -1 {
                         proven_loss = false;
                         break;
@@ -301,7 +327,7 @@ impl Tree {
 
         let node = &self.tree[start as usize];
 
-        for action in node.actions() {
+        for action in node.actions().iter() {
             let child_idx = action.ptr();
             let mut child_board = this_board.clone();
 
@@ -396,9 +422,9 @@ impl Tree {
         }
 
         let mut active = Vec::new();
-        for action in node.actions() {
+        for action in node.actions().iter() {
             if action.ptr() != -1 {
-                active.push(action);
+                active.push(action.clone());
             }
         }
 

@@ -177,7 +177,7 @@ impl<'a> Searcher<'a> {
         }
 
         let best_action = self.tree.get_best_child(self.tree.root_node());
-        let best_child = &self.tree.edge(self.tree.root_node(), best_action);
+        let best_child = self.tree.edge_copy(self.tree.root_node(), best_action);
         (Move::from(best_child.mov()), best_child.q())
     }
 
@@ -207,7 +207,7 @@ impl<'a> Searcher<'a> {
         let action = self.tree[ptr].action();
 
         let mut child_state = GameState::Ongoing;
-        let pvisits = self.tree.edge(parent, action).visits();
+        let pvisits = self.tree.get_edge_visits(parent, action);
 
         let mut u = if self.tree[ptr].is_terminal() || pvisits == 0 {
             // probe hash table to use in place of network
@@ -229,7 +229,7 @@ impl<'a> Searcher<'a> {
             // select action to take via PUCT
             let action = self.pick_action(ptr);
 
-            let edge = self.tree.edge(ptr, action);
+            let edge = self.tree.edge_copy(ptr, action);
             pos.make_move(Move::from(edge.mov()));
 
             let mut child_ptr = edge.ptr();
@@ -238,7 +238,7 @@ impl<'a> Searcher<'a> {
             if child_ptr == -1 {
                 let state = pos.game_state();
                 child_ptr = self.tree.push_new(state, ptr, action);
-                self.tree.edge(ptr, action).set_ptr(child_ptr);
+                self.tree.set_edge_ptr(ptr, action, child_ptr);
             }
 
             let u = self.perform_one_iteration(pos, child_ptr, depth);
@@ -249,10 +249,9 @@ impl<'a> Searcher<'a> {
 
         // flip perspective of score
         u = 1.0 - u;
-        self.tree.edge(parent, action).update(u);
+        let new_q = self.tree.update_edge(parent, action, u);
 
-        let edge = self.tree.edge(parent, action);
-        self.tree.push_hash(hash, edge.q());
+        self.tree.push_hash(hash, new_q);
 
         self.tree.propogate_proven_mates(ptr, child_state);
 
@@ -276,12 +275,12 @@ impl<'a> Searcher<'a> {
         }
 
         let node = &self.tree[ptr];
-        let edge = self.tree.edge(node.parent(), node.action());
+        let edge = self.tree.edge_copy(node.parent(), node.action());
         let is_root = edge.ptr() == self.tree.root_node();
 
-        let cpuct = SearchHelpers::get_cpuct(self.params, edge, is_root);
-        let fpu = SearchHelpers::get_fpu(edge);
-        let expl_scale = SearchHelpers::get_explore_scaling(self.params, edge);
+        let cpuct = SearchHelpers::get_cpuct(self.params, &edge, is_root);
+        let fpu = SearchHelpers::get_fpu(&edge);
+        let expl_scale = SearchHelpers::get_explore_scaling(self.params, &edge);
 
         let expl = cpuct * expl_scale;
 
@@ -324,7 +323,7 @@ impl<'a> Searcher<'a> {
         let mate = self.tree[self.tree.root_node()].is_terminal();
 
         let idx = self.tree.get_best_child(self.tree.root_node());
-        let mut action = self.tree.edge(self.tree.root_node(), idx);
+        let mut action = self.tree.edge_copy(self.tree.root_node(), idx);
 
         let score = if action.ptr() != -1 {
             match self.tree[action.ptr()].state() {
@@ -347,21 +346,21 @@ impl<'a> Searcher<'a> {
                 break;
             }
 
-            action = self.tree.edge(action.ptr(), idx);
+            action = self.tree.edge_copy(action.ptr(), idx);
             depth = depth.saturating_sub(1);
         }
 
         (pv, score)
     }
 
-    fn get_best_action(&self) -> &Edge {
+    fn get_best_action(&self) -> Edge {
         let idx = self.tree.get_best_child(self.tree.root_node());
-        self.tree.edge(self.tree.root_node(), idx)
+        self.tree.edge_copy(self.tree.root_node(), idx)
     }
 
     fn get_best_move(&self) -> Move {
         let idx = self.tree.get_best_child(self.tree.root_node());
-        let action = self.tree.edge(self.tree.root_node(), idx);
+        let action = self.tree.edge_copy(self.tree.root_node(), idx);
         Move::from(action.mov())
     }
 
@@ -369,12 +368,8 @@ impl<'a> Searcher<'a> {
         -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln()
     }
 
-    //pub fn tree_and_board(self) -> (Tree, ChessState) {
-    //    (self.tree, self.root_position)
-    //}
-
     pub fn display_moves(&self) {
-        for action in self.tree[self.tree.root_node()].actions() {
+        for action in self.tree[self.tree.root_node()].actions().iter() {
             let mov = self.root_position.conv_mov_to_str(action.mov().into());
             let q = action.q() * 100.0;
             println!("{mov} -> {q:.2}%");

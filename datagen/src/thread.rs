@@ -139,7 +139,7 @@ impl<'a> DatagenThread<'a> {
             if root_count <= 112 {
                 let mut policy_pos = PolicyData::new(position.clone(), bm, score);
 
-                for action in tree[tree.root_node()].actions() {
+                for action in tree[tree.root_node()].actions().iter() {
                     policy_pos.push(action.mov().into(), action.visits());
                 }
 

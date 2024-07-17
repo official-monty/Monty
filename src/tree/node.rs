@@ -1,10 +1,10 @@
-use std::sync::atomic::{AtomicI32, AtomicU16, Ordering};
+use std::sync::{atomic::{AtomicI32, AtomicU16, Ordering}, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::{chess::Move, tree::{Edge, vec::AtomicVec}, ChessState, GameState, MctsParams, PolicyNetwork};
+use crate::{chess::Move, tree::Edge, ChessState, GameState, MctsParams, PolicyNetwork};
 
 #[derive(Debug)]
 pub struct Node {
-    actions: AtomicVec,
+    actions: RwLock<Vec<Edge>>,
     state: AtomicU16,
 
     // used for lru
@@ -17,7 +17,7 @@ pub struct Node {
 impl Node {
     pub fn new(state: GameState, parent: i32, action: usize) -> Self {
         Node {
-            actions: AtomicVec::new(),
+            actions: RwLock::new(Vec::new()),
             state: AtomicU16::new(u16::from(state)),
             parent: AtomicI32::new(parent),
             bwd_link: AtomicI32::new(-1),
@@ -42,11 +42,15 @@ impl Node {
     }
 
     pub fn num_actions(&self) -> usize {
-        self.actions.len()
+        self.actions.read().unwrap().len()
     }
 
-    pub fn actions(&self) -> &[Edge] {
-        self.actions.elements()
+    pub fn actions(&self) -> RwLockReadGuard<Vec<Edge>> {
+        self.actions.read().unwrap()
+    }
+
+    fn actions_mut(&self) -> RwLockWriteGuard<Vec<Edge>> {
+        self.actions.write().unwrap()
     }
 
     pub fn state(&self) -> GameState {
@@ -66,7 +70,7 @@ impl Node {
     }
 
     pub fn has_children(&self) -> bool {
-        self.actions.len() != 0
+        self.actions.read().unwrap().len() != 0
     }
 
     pub fn action(&self) -> usize {
@@ -83,7 +87,7 @@ impl Node {
     }
 
     pub fn clear(&self) {
-        self.actions.clear();
+        self.actions.write().unwrap().clear();
         self.set_state(GameState::Ongoing);
         self.set_bwd_link(-1);
         self.set_fwd_link(-1);
@@ -107,34 +111,37 @@ impl Node {
 
         let feats = pos.get_policy_feats();
         let mut max = f32::NEG_INFINITY;
-        let mut moves = [(0, 0.0); 256];
-        let mut num = 0;
+
+        let mut actions = self.actions_mut();
 
         pos.map_legal_moves(|mov| {
             let policy = pos.get_policy(mov, &feats, policy);
+
+            // trick for calculating policy before quantising
+            actions.push(Edge::new(f32::to_bits(policy) as i32, mov.into(), 0));
             max = max.max(policy);
-            moves[num] = (mov.into(), policy);
-            num += 1;
         });
 
         let mut total = 0.0;
 
-        for (_, policy) in moves[..num].iter_mut() {
-            *policy = if ROOT {
-                ((*policy - max) / params.root_pst()).exp()
+        for action in actions.iter_mut()  {
+            let mut policy = f32::from_bits(action.ptr() as u32);
+
+            policy = if ROOT {
+                ((policy - max) / params.root_pst()).exp()
             } else {
-                (*policy - max).exp()
+                (policy - max).exp()
             };
 
-            total += *policy;
+            action.set_ptr(f32::to_bits(policy) as i32);
+
+            total += policy;
         }
 
-        if num != 0 {
-            self.actions.alloc(num);
-        }
-
-        for (action, &(mov, policy)) in self.actions().iter().zip(moves[..num].iter()) {
-            action.set_new(mov, policy / total);
+        for action in actions.iter_mut() {
+            let policy = f32::from_bits(action.ptr() as u32) / total;
+            action.set_ptr(-1);
+            action.set_policy(policy);
         }
     }
 
@@ -149,7 +156,7 @@ impl Node {
 
         let mut policies = Vec::new();
 
-        for action in self.actions() {
+        for action in self.actions().iter() {
             let mov = Move::from(action.mov());
             let policy = pos.get_policy(mov, &feats, policy);
             policies.push(policy);
@@ -163,7 +170,7 @@ impl Node {
             total += *policy;
         }
 
-        for (i, action) in self.actions().iter().enumerate() {
+        for (i, action) in self.actions_mut().iter_mut().enumerate() {
             action.set_policy(policies[i] / total);
         }
     }
