@@ -1,17 +1,10 @@
-use std::{
-    alloc::{self, Layout},
-    sync::atomic::{AtomicI32, AtomicPtr, AtomicU16, Ordering}
-};
+use std::sync::atomic::{AtomicI32, AtomicU16, Ordering};
 
-use crate::{chess::Move, tree::Edge, ChessState, GameState, MctsParams, PolicyNetwork};
-
-const EDGE_SIZE: usize = std::mem::size_of::<Edge>();
-const EDGE_ALIGN: usize = std::mem::align_of::<Edge>();
+use crate::{chess::Move, tree::{Edge, vec::AtomicVec}, ChessState, GameState, MctsParams, PolicyNetwork};
 
 #[derive(Debug)]
 pub struct Node {
-    actions: AtomicPtr<Edge>,
-    num_actions: AtomicU16,
+    actions: AtomicVec,
     state: AtomicU16,
 
     // used for lru
@@ -24,8 +17,7 @@ pub struct Node {
 impl Node {
     pub fn new(state: GameState, parent: i32, action: usize) -> Self {
         Node {
-            actions: AtomicPtr::new(std::ptr::null_mut()),
-            num_actions: AtomicU16::new(0),
+            actions: AtomicVec::new(),
             state: AtomicU16::new(u16::from(state)),
             parent: AtomicI32::new(parent),
             bwd_link: AtomicI32::new(-1),
@@ -50,28 +42,16 @@ impl Node {
     }
 
     pub fn num_actions(&self) -> usize {
-        usize::from(self.num_actions.load(Ordering::Relaxed))
+        self.actions.len()
     }
 
     pub fn actions(&self) -> &[Edge] {
-        let ptr = self.actions.load(Ordering::Relaxed);
-
-        if ptr.is_null() {
-            return &[];
-        }
-
-        unsafe {
-            std::slice::from_raw_parts(ptr, self.num_actions())
-        }
+        self.actions.elements()
     }
 
     pub fn state(&self) -> GameState {
         GameState::from(self.state.load(Ordering::Relaxed))
     }
-
-    //pub fn hash(&self) -> u64 {
-    //    self.hash.load(Ordering::Relaxed)
-    //}
 
     pub fn bwd_link(&self) -> i32 {
         self.bwd_link.load(Ordering::Relaxed)
@@ -86,7 +66,7 @@ impl Node {
     }
 
     pub fn has_children(&self) -> bool {
-        !self.actions.load(Ordering::Relaxed).is_null()
+        self.actions.len() != 0
     }
 
     pub fn action(&self) -> usize {
@@ -103,14 +83,7 @@ impl Node {
     }
 
     pub fn clear(&self) {
-        let ptr = self.actions.load(Ordering::Relaxed);
-        let layout = Layout::from_size_align(EDGE_SIZE * self.num_actions(), EDGE_ALIGN).unwrap();
-        unsafe {
-            alloc::dealloc(ptr.cast(), layout);
-        }
-
-        self.actions.store(std::ptr::null_mut(), Ordering::Relaxed);
-        self.num_actions.store(0, Ordering::Relaxed);
+        self.actions.clear();
         self.set_state(GameState::Ongoing);
         self.set_bwd_link(-1);
         self.set_fwd_link(-1);
@@ -157,11 +130,7 @@ impl Node {
         }
 
         if num != 0 {
-            let layout = Layout::from_size_align(EDGE_SIZE * num, EDGE_ALIGN).unwrap();
-            let ptr = unsafe { alloc::alloc_zeroed(layout) };
-
-            self.num_actions.store(num as u16, Ordering::Relaxed);
-            self.actions.store(ptr.cast(), Ordering::Release);
+            self.actions.alloc(num);
         }
 
         for (action, &(mov, policy)) in self.actions().iter().zip(moves[..num].iter()) {

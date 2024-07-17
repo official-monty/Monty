@@ -1,6 +1,7 @@
 mod edge;
 mod hash;
 mod node;
+mod vec;
 
 pub use edge::Edge;
 use hash::{HashEntry, HashTable};
