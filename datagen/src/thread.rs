@@ -98,6 +98,8 @@ impl<'a> DatagenThread<'a> {
 
         let mut temp = 0.8;
 
+        let params = self.params.perturb();
+
         // play out game
         loop {
             if self.stop.load(Ordering::Relaxed) {
@@ -108,7 +110,7 @@ impl<'a> DatagenThread<'a> {
             let mut searcher = Searcher::new(
                 position.clone(),
                 tree,
-                self.params.clone(),
+                params.clone(),
                 policy,
                 value,
                 &abort,

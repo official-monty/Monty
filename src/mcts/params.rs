@@ -1,3 +1,5 @@
+use rand_distr::Distribution;
+
 #[derive(Clone)]
 struct Param<T> {
     val: T,
@@ -98,6 +100,30 @@ macro_rules! make_mcts_params {
             }
         }
     };
+}
+
+#[cfg(feature = "datagen")]
+impl MctsParams {
+    pub fn perturb(&self) -> Self {
+        use rand::thread_rng;
+        use rand_distr::Normal;
+
+        let mut rng = thread_rng();
+        let dist = Normal::<f32>::new(1.0, 0.07).unwrap();
+
+        let mut cln = self.clone();
+
+        let mut sample = || dist.sample(&mut rng).max(0.5);
+
+        cln.root_pst.val *= sample();
+        cln.root_cpuct.val *= sample();
+        cln.cpuct.val *= sample();
+        cln.cpuct_var_weight.val *= sample();
+        cln.cpuct_var_scale.val *= sample();
+        cln.cpuct_visits_scale.val *= sample();
+
+        cln
+    }
 }
 
 make_mcts_params! {
