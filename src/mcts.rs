@@ -6,7 +6,7 @@ pub use params::MctsParams;
 
 use crate::{
     chess::Move,
-    tree::{Edge, Tree},
+    tree::{ActionStats, Edge, NodePtr, Tree},
     ChessState, GameState, PolicyNetwork, ValueNetwork,
 };
 
@@ -81,7 +81,15 @@ impl<'a> Searcher<'a> {
         loop {
             let mut pos = self.root_position.clone();
             let mut this_depth = 0;
-            self.perform_one_iteration(&mut pos, self.tree.root_node(), &mut this_depth);
+
+            let u = self.perform_one_iteration(
+                &mut pos,
+                self.tree.root_node(),
+                self.tree.root_stats(),
+                &mut this_depth,
+            );
+
+            self.tree.root_stats().update(u);
 
             cumulative_depth += this_depth - 1;
 
@@ -181,35 +189,14 @@ impl<'a> Searcher<'a> {
         (Move::from(best_child.mov()), best_child.q())
     }
 
-    pub fn secondary_search(&mut self) {
-        loop {
-            let mut pos = self.root_position.clone();
-            self.perform_one_iteration(&mut pos, self.tree.root_node(), &mut 0);
-
-            if self.abort.load(Ordering::Relaxed) {
-                break;
-            }
-
-            if self.tree[self.tree.root_node()].is_terminal() {
-                self.abort.store(true, Ordering::Relaxed);
-                break;
-            }
-        }
-    }
-
-    fn perform_one_iteration(&mut self, pos: &mut ChessState, ptr: i32, depth: &mut usize) -> f32 {
+    fn perform_one_iteration(&mut self, pos: &mut ChessState, ptr: NodePtr, node_stats: &ActionStats, depth: &mut usize) -> f32 {
         *depth += 1;
 
-        self.tree.make_recently_used(ptr);
-
         let hash = pos.hash();
-        let parent = self.tree[ptr].parent();
-        let action = self.tree[ptr].action();
 
         let mut child_state = GameState::Ongoing;
-        let pvisits = self.tree.get_edge_visits(parent, action);
 
-        let mut u = if self.tree[ptr].is_terminal() || pvisits == 0 {
+        let u = if self.tree[ptr].is_terminal() || node_stats.visits() == 0 {
             // probe hash table to use in place of network
             if self.tree[ptr].state() == GameState::Ongoing {
                 if let Some(entry) = self.tree.probe_hash(hash) {
@@ -227,7 +214,7 @@ impl<'a> Searcher<'a> {
             }
 
             // select action to take via PUCT
-            let action = self.pick_action(ptr);
+            let action = self.pick_action(ptr, &node_stats);
 
             let edge = self.tree.edge_copy(ptr, action);
             pos.make_move(Move::from(edge.mov()));
@@ -235,32 +222,28 @@ impl<'a> Searcher<'a> {
             let mut child_ptr = edge.ptr();
 
             // create and push node if not present
-            if child_ptr == -1 {
+            if child_ptr.is_null() {
                 let state = pos.game_state();
-                child_ptr = self.tree.push_new(state, ptr, action);
+                child_ptr = self.tree.push_new(state);
                 self.tree.set_edge_ptr(ptr, action, child_ptr);
             }
 
-            let u = self.perform_one_iteration(pos, child_ptr, depth);
+            let u = self.perform_one_iteration(pos, child_ptr, &edge.stats(), depth);
+
+            let new_q = self.tree.update_edge_stats(ptr, action, u);
+            self.tree.push_hash(hash, new_q);
+
             child_state = self.tree[child_ptr].state();
 
             u
         };
 
-        // flip perspective of score
-        u = 1.0 - u;
-        let new_q = self.tree.update_edge(parent, action, u);
-
-        self.tree.push_hash(hash, new_q);
-
         self.tree.propogate_proven_mates(ptr, child_state);
 
-        self.tree.make_recently_used(ptr);
-
-        u
+        1.0 - u
     }
 
-    fn get_utility(&self, ptr: i32, pos: &ChessState) -> f32 {
+    fn get_utility(&self, ptr: NodePtr, pos: &ChessState) -> f32 {
         match self.tree[ptr].state() {
             GameState::Ongoing => pos.get_value_wdl(self.value, self.params),
             GameState::Draw => 0.5,
@@ -269,18 +252,16 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    fn pick_action(&self, ptr: i32) -> usize {
+    fn pick_action(&self, ptr: NodePtr, node_stats: &ActionStats) -> usize {
         if !self.tree[ptr].has_children() {
             panic!("trying to pick from no children!");
         }
 
-        let node = &self.tree[ptr];
-        let edge = self.tree.edge_copy(node.parent(), node.action());
-        let is_root = edge.ptr() == self.tree.root_node();
+        let is_root = ptr == self.tree.root_node();
 
-        let cpuct = SearchHelpers::get_cpuct(self.params, &edge, is_root);
-        let fpu = SearchHelpers::get_fpu(&edge);
-        let expl_scale = SearchHelpers::get_explore_scaling(self.params, &edge);
+        let cpuct = SearchHelpers::get_cpuct(self.params, &node_stats, is_root);
+        let fpu = SearchHelpers::get_fpu(&node_stats);
+        let expl_scale = SearchHelpers::get_explore_scaling(self.params, &node_stats);
 
         let expl = cpuct * expl_scale;
 
@@ -308,9 +289,8 @@ impl<'a> Searcher<'a> {
         let elapsed = timer.elapsed();
         let nps = nodes as f32 / elapsed.as_secs_f32();
         let ms = elapsed.as_millis();
-        let hf = self.tree.len() * 1000 / self.tree.cap();
 
-        print!("time {ms} nodes {nodes} nps {nps:.0} hashfull {hf} pv");
+        print!("time {ms} nodes {nodes} nps {nps:.0} pv");
 
         for mov in pv_line {
             print!(" {}", self.root_position.conv_mov_to_str(mov));
@@ -325,7 +305,7 @@ impl<'a> Searcher<'a> {
         let idx = self.tree.get_best_child(self.tree.root_node());
         let mut action = self.tree.edge_copy(self.tree.root_node(), idx);
 
-        let score = if action.ptr() != -1 {
+        let score = if action.ptr().is_null() {
             match self.tree[action.ptr()].state() {
                 GameState::Lost(_) => 1.1,
                 GameState::Won(_) => -0.1,
@@ -338,7 +318,7 @@ impl<'a> Searcher<'a> {
 
         let mut pv = Vec::new();
 
-        while (mate || depth > 0) && action.ptr() != -1 {
+        while (mate || depth > 0) && action.ptr().is_null() {
             pv.push(Move::from(action.mov()));
             let idx = self.tree.get_best_child(action.ptr());
 

@@ -1,40 +1,24 @@
-use std::sync::{atomic::{AtomicI32, AtomicU16, Ordering}, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{atomic::{AtomicU16, Ordering}, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::{chess::Move, tree::Edge, ChessState, GameState, MctsParams, PolicyNetwork};
+use crate::{chess::Move, tree::{Edge, NodePtr}, ChessState, GameState, MctsParams, PolicyNetwork};
 
 #[derive(Debug)]
 pub struct Node {
     actions: RwLock<Vec<Edge>>,
     state: AtomicU16,
-
-    // used for lru
-    bwd_link: AtomicI32,
-    fwd_link: AtomicI32,
-    parent: AtomicI32,
-    action: AtomicU16,
 }
 
 impl Node {
-    pub fn new(state: GameState, parent: i32, action: usize) -> Self {
+    pub fn new(state: GameState) -> Self {
         Node {
             actions: RwLock::new(Vec::new()),
             state: AtomicU16::new(u16::from(state)),
-            parent: AtomicI32::new(parent),
-            bwd_link: AtomicI32::new(-1),
-            fwd_link: AtomicI32::new(-1),
-            action: AtomicU16::new(action as u16),
         }
     }
 
-    pub fn set_new(&self, state: GameState, parent: i32, action: usize) {
+    pub fn set_new(&self, state: GameState) {
         self.clear();
         self.state.store(u16::from(state), Ordering::Relaxed);
-        self.parent.store(parent, Ordering::Relaxed);
-        self.action.store(action as u16, Ordering::Relaxed);
-    }
-
-    pub fn parent(&self) -> i32 {
-        self.parent.load(Ordering::Relaxed)
     }
 
     pub fn is_terminal(&self) -> bool {
@@ -57,29 +41,12 @@ impl Node {
         GameState::from(self.state.load(Ordering::Relaxed))
     }
 
-    pub fn bwd_link(&self) -> i32 {
-        self.bwd_link.load(Ordering::Relaxed)
-    }
-
-    pub fn fwd_link(&self) -> i32 {
-        self.fwd_link.load(Ordering::Relaxed)
-    }
-
     pub fn set_state(&self, state: GameState) {
         self.state.store(u16::from(state), Ordering::Relaxed);
     }
 
     pub fn has_children(&self) -> bool {
         self.actions.read().unwrap().len() != 0
-    }
-
-    pub fn action(&self) -> usize {
-        usize::from(self.action.load(Ordering::Relaxed))
-    }
-
-    pub fn clear_parent(&self) {
-        self.parent.store(-1, Ordering::Relaxed);
-        self.action.store(0, Ordering::Relaxed);
     }
 
     pub fn is_not_expanded(&self) -> bool {
@@ -89,16 +56,6 @@ impl Node {
     pub fn clear(&self) {
         self.actions.write().unwrap().clear();
         self.set_state(GameState::Ongoing);
-        self.set_bwd_link(-1);
-        self.set_fwd_link(-1);
-    }
-
-    pub fn set_fwd_link(&self, ptr: i32) {
-        self.fwd_link.store(ptr, Ordering::Relaxed);
-    }
-
-    pub fn set_bwd_link(&self, ptr: i32) {
-        self.bwd_link.store(ptr, Ordering::Relaxed);
     }
 
     pub fn expand<const ROOT: bool>(
@@ -118,14 +75,14 @@ impl Node {
             let policy = pos.get_policy(mov, &feats, policy);
 
             // trick for calculating policy before quantising
-            actions.push(Edge::new(f32::to_bits(policy) as i32, mov.into(), 0));
+            actions.push(Edge::new(NodePtr::from_raw(f32::to_bits(policy)), mov.into(), 0));
             max = max.max(policy);
         });
 
         let mut total = 0.0;
 
         for action in actions.iter_mut()  {
-            let mut policy = f32::from_bits(action.ptr() as u32);
+            let mut policy = f32::from_bits(action.ptr().inner());
 
             policy = if ROOT {
                 ((policy - max) / params.root_pst()).exp()
@@ -133,14 +90,14 @@ impl Node {
                 (policy - max).exp()
             };
 
-            action.set_ptr(f32::to_bits(policy) as i32);
+            action.set_ptr(NodePtr::from_raw(f32::to_bits(policy)));
 
             total += policy;
         }
 
         for action in actions.iter_mut() {
-            let policy = f32::from_bits(action.ptr() as u32) / total;
-            action.set_ptr(-1);
+            let policy = f32::from_bits(action.ptr().inner()) / total;
+            action.set_ptr(NodePtr::NULL);
             action.set_policy(policy);
         }
     }

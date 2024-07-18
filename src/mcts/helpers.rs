@@ -1,4 +1,4 @@
-use crate::{mcts::MctsParams, tree::Edge};
+use crate::{mcts::MctsParams, tree::{ActionStats, Edge}};
 
 pub struct SearchHelpers;
 
@@ -6,7 +6,7 @@ impl SearchHelpers {
     /// CPUCT
     ///
     /// Larger value implies more exploration.
-    pub fn get_cpuct(params: &MctsParams, parent: &Edge, is_root: bool) -> f32 {
+    pub fn get_cpuct(params: &MctsParams, node_stats: &ActionStats, is_root: bool) -> f32 {
         // baseline CPUCT value
         let mut cpuct = if is_root {
             params.root_cpuct()
@@ -16,11 +16,11 @@ impl SearchHelpers {
 
         // scale CPUCT as visits increase
         let scale = params.cpuct_visits_scale() * 128.0;
-        cpuct *= 1.0 + ((parent.visits() as f32 + scale) / scale).ln();
+        cpuct *= 1.0 + ((node_stats.visits() as f32 + scale) / scale).ln();
 
         // scale CPUCT with variance of Q
-        if parent.visits() > 1 {
-            let frac = parent.var().sqrt() / params.cpuct_var_scale();
+        if node_stats.visits() > 1 {
+            let frac = node_stats.var().sqrt() / params.cpuct_var_scale();
             cpuct *= 1.0 + params.cpuct_var_weight() * (frac - 1.0);
         }
 
@@ -30,16 +30,16 @@ impl SearchHelpers {
     /// Exploration Scaling
     ///
     /// Larger value implies more exploration.
-    pub fn get_explore_scaling(params: &MctsParams, parent: &Edge) -> f32 {
-        (params.expl_tau() * (parent.visits().max(1) as f32).ln()).exp()
+    pub fn get_explore_scaling(params: &MctsParams, node_stats: &ActionStats) -> f32 {
+        (params.expl_tau() * (node_stats.visits().max(1) as f32).ln()).exp()
     }
 
     /// First Play Urgency
     ///
     /// #### Note
     /// Must return a value in [0, 1].
-    pub fn get_fpu(parent: &Edge) -> f32 {
-        1.0 - parent.q()
+    pub fn get_fpu(node_stats: &ActionStats) -> f32 {
+        1.0 - node_stats.q()
     }
 
     /// Get a predicted win probability for an action
