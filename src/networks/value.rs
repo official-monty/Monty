@@ -2,7 +2,7 @@ use crate::Board;
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
-pub const ValueFileDefaultName: &str = "nn-031bf2c50080.network";
+pub const ValueFileDefaultName: &str = "nn-d75a5bf64093.network";
 
 const SCALE: i32 = 400;
 
