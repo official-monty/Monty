@@ -33,7 +33,7 @@ impl Node {
         self.actions.read().unwrap()
     }
 
-    fn actions_mut(&self) -> RwLockWriteGuard<Vec<Edge>> {
+    pub fn actions_mut(&self) -> RwLockWriteGuard<Vec<Edge>> {
         self.actions.write().unwrap()
     }
 

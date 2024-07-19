@@ -44,6 +44,10 @@ impl TreeHalf {
 
         NodePtr::new(self.half, idx as u32)
     }
+
+    pub fn is_full(&self) -> bool {
+        self.used.load(std::sync::atomic::Ordering::Relaxed) >= self.nodes.len()
+    }
 }
 
 

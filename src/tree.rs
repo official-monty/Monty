@@ -13,7 +13,7 @@ pub use ptr::NodePtr;
 pub use stats::ActionStats;
 
 use std::{
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{atomic::{AtomicBool, Ordering}, Mutex},
     time::Instant,
 };
 
@@ -25,6 +25,7 @@ use crate::{
 pub struct Tree {
     tree: [TreeHalf; 2],
     half: AtomicBool,
+    flip_lock: Mutex<()>,
     hash: HashTable,
     root_stats: ActionStats,
 }
@@ -54,6 +55,7 @@ impl Tree {
             half: AtomicBool::new(false),
             hash: HashTable::new(cap / 16),
             root_stats: ActionStats::default(),
+            flip_lock: Mutex::new(()),
         }
     }
 
@@ -61,8 +63,39 @@ impl Tree {
         usize::from(self.half.load(Ordering::Relaxed))
     }
 
+    pub fn is_full(&self) -> bool {
+        self.tree[self.half()].is_full()
+    }
+
+    pub fn copy_across(&self, from: NodePtr, to: NodePtr) {
+        if from == to {
+            return;
+        }
+
+        self[to].set_state(self[from].state());
+
+        let f = &mut *self[from].actions_mut();
+        let t = &mut *self[to].actions_mut();
+        std::mem::swap(f, t);
+    }
+
     pub fn push_new(&self, state: GameState) -> NodePtr {
-        self.tree[self.half()].push_new(state)
+        let mut new_ptr = self.tree[self.half()].push_new(state);
+
+        if new_ptr.is_null() {
+            let _lock = self.flip_lock.lock();
+
+            if self.is_full() {
+                let old_root_ptr = self.root_node();
+                self.half.fetch_xor(true, Ordering::Relaxed);
+                let new_root_ptr = self.root_node();
+                self.copy_across(old_root_ptr, new_root_ptr);
+            }
+
+            new_ptr = self.push_new(state);
+        }
+
+        new_ptr
     }
 
     pub fn root_node(&self) -> NodePtr {
@@ -158,7 +191,7 @@ impl Tree {
 
         if !found {
             println!("info string no subtree found");
-            let node = self.push_new(GameState::Ongoing, -1, 0);
+            let node = self.push_new(GameState::Ongoing);
             self.make_root_node(node);
         }
 
