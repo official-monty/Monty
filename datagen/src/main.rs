@@ -13,6 +13,6 @@ fn main() {
     if let Some(opts) = parse_args(args) {
         run_datagen(params, opts, &policy, &value);
     } else {
-        Uci::bench(ChessState::BENCH_DEPTH, &policy, &value);
+        Uci::bench(ChessState::BENCH_DEPTH, &policy, &value, &params);
     }
 }
