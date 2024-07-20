@@ -2,7 +2,7 @@ use crate::pop_lsb;
 
 use super::{consts::Flag, frc::Castling};
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct Move {
     mov: u16,
 }
