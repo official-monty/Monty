@@ -214,7 +214,7 @@ impl<'a> Searcher<'a> {
             }
 
             // select action to take via PUCT
-            let action = self.pick_action(ptr, &node_stats);
+            let action = self.pick_action(ptr, node_stats);
 
             let edge = self.tree.edge_copy(ptr, action);
             pos.make_move(Move::from(edge.mov()));
@@ -252,9 +252,9 @@ impl<'a> Searcher<'a> {
 
         let is_root = ptr == self.tree.root_node();
 
-        let cpuct = SearchHelpers::get_cpuct(self.params, &node_stats, is_root);
-        let fpu = SearchHelpers::get_fpu(&node_stats);
-        let expl_scale = SearchHelpers::get_explore_scaling(self.params, &node_stats);
+        let cpuct = SearchHelpers::get_cpuct(self.params, node_stats, is_root);
+        let fpu = SearchHelpers::get_fpu(node_stats);
+        let expl_scale = SearchHelpers::get_explore_scaling(self.params, node_stats);
 
         let expl = cpuct * expl_scale;
 
@@ -311,7 +311,7 @@ impl<'a> Searcher<'a> {
 
         let mut pv = Vec::new();
 
-        while (mate || depth > 0) && action.ptr().is_null() {
+        while (mate || depth > 0) && !action.ptr().is_null() {
             pv.push(Move::from(action.mov()));
             let idx = self.tree.get_best_child(action.ptr());
 

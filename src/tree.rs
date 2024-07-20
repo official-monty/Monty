@@ -112,6 +112,7 @@ impl Tree {
         } else if ptr.half() != self.half.load(Ordering::Relaxed) {
             let new_ptr = self.push_new(GameState::Ongoing);
             self.copy_across(ptr, new_ptr);
+            self.set_edge_ptr(parent_ptr, action, new_ptr);
             new_ptr
         } else {
             ptr
@@ -146,6 +147,21 @@ impl Tree {
 
     pub fn push_hash(&self, hash: u64, wins: f32) {
         self.hash.push(hash, wins);
+    }
+
+    pub fn clear_halves(&self) {
+        self.tree[0].clear();
+        self.tree[1].clear();
+    }
+
+    pub fn clear(&mut self) {
+        self.tree[0].clear();
+        self.tree[1].clear();
+        self.hash.clear();
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.tree[0].is_empty() && self.tree[1].is_empty()
     }
 
     pub fn propogate_proven_mates(&self, ptr: NodePtr, child_state: GameState) {
@@ -184,7 +200,7 @@ impl Tree {
 
         if self.is_empty() {
             let node = self.push_new(GameState::Ongoing);
-
+            assert_eq!(node, self.root_node());
             return;
         }
 
@@ -201,7 +217,9 @@ impl Tree {
                 found = true;
 
                 if root != self.root_node() {
-                    self.make_root_node(root);
+                    self.half.fetch_xor(true, Ordering::Relaxed);
+                    self.tree[self.half()].clear();
+                    self.copy_across(root, self.root_node());
                     println!("info string found subtree");
                 } else {
                     println!("info string using current tree");
@@ -211,8 +229,10 @@ impl Tree {
 
         if !found {
             println!("info string no subtree found");
+            self.clear_halves();
+            self.half.fetch_xor(false, Ordering::Relaxed);
             let node = self.push_new(GameState::Ongoing);
-            self.make_root_node(node);
+            assert_eq!(node, self.root_node());
         }
 
         println!(

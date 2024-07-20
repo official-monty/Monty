@@ -1,4 +1,4 @@
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::GameState;
 use super::{Node, NodePtr};
@@ -8,6 +8,7 @@ pub struct TreeHalf {
     nodes: Vec<Node>,
     used: AtomicUsize,
     half: bool,
+    age: AtomicUsize,
 }
 
 impl std::ops::Index<NodePtr> for TreeHalf {
@@ -24,6 +25,7 @@ impl TreeHalf {
             nodes: Vec::with_capacity(size),
             used: AtomicUsize::new(0),
             half,
+            age: AtomicUsize::new(0),
         };
 
         for _ in 0..size {
@@ -45,8 +47,17 @@ impl TreeHalf {
         NodePtr::new(self.half, idx as u32)
     }
 
+    pub fn clear(&self) {
+        self.used.store(0, Ordering::Relaxed);
+        self.age.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.used.load(Ordering::Relaxed) == 0
+    }
+
     pub fn is_full(&self) -> bool {
-        self.used.load(std::sync::atomic::Ordering::Relaxed) >= self.nodes.len()
+        self.used.load(Ordering::Relaxed) >= self.nodes.len()
     }
 }
 

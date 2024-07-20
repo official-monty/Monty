@@ -69,7 +69,6 @@ impl Uci {
                         policy,
                         value,
                         &mut stored_message,
-                        threads,
                     );
 
                     prev = Some(pos.clone());
@@ -251,7 +250,6 @@ fn go(
     policy: &PolicyNetwork,
     value: &ValueNetwork,
     stored_message: &mut Option<String>,
-    threads: usize,
 ) {
     let mut max_nodes = i32::MAX as usize;
     let mut max_time = None;
@@ -334,11 +332,6 @@ fn go(
                 searcher.display_moves();
             }
         });
-
-        for _ in 0..threads - 1 {
-            let mut searcher = Searcher::new(pos.clone(), tree, params, policy, value, &abort);
-            searcher.secondary_search();
-        }
 
         *stored_message = handle_search_input(&abort);
     });
