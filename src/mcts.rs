@@ -219,14 +219,7 @@ impl<'a> Searcher<'a> {
             let edge = self.tree.edge_copy(ptr, action);
             pos.make_move(Move::from(edge.mov()));
 
-            let mut child_ptr = edge.ptr();
-
-            // create and push node if not present
-            if child_ptr.is_null() {
-                let state = pos.game_state();
-                child_ptr = self.tree.push_new(state);
-                self.tree.set_edge_ptr(ptr, action, child_ptr);
-            }
+            let child_ptr = self.tree.fetch_node(pos, ptr, edge.ptr(), action);
 
             let u = self.perform_one_iteration(pos, child_ptr, &edge.stats(), depth);
 

@@ -18,8 +18,7 @@ use std::{
 };
 
 use crate::{
-    chess::{ChessState, Move},
-    GameState,
+    chess::{ChessState, Move}, GameState
 };
 
 pub struct Tree {
@@ -96,6 +95,27 @@ impl Tree {
         }
 
         new_ptr
+    }
+
+    pub fn fetch_node(
+        &self,
+        pos: &ChessState,
+        parent_ptr: NodePtr,
+        ptr: NodePtr,
+        action: usize,
+    ) -> NodePtr {
+        if ptr.is_null() {
+            let state = pos.game_state();
+            let new_ptr = self.push_new(state);
+            self.set_edge_ptr(parent_ptr, action, new_ptr);
+            new_ptr
+        } else if ptr.half() != self.half.load(Ordering::Relaxed) {
+            let new_ptr = self.push_new(GameState::Ongoing);
+            self.copy_across(ptr, new_ptr);
+            new_ptr
+        } else {
+            ptr
+        }
     }
 
     pub fn root_node(&self) -> NodePtr {
