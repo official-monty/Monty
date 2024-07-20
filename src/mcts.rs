@@ -82,14 +82,16 @@ impl<'a> Searcher<'a> {
             let mut pos = self.root_position.clone();
             let mut this_depth = 0;
 
-            let u = self.perform_one_iteration(
+            if let Some(u) = self.perform_one_iteration(
                 &mut pos,
                 self.tree.root_node(),
                 self.tree.root_stats(),
                 &mut this_depth,
-            );
-
-            self.tree.root_stats().update(u);
+            ) {
+                self.tree.root_stats().update(u);
+            } else {
+                println!("flippin' eck");
+            }
 
             cumulative_depth += this_depth - 1;
 
@@ -189,8 +191,9 @@ impl<'a> Searcher<'a> {
         (Move::from(best_child.mov()), best_child.q())
     }
 
-    fn perform_one_iteration(&mut self, pos: &mut ChessState, ptr: NodePtr, node_stats: &ActionStats, depth: &mut usize) -> f32 {
+    fn perform_one_iteration(&mut self, pos: &mut ChessState, ptr: NodePtr, node_stats: &ActionStats, depth: &mut usize) -> Option<f32> {
         *depth += 1;
+        assert_eq!(ptr.half(), self.tree.half() > 0);
 
         let hash = pos.hash();
 
@@ -219,9 +222,9 @@ impl<'a> Searcher<'a> {
             let edge = self.tree.edge_copy(ptr, action);
             pos.make_move(Move::from(edge.mov()));
 
-            let child_ptr = self.tree.fetch_node(pos, ptr, edge.ptr(), action);
+            let child_ptr = self.tree.fetch_node(pos, ptr, edge.ptr(), action)?;
 
-            let u = self.perform_one_iteration(pos, child_ptr, &edge.stats(), depth);
+            let u = self.perform_one_iteration(pos, child_ptr, &edge.stats(), depth)?;
 
             let new_q = self.tree.update_edge_stats(ptr, action, u);
             self.tree.push_hash(hash, new_q);
@@ -233,7 +236,7 @@ impl<'a> Searcher<'a> {
 
         self.tree.propogate_proven_mates(ptr, child_state);
 
-        1.0 - u
+        Some(1.0 - u)
     }
 
     fn get_utility(&self, ptr: NodePtr, pos: &ChessState) -> f32 {
@@ -298,7 +301,7 @@ impl<'a> Searcher<'a> {
         let idx = self.tree.get_best_child(self.tree.root_node());
         let mut action = self.tree.edge_copy(self.tree.root_node(), idx);
 
-        let score = if action.ptr().is_null() {
+        let score = if !action.ptr().is_null() {
             match self.tree[action.ptr()].state() {
                 GameState::Lost(_) => 1.1,
                 GameState::Won(_) => -0.1,

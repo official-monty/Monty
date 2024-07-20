@@ -58,7 +58,7 @@ impl Tree {
         }
     }
 
-    fn half(&self) -> usize {
+    pub fn half(&self) -> usize {
         usize::from(self.half.load(Ordering::Relaxed))
     }
 
@@ -78,23 +78,31 @@ impl Tree {
         std::mem::swap(f, t);
     }
 
-    pub fn push_new(&self, state: GameState) -> NodePtr {
-        let mut new_ptr = self.tree[self.half()].push_new(state);
+    pub fn push_new(&self, state: GameState) -> Option<NodePtr> {
+        let new_ptr = self.tree[self.half()].push_new(state);
 
         if new_ptr.is_null() {
             let _lock = self.flip_lock.lock();
 
             if self.is_full() {
+                println!("info string flipping!");
                 let old_root_ptr = self.root_node();
+
                 self.half.fetch_xor(true, Ordering::Relaxed);
+                self.tree[self.half()].clear();
+                self.tree[self.half()].bump_age();
+
                 let new_root_ptr = self.root_node();
+
+                self.push_new(GameState::Ongoing);
                 self.copy_across(old_root_ptr, new_root_ptr);
+                println!("{old_root_ptr:?}, {new_root_ptr:?}");
             }
 
-            new_ptr = self.push_new(state);
+            None
+        } else {
+            Some(new_ptr)
         }
-
-        new_ptr
     }
 
     pub fn fetch_node(
@@ -103,20 +111,24 @@ impl Tree {
         parent_ptr: NodePtr,
         ptr: NodePtr,
         action: usize,
-    ) -> NodePtr {
-        if ptr.is_null() {
+    ) -> Option<NodePtr> {
+        if ptr.is_null() || self.is_old(ptr) {
             let state = pos.game_state();
-            let new_ptr = self.push_new(state);
+            let new_ptr = self.push_new(state)?;
             self.set_edge_ptr(parent_ptr, action, new_ptr);
-            new_ptr
+            Some(new_ptr)
         } else if ptr.half() != self.half.load(Ordering::Relaxed) {
-            let new_ptr = self.push_new(GameState::Ongoing);
+            let new_ptr = self.push_new(GameState::Ongoing)?;
             self.copy_across(ptr, new_ptr);
             self.set_edge_ptr(parent_ptr, action, new_ptr);
-            new_ptr
+            Some(new_ptr)
         } else {
-            ptr
+            Some(ptr)
         }
+    }
+
+    fn is_old(&self, ptr: NodePtr) -> bool {
+        self.tree[usize::from(ptr.half())].age() != self[ptr].age()
     }
 
     pub fn root_node(&self) -> NodePtr {
@@ -136,7 +148,9 @@ impl Tree {
     }
 
     pub fn update_edge_stats(&self, ptr: NodePtr, action: usize, result: f32) -> f32 {
-        let edge = &self[ptr].actions()[action];
+        let actions = &self[ptr].actions();
+        assert!(actions.len() > action, "node: {ptr:?}");
+        let edge = &actions[action];
         edge.update(result);
         edge.q()
     }
@@ -199,7 +213,7 @@ impl Tree {
         let t = Instant::now();
 
         if self.is_empty() {
-            let node = self.push_new(GameState::Ongoing);
+            let node = self.push_new(GameState::Ongoing).unwrap();
             assert_eq!(node, self.root_node());
             return;
         }
@@ -213,12 +227,13 @@ impl Tree {
 
             let root = self.recurse_find(self.root_node(), board, root, 2);
 
-            if root.is_null() && self[root].has_children() {
+            if !root.is_null() && self[root].has_children() {
                 found = true;
 
                 if root != self.root_node() {
                     self.half.fetch_xor(true, Ordering::Relaxed);
                     self.tree[self.half()].clear();
+                    self.push_new(GameState::Ongoing);
                     self.copy_across(root, self.root_node());
                     println!("info string found subtree");
                 } else {
@@ -231,7 +246,7 @@ impl Tree {
             println!("info string no subtree found");
             self.clear_halves();
             self.half.fetch_xor(false, Ordering::Relaxed);
-            let node = self.push_new(GameState::Ongoing);
+            let node = self.push_new(GameState::Ongoing).unwrap();
             assert_eq!(node, self.root_node());
         }
 
@@ -266,7 +281,7 @@ impl Tree {
 
             let found = self.recurse_find(child_idx, &child_board, board, depth - 1);
 
-            if found.is_null() {
+            if !found.is_null() {
                 return found;
             }
         }
@@ -294,7 +309,7 @@ impl Tree {
         self.get_best_child_by_key(ptr, |child| {
             if child.visits() == 0 {
                 f32::NEG_INFINITY
-            } else if child.ptr().is_null() {
+            } else if !child.ptr().is_null() {
                 match self[child.ptr()].state() {
                     GameState::Lost(n) => 1.0 + f32::from(n),
                     GameState::Won(n) => f32::from(n) - 256.0,
@@ -354,7 +369,7 @@ impl Tree {
 
         let mut active = Vec::new();
         for action in node.actions().iter() {
-            if action.ptr().is_null() {
+            if !action.ptr().is_null() {
                 active.push(action.clone());
             }
         }

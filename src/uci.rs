@@ -53,7 +53,7 @@ impl Uci {
             match cmd {
                 "isready" => println!("readyok"),
                 "setoption" => setoption(&commands, &mut params, &mut report_moves, &mut tree, &mut threads),
-                "position" => position(commands, &mut pos, &mut prev, &mut tree),
+                "position" => position(commands, &mut pos),
                 "go" => {
                     // increment game ply every time `go` is called
                     root_game_ply += 2;
@@ -195,12 +195,7 @@ fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool
     }
 }
 
-fn position(
-    commands: Vec<&str>,
-    pos: &mut ChessState,
-    prev: &mut Option<ChessState>,
-    tree: &mut Tree,
-) {
+fn position(commands: Vec<&str>, pos: &mut ChessState) {
     let mut fen = String::new();
     let mut move_list = Vec::new();
     let mut moves = false;
@@ -233,9 +228,6 @@ fn position(
 
         pos.make_move(this_mov);
     }
-
-    tree.try_use_subtree(pos, prev);
-    *prev = Some(pos.clone());
 }
 
 #[allow(clippy::too_many_arguments)]
