@@ -137,9 +137,10 @@ impl Uci {
             max_nodes: 1_000_000,
         };
 
-        let mut tree = Tree::new_mb(32);
+        let mut tree = Tree::new_mb(128);
 
         for fen in bench_fens {
+            println!("{fen}");
             let abort = AtomicBool::new(false);
             let pos = ChessState::from_fen(fen);
             tree.try_use_subtree(&pos, &None);
