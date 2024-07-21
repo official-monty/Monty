@@ -193,7 +193,7 @@ impl<'a> Searcher<'a> {
 
     fn perform_one_iteration(&mut self, pos: &mut ChessState, ptr: NodePtr, node_stats: &ActionStats, depth: &mut usize) -> Option<f32> {
         *depth += 1;
-        assert_eq!(ptr.half(), self.tree.half() > 0);
+        assert!(self.tree.ptr_is_valid(ptr));
 
         let hash = pos.hash();
 
@@ -220,6 +220,17 @@ impl<'a> Searcher<'a> {
             let action = self.pick_action(ptr, node_stats);
 
             let edge = self.tree.edge_copy(ptr, action);
+
+            let mut found = false;
+            let mov = Move::from(edge.mov());
+            pos.map_legal_moves(|m| {
+                if m == mov {
+                    found = true;
+                }
+            });
+
+            assert!(found);
+
             pos.make_move(Move::from(edge.mov()));
 
             let child_ptr = self.tree.fetch_node(pos, ptr, edge.ptr(), action)?;

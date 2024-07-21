@@ -46,6 +46,8 @@ impl Tree {
     fn new(cap: usize) -> Self {
         let tree_size = cap / 8;
 
+        println!("info string tree size {tree_size}");
+
         Self {
             tree: [
                 TreeHalf::new(tree_size, false),
@@ -66,6 +68,13 @@ impl Tree {
         self.tree[self.half()].is_full()
     }
 
+    fn flip(&self) {
+        let old = self.half.fetch_xor(true, Ordering::Relaxed);
+        let new = usize::from(!old);
+        self.tree[new].clear();
+        self.tree[new].bump_age();
+    }
+
     pub fn copy_across(&self, from: NodePtr, to: NodePtr) {
         if from == to {
             return;
@@ -78,6 +87,7 @@ impl Tree {
         std::mem::swap(f, t);
     }
 
+    #[must_use]
     pub fn push_new(&self, state: GameState) -> Option<NodePtr> {
         let new_ptr = self.tree[self.half()].push_new(state);
 
@@ -85,18 +95,14 @@ impl Tree {
             let _lock = self.flip_lock.lock();
 
             if self.is_full() {
-                println!("info string flipping!");
                 let old_root_ptr = self.root_node();
 
-                self.half.fetch_xor(true, Ordering::Relaxed);
-                self.tree[self.half()].clear();
-                self.tree[self.half()].bump_age();
+                self.flip();
 
-                let new_root_ptr = self.root_node();
+                let new_root_ptr = self.tree[self.half()].push_new(GameState::Ongoing);
+                assert_eq!(new_root_ptr, self.root_node());
 
-                self.push_new(GameState::Ongoing);
                 self.copy_across(old_root_ptr, new_root_ptr);
-                println!("{old_root_ptr:?}, {new_root_ptr:?}");
             }
 
             None
@@ -105,6 +111,7 @@ impl Tree {
         }
     }
 
+    #[must_use]
     pub fn fetch_node(
         &self,
         pos: &ChessState,
@@ -120,6 +127,23 @@ impl Tree {
         } else if ptr.half() != self.half.load(Ordering::Relaxed) {
             let new_ptr = self.push_new(GameState::Ongoing)?;
             self.copy_across(ptr, new_ptr);
+
+            //let mut i = 0;
+            let half = self.half.load(Ordering::Relaxed);
+            let actions = self[new_ptr].actions();
+            for action in actions.iter() {
+                if action.ptr().half() == half {
+                    action.set_ptr(NodePtr::NULL);
+                }
+            }
+
+            //if actions.len() > 0 {
+            //    pos.map_legal_moves(|mov| {
+            //        assert_eq!(mov, Move::from(actions[i].mov()));
+            //        i += 1;
+            //    });
+            //}
+
             self.set_edge_ptr(parent_ptr, action, new_ptr);
             Some(new_ptr)
         } else {
@@ -163,7 +187,7 @@ impl Tree {
         self.hash.push(hash, wins);
     }
 
-    pub fn clear_halves(&self) {
+    fn clear_halves(&self) {
         self.tree[0].clear();
         self.tree[1].clear();
     }
@@ -231,9 +255,8 @@ impl Tree {
                 found = true;
 
                 if root != self.root_node() {
-                    self.half.fetch_xor(true, Ordering::Relaxed);
-                    self.tree[self.half()].clear();
-                    self.push_new(GameState::Ongoing);
+                    self.flip();
+                    self.push_new(GameState::Ongoing).unwrap();
                     self.copy_across(root, self.root_node());
                     println!("info string found subtree");
                 } else {
@@ -245,7 +268,7 @@ impl Tree {
         if !found {
             println!("info string no subtree found");
             self.clear_halves();
-            self.half.fetch_xor(false, Ordering::Relaxed);
+            self.flip();
             let node = self.push_new(GameState::Ongoing).unwrap();
             assert_eq!(node, self.root_node());
         }
@@ -254,6 +277,11 @@ impl Tree {
             "info string tree processing took {} microseconds",
             t.elapsed().as_micros()
         );
+    }
+
+    pub fn ptr_is_valid(&self, ptr: NodePtr) -> bool {
+        ptr.half() == self.half.load(Ordering::Relaxed)
+            && self.tree[self.half()].age() == self[ptr].age()
     }
 
     fn recurse_find(
