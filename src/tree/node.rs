@@ -19,8 +19,8 @@ impl Node {
     }
 
     pub fn set_new(&self, state: GameState, age: u32) {
-        self.clear();
-        self.state.store(u16::from(state), Ordering::Relaxed);
+        self.actions_mut().clear();
+        self.set_state(state);
         self.age.store(age, Ordering::Relaxed);
     }
 

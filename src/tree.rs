@@ -72,7 +72,6 @@ impl Tree {
         let old = self.half.fetch_xor(true, Ordering::Relaxed);
         let new = usize::from(!old);
         self.tree[new].clear();
-        self.tree[new].bump_age();
     }
 
     pub fn copy_across(&self, from: NodePtr, to: NodePtr) {
@@ -187,8 +186,7 @@ impl Tree {
     }
 
     pub fn clear(&mut self) {
-        self.tree[0].clear();
-        self.tree[1].clear();
+        self.clear_halves();
         self.hash.clear();
     }
 

@@ -36,7 +36,7 @@ impl TreeHalf {
     }
 
     pub fn push_new(&self, state: GameState) -> NodePtr {
-        let idx = self.used.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let idx = self.used.fetch_add(1, Ordering::Relaxed);
 
         if idx == self.nodes.len() {
             return NodePtr::NULL;
@@ -62,10 +62,6 @@ impl TreeHalf {
 
     pub fn age(&self) -> u32 {
         self.age.load(Ordering::Relaxed)
-    }
-
-    pub fn bump_age(&self) {
-        self.age.fetch_add(1, Ordering::Relaxed);
     }
 }
 
