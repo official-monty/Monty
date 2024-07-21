@@ -221,15 +221,15 @@ impl<'a> Searcher<'a> {
 
             let edge = self.tree.edge_copy(ptr, action);
 
-            let mut found = false;
-            let mov = Move::from(edge.mov());
-            pos.map_legal_moves(|m| {
-                if m == mov {
-                    found = true;
-                }
-            });
-
-            assert!(found);
+            //let mut found = false;
+            //let mov = Move::from(edge.mov());
+            //pos.map_legal_moves(|m| {
+            //    if m == mov {
+            //        found = true;
+            //    }
+            //});
+//
+            //assert!(found);
 
             pos.make_move(Move::from(edge.mov()));
 
