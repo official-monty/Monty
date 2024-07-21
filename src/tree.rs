@@ -72,7 +72,7 @@ impl Tree {
         self.tree[new].clear();
     }
 
-    pub fn copy_across<const SAME_HALF: bool>(&self, from: NodePtr, to: NodePtr) {
+    pub fn copy_across(&self, from: NodePtr, to: NodePtr) {
         if from == to {
             return;
         }
@@ -83,7 +83,7 @@ impl Tree {
         let t = &mut *self[to].actions_mut();
         std::mem::swap(f, t);
 
-        if !SAME_HALF {
+        if from.half() != to.half() {
             let half = self.half.load(Ordering::Relaxed);
             for action in t.iter() {
                 if action.ptr().half() == half {
@@ -107,7 +107,7 @@ impl Tree {
 
                 let new_root_ptr = self.tree[self.half()].push_new(GameState::Ongoing);
 
-                self.copy_across::<false>(old_root_ptr, new_root_ptr);
+                self.copy_across(old_root_ptr, new_root_ptr);
             }
 
             None
@@ -131,7 +131,7 @@ impl Tree {
             Some(new_ptr)
         } else if ptr.half() != self.half.load(Ordering::Relaxed) {
             let new_ptr = self.push_new(GameState::Ongoing)?;
-            self.copy_across::<false>(ptr, new_ptr);
+            self.copy_across(ptr, new_ptr);
             self.set_edge_ptr(parent_ptr, action, new_ptr);
 
             Some(new_ptr)
@@ -242,11 +242,7 @@ impl Tree {
                 found = true;
 
                 if root != self.root_node() {
-                    if root.half() == self.root_node().half() {
-                        self.copy_across::<true>(root, self.root_node());
-                    } else {
-                        self.copy_across::<false>(root, self.root_node());
-                    }
+                    self.copy_across(root, self.root_node());
                     self.root_stats = stats;
                     println!("info string found subtree");
                 } else {
