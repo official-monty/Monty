@@ -137,7 +137,7 @@ impl Uci {
             max_nodes: 1_000_000,
         };
 
-        let mut tree = Tree::new_mb(128);
+        let mut tree = Tree::new_mb(32);
 
         for fen in bench_fens {
             println!("{fen}");

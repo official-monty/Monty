@@ -183,6 +183,7 @@ impl Tree {
     fn clear_halves(&self) {
         self.tree[0].clear();
         self.tree[1].clear();
+        self.root_stats.clear();
     }
 
     pub fn clear(&mut self) {
@@ -241,7 +242,7 @@ impl Tree {
         if let Some(board) = prev_board {
             println!("info string searching for subtree");
 
-            let root = self.recurse_find(self.root_node(), board, root, 2);
+            let (root, stats) = self.recurse_find(self.root_node(), board, root, self.root_stats.clone(), 2);
 
             if !root.is_null() && self[root].has_children() {
                 found = true;
@@ -249,6 +250,7 @@ impl Tree {
                 if root != self.root_node() {
                     self.flip();
                     self.push_new(GameState::Ongoing).unwrap();
+                    self.root_stats = stats;
                     self.copy_across(root, self.root_node());
                     println!("info string found subtree");
                 } else {
@@ -281,14 +283,15 @@ impl Tree {
         start: NodePtr,
         this_board: &ChessState,
         board: &ChessState,
+        stats: ActionStats,
         depth: u8,
-    ) -> NodePtr {
+    ) -> (NodePtr, ActionStats) {
         if this_board.is_same(board) {
-            return start;
+            return (start, stats);
         }
 
         if start.is_null() || depth == 0 {
-            return NodePtr::NULL;
+            return (NodePtr::NULL, ActionStats::default());
         }
 
         let node = &self[start];
@@ -299,14 +302,14 @@ impl Tree {
 
             child_board.make_move(Move::from(action.mov()));
 
-            let found = self.recurse_find(child_idx, &child_board, board, depth - 1);
+            let found = self.recurse_find(child_idx, &child_board, board, action.stats(), depth - 1);
 
-            if !found.is_null() {
+            if !found.0.is_null() {
                 return found;
             }
         }
 
-        NodePtr::NULL
+        (NodePtr::NULL, ActionStats::default())
     }
 
     pub fn get_best_child_by_key<F: FnMut(&Edge) -> f32>(&self, ptr: NodePtr, mut key: F) -> usize {
