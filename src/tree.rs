@@ -242,7 +242,11 @@ impl Tree {
                 found = true;
 
                 if root != self.root_node() {
-                    self.copy_across::<true>(root, self.root_node());
+                    if root.half() == self.root_node().half() {
+                        self.copy_across::<true>(root, self.root_node());
+                    } else {
+                        self.copy_across::<false>(root, self.root_node());
+                    }
                     self.root_stats = stats;
                     println!("info string found subtree");
                 } else {
