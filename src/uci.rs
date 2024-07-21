@@ -146,7 +146,9 @@ impl Uci {
             tree.try_use_subtree(&pos, &None);
             let mut searcher = Searcher::new(pos, &tree, params, policy, value, &abort);
             let timer = Instant::now();
+            let old = total_nodes;
             searcher.search(limits, false, &mut total_nodes);
+            println!(" -> {}", total_nodes - old);
             time += timer.elapsed().as_secs_f32();
             tree.clear();
         }

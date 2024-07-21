@@ -386,7 +386,7 @@ impl Tree {
                 node.state(),
             );
         } else {
-            println!("root");
+            println!("root Q({:.2}%)", self.root_stats.q() * 100.0);
         }
 
         let mut active = Vec::new();
