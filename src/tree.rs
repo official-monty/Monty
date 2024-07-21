@@ -82,9 +82,20 @@ impl Tree {
 
         self[to].set_state(self[from].state());
 
-        let f = &mut *self[from].actions_mut();
-        let t = &mut *self[to].actions_mut();
-        std::mem::swap(f, t);
+        // need these mut refs to be dropped immediately
+        {
+            let f = &mut *self[from].actions_mut();
+            let t = &mut *self[to].actions_mut();
+            std::mem::swap(f, t);
+        }
+
+        let half = self.half.load(Ordering::Relaxed);
+        let actions = self[to].actions();
+        for action in actions.iter() {
+            if action.ptr().half() == half {
+                action.set_ptr(NodePtr::NULL);
+            }
+        }
     }
 
     #[must_use]
@@ -127,23 +138,6 @@ impl Tree {
         } else if ptr.half() != self.half.load(Ordering::Relaxed) {
             let new_ptr = self.push_new(GameState::Ongoing)?;
             self.copy_across(ptr, new_ptr);
-
-            //let mut i = 0;
-            let half = self.half.load(Ordering::Relaxed);
-            let actions = self[new_ptr].actions();
-            for action in actions.iter() {
-                if action.ptr().half() == half {
-                    action.set_ptr(NodePtr::NULL);
-                }
-            }
-
-            //if actions.len() > 0 {
-            //    pos.map_legal_moves(|mov| {
-            //        assert_eq!(mov, Move::from(actions[i].mov()));
-            //        i += 1;
-            //    });
-            //}
-
             self.set_edge_ptr(parent_ptr, action, new_ptr);
             Some(new_ptr)
         } else {
