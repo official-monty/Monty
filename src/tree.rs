@@ -46,8 +46,6 @@ impl Tree {
     fn new(cap: usize) -> Self {
         let tree_size = cap / 8;
 
-        println!("info string tree size {tree_size}");
-
         Self {
             tree: [
                 TreeHalf::new(tree_size, false),
@@ -74,25 +72,23 @@ impl Tree {
         self.tree[new].clear();
     }
 
-    pub fn copy_across(&self, from: NodePtr, to: NodePtr) {
+    pub fn copy_across<const SAME_HALF: bool>(&self, from: NodePtr, to: NodePtr) {
         if from == to {
             return;
         }
 
         self[to].set_state(self[from].state());
 
-        // need these mut refs to be dropped immediately
-        {
-            let f = &mut *self[from].actions_mut();
-            let t = &mut *self[to].actions_mut();
-            std::mem::swap(f, t);
-        }
+        let f = &mut *self[from].actions_mut();
+        let t = &mut *self[to].actions_mut();
+        std::mem::swap(f, t);
 
-        let half = self.half.load(Ordering::Relaxed);
-        let actions = self[to].actions();
-        for action in actions.iter() {
-            if action.ptr().half() == half {
-                action.set_ptr(NodePtr::NULL);
+        if !SAME_HALF {
+            let half = self.half.load(Ordering::Relaxed);
+            for action in t.iter() {
+                if action.ptr().half() == half {
+                    action.set_ptr(NodePtr::NULL);
+                }
             }
         }
     }
@@ -110,9 +106,8 @@ impl Tree {
                 self.flip();
 
                 let new_root_ptr = self.tree[self.half()].push_new(GameState::Ongoing);
-                assert_eq!(new_root_ptr, self.root_node());
 
-                self.copy_across(old_root_ptr, new_root_ptr);
+                self.copy_across::<false>(old_root_ptr, new_root_ptr);
             }
 
             None
@@ -136,8 +131,9 @@ impl Tree {
             Some(new_ptr)
         } else if ptr.half() != self.half.load(Ordering::Relaxed) {
             let new_ptr = self.push_new(GameState::Ongoing)?;
-            self.copy_across(ptr, new_ptr);
+            self.copy_across::<false>(ptr, new_ptr);
             self.set_edge_ptr(parent_ptr, action, new_ptr);
+
             Some(new_ptr)
         } else {
             Some(ptr)
@@ -166,7 +162,6 @@ impl Tree {
 
     pub fn update_edge_stats(&self, ptr: NodePtr, action: usize, result: f32) -> f32 {
         let actions = &self[ptr].actions();
-        assert!(actions.len() > action, "node: {ptr:?}");
         let edge = &actions[action];
         edge.update(result);
         edge.q()
@@ -230,8 +225,7 @@ impl Tree {
         let t = Instant::now();
 
         if self.is_empty() {
-            let node = self.push_new(GameState::Ongoing).unwrap();
-            assert_eq!(node, self.root_node());
+            self.push_new(GameState::Ongoing).unwrap();
             return;
         }
 
@@ -248,10 +242,8 @@ impl Tree {
                 found = true;
 
                 if root != self.root_node() {
-                    self.flip();
-                    self.push_new(GameState::Ongoing).unwrap();
+                    self.copy_across::<true>(root, self.root_node());
                     self.root_stats = stats;
-                    self.copy_across(root, self.root_node());
                     println!("info string found subtree");
                 } else {
                     println!("info string using current tree");
@@ -263,19 +255,13 @@ impl Tree {
             println!("info string no subtree found");
             self.clear_halves();
             self.flip();
-            let node = self.push_new(GameState::Ongoing).unwrap();
-            assert_eq!(node, self.root_node());
+            self.push_new(GameState::Ongoing).unwrap();
         }
 
         println!(
             "info string tree processing took {} microseconds",
             t.elapsed().as_micros()
         );
-    }
-
-    pub fn ptr_is_valid(&self, ptr: NodePtr) -> bool {
-        ptr.half() == self.half.load(Ordering::Relaxed)
-            && self.tree[self.half()].age() == self[ptr].age()
     }
 
     fn recurse_find(

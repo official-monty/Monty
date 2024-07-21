@@ -56,8 +56,12 @@ impl TreeHalf {
         self.used.load(Ordering::Relaxed) == 0
     }
 
+    pub fn used(&self) -> usize {
+        self.used.load(Ordering::Relaxed)
+    }
+
     pub fn is_full(&self) -> bool {
-        self.used.load(Ordering::Relaxed) >= self.nodes.len()
+        self.used() >= self.nodes.len()
     }
 
     pub fn age(&self) -> u32 {

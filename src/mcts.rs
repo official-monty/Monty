@@ -89,8 +89,6 @@ impl<'a> Searcher<'a> {
                 &mut this_depth,
             ) {
                 self.tree.root_stats().update(u);
-            } else {
-                println!("flippin' eck");
             }
 
             cumulative_depth += this_depth - 1;
@@ -193,7 +191,6 @@ impl<'a> Searcher<'a> {
 
     fn perform_one_iteration(&mut self, pos: &mut ChessState, ptr: NodePtr, node_stats: &ActionStats, depth: &mut usize) -> Option<f32> {
         *depth += 1;
-        assert!(self.tree.ptr_is_valid(ptr));
 
         let hash = pos.hash();
 
