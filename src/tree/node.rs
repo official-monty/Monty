@@ -11,6 +11,9 @@ pub struct Node {
     fwd_link: i32,
     parent: i32,
     action: u16,
+
+    // heuristics used in search
+    gini_impurity: f32,
 }
 
 impl Node {
@@ -23,6 +26,7 @@ impl Node {
             bwd_link: -1,
             fwd_link: -1,
             action: action as u16,
+            gini_impurity: 0.0,
         }
     }
 
@@ -68,6 +72,10 @@ impl Node {
 
     pub fn action(&self) -> usize {
         usize::from(self.action)
+    }
+
+    pub fn gini_impurity(&self) -> f32 {
+        self.gini_impurity
     }
 
     pub fn clear_parent(&mut self) {
@@ -131,11 +139,17 @@ impl Node {
             total += policy;
         }
 
+        let mut sum_of_squares = 0.0;
+
         for action in &mut self.actions {
             let policy = f32::from_bits(action.ptr() as u32) / total;
             action.set_ptr(-1);
             action.set_policy(policy);
+            sum_of_squares += policy * policy;
         }
+
+        let gini_impurity = (1.0 - sum_of_squares).clamp(0.0, 1.0);
+        self.gini_impurity = gini_impurity;
     }
 
     pub fn relabel_policy(
