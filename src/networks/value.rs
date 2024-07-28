@@ -2,14 +2,14 @@ use crate::Board;
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
-pub const ValueFileDefaultName: &str = "nn-ff34bd1ad78d.network";
+pub const ValueFileDefaultName: &str = "nn-8114cbd75a19.network";
 
 const SCALE: i32 = 400;
 
 #[repr(C)]
 pub struct ValueNetwork {
-    l1: Layer<{ 768 * 4 }, 512>,
-    l2: Layer<512, 16>,
+    l1: Layer<{ 768 * 4 }, 768>,
+    l2: Layer<768, 16>,
     l3: Layer<16, 16>,
     l4: Layer<16, 16>,
     l5: Layer<16, 16>,
