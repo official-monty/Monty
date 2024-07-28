@@ -1,4 +1,4 @@
-use std::sync::{atomic::{AtomicU16, AtomicU32, Ordering}, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{atomic::{AtomicU16, Ordering}, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{chess::Move, tree::{Edge, NodePtr}, ChessState, GameState, MctsParams, PolicyNetwork};
 
@@ -6,22 +6,19 @@ use crate::{chess::Move, tree::{Edge, NodePtr}, ChessState, GameState, MctsParam
 pub struct Node {
     actions: RwLock<Vec<Edge>>,
     state: AtomicU16,
-    age: AtomicU32,
 }
 
 impl Node {
-    pub fn new(state: GameState, age: u32) -> Self {
+    pub fn new(state: GameState) -> Self {
         Node {
             actions: RwLock::new(Vec::new()),
             state: AtomicU16::new(u16::from(state)),
-            age: AtomicU32::new(age),
         }
     }
 
-    pub fn set_new(&self, state: GameState, age: u32) {
+    pub fn set_new(&self, state: GameState) {
         self.actions_mut().clear();
         self.set_state(state);
-        self.age.store(age, Ordering::Relaxed);
     }
 
     pub fn is_terminal(&self) -> bool {
@@ -38,10 +35,6 @@ impl Node {
 
     pub fn actions_mut(&self) -> RwLockWriteGuard<Vec<Edge>> {
         self.actions.write().unwrap()
-    }
-
-    pub fn age(&self) -> u32 {
-        self.age.load(Ordering::Relaxed)
     }
 
     pub fn state(&self) -> GameState {

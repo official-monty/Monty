@@ -124,7 +124,7 @@ impl Tree {
         ptr: NodePtr,
         action: usize,
     ) -> Option<NodePtr> {
-        if ptr.is_null() || self.is_old(ptr) {
+        if ptr.is_null() {
             let state = pos.game_state();
             let new_ptr = self.push_new(state)?;
             self.set_edge_ptr(parent_ptr, action, new_ptr);
@@ -138,10 +138,6 @@ impl Tree {
         } else {
             Some(ptr)
         }
-    }
-
-    fn is_old(&self, ptr: NodePtr) -> bool {
-        self.tree[usize::from(ptr.half())].age() != self[ptr].age()
     }
 
     pub fn root_node(&self) -> NodePtr {
