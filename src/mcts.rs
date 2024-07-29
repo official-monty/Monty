@@ -98,7 +98,7 @@ impl<'a> Searcher<'a> {
 
             nodes += 1;
 
-            if nodes % 256 == 0 {
+            if nodes % 128 == 0 {
                 if self.abort.load(Ordering::Relaxed) {
                     break;
                 }
@@ -116,7 +116,7 @@ impl<'a> Searcher<'a> {
                 }
             }
 
-            if nodes % 16384 == 0 {
+            if nodes % 4096 == 0 {
                 // Time management
                 if let Some(time) = limits.opt_time {
                     let elapsed = timer.elapsed().as_millis();
@@ -147,11 +147,13 @@ impl<'a> Searcher<'a> {
                         break;
                     }
 
-                    best_move_changes = 0;
+                    if nodes % 16384 == 0 {
+                        best_move_changes = 0;
+                    }
                     previous_score = if previous_score == f32::NEG_INFINITY {
                         score
                     } else {
-                        (score + previous_score) / 2.0
+                        (score + 2.0 * previous_score) / 3.0
                     };
                 }
             }
