@@ -129,16 +129,22 @@ impl<'a> Searcher<'a> {
                     } else {
                         previous_score - score
                     };
-                    let falling_eval = (1.0 + eval_diff * 0.05).clamp(0.60, 1.80);
+                    let falling_eval = (1.0 + eval_diff * self.params.tm_falling_eval1()).clamp(
+                        self.params.tm_falling_eval2(),
+                        self.params.tm_falling_eval3(),
+                    );
 
                     // Use more time if our best move is changing frequently
-                    let best_move_instability =
-                        (1.0 + (best_move_changes as f32 * 0.3).ln_1p()).clamp(1.0, 3.2);
+                    let best_move_instability = (1.0
+                        + (best_move_changes as f32 * self.params.tm_bmi1()).ln_1p())
+                    .clamp(self.params.tm_bmi2(), self.params.tm_bmi3());
 
                     // Use less time if our best move has a large percentage of visits, and vice versa
                     let nodes_effort = self.get_best_action().visits() as f32 / nodes as f32;
-                    let best_move_visits =
-                        (2.5 - ((nodes_effort + 0.3) * 0.55).ln_1p() * 4.0).clamp(0.55, 1.50);
+                    let best_move_visits = (self.params.tm_bmv1()
+                        - ((nodes_effort + self.params.tm_bmv2()) * self.params.tm_bmv3()).ln_1p()
+                            * self.params.tm_bmv4())
+                    .clamp(self.params.tm_bmv5(), self.params.tm_bmv6());
 
                     let total_time =
                         (time as f32 * falling_eval * best_move_instability * best_move_visits)
