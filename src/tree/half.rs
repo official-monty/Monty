@@ -49,6 +49,16 @@ impl TreeHalf {
         self.used.store(0, Ordering::Relaxed);
     }
 
+    pub fn clear_ptrs(&self) {
+        for node in &self.nodes {
+            for action in &mut *node.actions_mut() {
+                if action.ptr().half() != self.half {
+                    action.set_ptr(NodePtr::NULL);
+                }
+            }
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.used.load(Ordering::Relaxed) == 0
     }

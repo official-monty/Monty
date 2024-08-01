@@ -67,9 +67,9 @@ impl Tree {
     }
 
     fn flip(&self) {
-        let old = self.half.fetch_xor(true, Ordering::Relaxed);
-        let new = usize::from(!old);
-        self.tree[new].clear();
+        let old = usize::from(self.half.fetch_xor(true, Ordering::Relaxed));
+        self.tree[old].clear_ptrs();
+        self.tree[old ^ 1].clear();
     }
 
     pub fn copy_across(&self, from: NodePtr, to: NodePtr) {
@@ -82,15 +82,6 @@ impl Tree {
         let f = &mut *self[from].actions_mut();
         let t = &mut *self[to].actions_mut();
         std::mem::swap(f, t);
-
-        if from.half() != to.half() {
-            let half = self.half.load(Ordering::Relaxed);
-            for action in t.iter() {
-                if action.ptr().half() == half {
-                    action.set_ptr(NodePtr::NULL);
-                }
-            }
-        }
     }
 
     #[must_use]
