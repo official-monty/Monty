@@ -1,6 +1,6 @@
 use crate::{
     chess::{ChessState, Move},
-    mcts::{Limits, Searcher},
+    mcts::{Limits, SearchHelpers, Searcher},
     MctsParams, PolicyNetwork, Tree, ValueNetwork,
 };
 
@@ -22,6 +22,7 @@ impl Uci {
     pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
         let mut prev = None;
         let mut pos = ChessState::default();
+        let mut root_game_ply = 0;
         let mut params = MctsParams::default();
         let mut tree = Tree::new_mb(64);
         let mut report_moves = false;
@@ -53,11 +54,15 @@ impl Uci {
                 "setoption" => setoption(&commands, &mut params, &mut report_moves, &mut tree),
                 "position" => position(commands, &mut pos, &mut prev, &mut tree),
                 "go" => {
+                    // increment game ply every time `go` is called
+                    root_game_ply += 2;
+
                     let res = go(
                         &commands,
                         tree,
                         prev,
                         &pos,
+                        root_game_ply,
                         &params,
                         report_moves,
                         policy,
@@ -71,8 +76,8 @@ impl Uci {
                 "perft" => run_perft(&commands, &pos),
                 "quit" => std::process::exit(0),
                 "eval" => {
-                    println!("cp: {}%", pos.get_value(value));
-                    println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl(value));
+                    println!("cp: {}", pos.get_value(value, &params));
+                    println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl(value, &params));
                 }
                 "policy" => {
                     let f = pos.get_policy_feats();
@@ -117,6 +122,7 @@ impl Uci {
                 "uci" => preamble(),
                 "ucinewgame" => {
                     prev = None;
+                    root_game_ply = 0;
                     tree.clear();
                 }
                 _ => {}
@@ -124,14 +130,14 @@ impl Uci {
         }
     }
 
-    pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork) {
-        let params = MctsParams::default();
+    pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork, params: &MctsParams) {
         let mut total_nodes = 0;
         let bench_fens = Self::FEN_STRING.split('\n').collect::<Vec<&str>>();
         let mut time = 0.0;
 
         let limits = Limits {
             max_time: None,
+            opt_time: None,
             max_depth: depth,
             max_nodes: 1_000_000,
         };
@@ -238,6 +244,7 @@ fn go(
     tree: Tree,
     prev: Option<ChessState>,
     pos: &ChessState,
+    root_game_ply: u32,
     params: &MctsParams,
     report_moves: bool,
     policy: &PolicyNetwork,
@@ -250,9 +257,12 @@ fn go(
 
     let mut times = [None; 2];
     let mut incs = [None; 2];
-    let mut movestogo = 30;
+    let mut movestogo = None;
+    let mut opt_time = None;
 
     let mut mode = "";
+
+    let saturating_parse = |s: &str| s.parse::<i64>().ok().map(|val| val.max(0) as u64);
 
     for cmd in commands {
         match *cmd {
@@ -268,38 +278,37 @@ fn go(
                 "nodes" => max_nodes = cmd.parse().unwrap_or(max_nodes),
                 "movetime" => max_time = cmd.parse().ok(),
                 "depth" => max_depth = cmd.parse().unwrap_or(max_depth),
-                "wtime" => times[0] = Some(cmd.parse().unwrap_or(0)),
-                "btime" => times[1] = Some(cmd.parse().unwrap_or(0)),
-                "winc" => incs[0] = Some(cmd.parse().unwrap_or(0)),
-                "binc" => incs[1] = Some(cmd.parse().unwrap_or(0)),
-                "movestogo" => movestogo = cmd.parse().unwrap_or(30),
+                "wtime" => times[0] = saturating_parse(cmd),
+                "btime" => times[1] = saturating_parse(cmd),
+                "winc" => incs[0] = saturating_parse(cmd),
+                "binc" => incs[1] = saturating_parse(cmd),
+                "movestogo" => movestogo = saturating_parse(cmd),
                 _ => mode = "none",
             },
         }
     }
 
-    let mut time = None;
-
     // `go wtime <wtime> btime <btime> winc <winc> binc <binc>``
-    if let Some(t) = times[pos.tm_stm()] {
-        let mut base = t / movestogo.max(1);
+    if let Some(remaining) = times[pos.tm_stm()] {
+        let timeman =
+            SearchHelpers::get_time(remaining, incs[pos.stm()], root_game_ply, movestogo, params);
 
-        if let Some(i) = incs[pos.tm_stm()] {
-            base += i * 3 / 4;
-        }
-
-        time = Some(base);
+        opt_time = Some(timeman.0);
+        max_time = Some(timeman.1);
     }
 
     // `go movetime <time>`
     if let Some(max) = max_time {
         // if both movetime and increment time controls given, use
-        time = Some(time.unwrap_or(u128::MAX).min(max));
+        max_time = Some(max_time.unwrap_or(u128::MAX).min(max));
     }
 
-    // 10ms move overhead
-    if let Some(t) = time.as_mut() {
-        *t = t.saturating_sub(10);
+    // 20ms move overhead
+    if let Some(t) = opt_time.as_mut() {
+        *t = t.saturating_sub(20);
+    }
+    if let Some(t) = max_time.as_mut() {
+        *t = t.saturating_sub(20);
     }
 
     let abort = AtomicBool::new(false);
@@ -307,7 +316,8 @@ fn go(
     let mut searcher = Searcher::new(pos.clone(), tree, params.clone(), policy, value, &abort);
 
     let limits = Limits {
-        max_time: time,
+        max_time,
+        opt_time,
         max_depth,
         max_nodes,
     };

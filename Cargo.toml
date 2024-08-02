@@ -14,7 +14,8 @@ codegen-units = 1
 goober = { git = 'https://github.com/jw1912/goober.git' }
 
 [features]
-nonet = []
+embed = []
+datagen = []
 
 [workspace]
 members = ["datagen", "train/policy", "train/value"]

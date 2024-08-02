@@ -1,12 +1,12 @@
 mod helpers;
 mod params;
 
-use helpers::SearchHelpers;
+pub use helpers::SearchHelpers;
 pub use params::MctsParams;
 
 use crate::{
     chess::Move,
-    tree::{Node, Tree},
+    tree::{Edge, Node, Tree},
     ChessState, GameState, PolicyNetwork, ValueNetwork,
 };
 
@@ -18,6 +18,7 @@ use std::{
 #[derive(Clone, Copy)]
 pub struct Limits {
     pub max_time: Option<u128>,
+    pub opt_time: Option<u128>,
     pub max_depth: usize,
     pub max_nodes: usize,
 }
@@ -74,6 +75,10 @@ impl<'a> Searcher<'a> {
         let mut depth = 0;
         let mut cumulative_depth = 0;
 
+        let mut best_move = Move::NULL;
+        let mut best_move_changes = 0;
+        let mut previous_score = f32::NEG_INFINITY;
+
         // search loop
         loop {
             let mut pos = self.root_position.clone();
@@ -103,13 +108,66 @@ impl<'a> Searcher<'a> {
                         break;
                     }
                 }
+
+                let new_best_move = self.get_best_move();
+                if new_best_move != best_move {
+                    best_move = new_best_move;
+                    best_move_changes += 1;
+                }
+            }
+
+            if nodes % 4096 == 0 {
+                // Time management
+                if let Some(time) = limits.opt_time {
+                    let elapsed = timer.elapsed().as_millis();
+
+                    // Use more time if our eval is falling, and vice versa
+                    let (_, mut score) = self.get_pv(0);
+                    score = Searcher::get_cp(score);
+                    let eval_diff = if previous_score == f32::NEG_INFINITY {
+                        0.0
+                    } else {
+                        previous_score - score
+                    };
+                    let falling_eval = (1.0 + eval_diff * self.params.tm_falling_eval1()).clamp(
+                        self.params.tm_falling_eval2(),
+                        self.params.tm_falling_eval3(),
+                    );
+
+                    // Use more time if our best move is changing frequently
+                    let best_move_instability = (1.0
+                        + (best_move_changes as f32 * self.params.tm_bmi1()).ln_1p())
+                    .clamp(self.params.tm_bmi2(), self.params.tm_bmi3());
+
+                    // Use less time if our best move has a large percentage of visits, and vice versa
+                    let nodes_effort = self.get_best_action().visits() as f32 / nodes as f32;
+                    let best_move_visits = (self.params.tm_bmv1()
+                        - ((nodes_effort + self.params.tm_bmv2()) * self.params.tm_bmv3()).ln_1p()
+                            * self.params.tm_bmv4())
+                    .clamp(self.params.tm_bmv5(), self.params.tm_bmv6());
+
+                    let total_time =
+                        (time as f32 * falling_eval * best_move_instability * best_move_visits)
+                            as u128;
+                    if elapsed >= total_time {
+                        break;
+                    }
+
+                    if nodes % 16384 == 0 {
+                        best_move_changes = 0;
+                    }
+                    previous_score = if previous_score == f32::NEG_INFINITY {
+                        score
+                    } else {
+                        (score + 2.0 * previous_score) / 3.0
+                    };
+                }
             }
 
             // define "depth" as the average depth of selection
             let avg_depth = cumulative_depth / nodes;
             if avg_depth > depth {
                 depth = avg_depth;
-
                 if depth >= limits.max_depth {
                     break;
                 }
@@ -197,7 +255,7 @@ impl<'a> Searcher<'a> {
 
     fn get_utility(&self, ptr: i32, pos: &ChessState) -> f32 {
         match self.tree[ptr].state() {
-            GameState::Ongoing => pos.get_value_wdl(self.value),
+            GameState::Ongoing => pos.get_value_wdl(self.value, &self.params),
             GameState::Draw => 0.5,
             GameState::Lost(_) => 0.0,
             GameState::Won(_) => 1.0,
@@ -236,7 +294,7 @@ impl<'a> Searcher<'a> {
         } else if score < 0.0 {
             print!("score mate -{} ", pv_line.len() / 2);
         } else {
-            let cp = -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln();
+            let cp = Searcher::get_cp(score);
             print!("score cp {cp:.0} ");
         }
 
@@ -286,6 +344,21 @@ impl<'a> Searcher<'a> {
         }
 
         (pv, score)
+    }
+
+    fn get_best_action(&self) -> &Edge {
+        let idx = self.tree.get_best_child(self.tree.root_node());
+        self.tree.edge(self.tree.root_node(), idx)
+    }
+
+    fn get_best_move(&self) -> Move {
+        let idx = self.tree.get_best_child(self.tree.root_node());
+        let action = self.tree.edge(self.tree.root_node(), idx);
+        Move::from(action.mov())
+    }
+
+    fn get_cp(score: f32) -> f32 {
+        -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln()
     }
 
     pub fn tree_and_board(self) -> (Tree, ChessState) {
