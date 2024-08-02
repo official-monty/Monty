@@ -39,20 +39,18 @@ impl std::ops::Index<NodePtr> for Tree {
 
 impl Tree {
     pub fn new_mb(mb: usize) -> Self {
-        let cap = mb * 1024 * 1024 / 48;
-        Self::new(cap)
+        let bytes = mb * 1024 * 1024;
+        Self::new(bytes / (48 + 20 * 20), bytes / 48 / 16)
     }
 
-    fn new(cap: usize) -> Self {
-        let tree_size = cap / 8;
-
+    fn new(tree_cap: usize, hash_cap: usize) -> Self {
         Self {
             tree: [
-                TreeHalf::new(tree_size, false),
-                TreeHalf::new(tree_size, true),
+                TreeHalf::new(tree_cap / 2, false),
+                TreeHalf::new(tree_cap / 2, true),
             ],
             half: AtomicBool::new(false),
-            hash: HashTable::new(cap / 16),
+            hash: HashTable::new(hash_cap / 4),
             root_stats: ActionStats::default(),
             flip_lock: Mutex::new(()),
         }

@@ -17,7 +17,7 @@ impl Node {
     }
 
     pub fn set_new(&self, state: GameState) {
-        self.actions_mut().clear();
+        *self.actions_mut() = Vec::new();
         self.set_state(state);
     }
 
@@ -54,7 +54,7 @@ impl Node {
     }
 
     pub fn clear(&self) {
-        self.actions.write().unwrap().clear();
+        *self.actions.write().unwrap() = Vec::new();
         self.set_state(GameState::Ongoing);
     }
 
