@@ -117,14 +117,36 @@ impl Tree {
         action: usize,
     ) -> Option<NodePtr> {
         if ptr.is_null() {
+            let actions = self[parent_ptr].actions_mut();
+
+            let most_recent_ptr = actions[action].ptr();
+            if !most_recent_ptr.is_null() {
+                return Some(most_recent_ptr);
+            }
+
+            assert_eq!(ptr, most_recent_ptr);
+
             let state = pos.game_state();
             let new_ptr = self.push_new(state)?;
-            self.set_edge_ptr(parent_ptr, action, new_ptr);
+
+            actions[action].set_ptr(new_ptr);
+
             Some(new_ptr)
         } else if ptr.half() != self.half.load(Ordering::Relaxed) {
+            let actions = self[parent_ptr].actions_mut();
+
+            let most_recent_ptr = actions[action].ptr();
+            if most_recent_ptr.half() == self.half.load(Ordering::Relaxed){
+                return Some(most_recent_ptr);
+            }
+
+            assert_eq!(ptr, most_recent_ptr);
+
             let new_ptr = self.push_new(GameState::Ongoing)?;
+
             self.copy_across(ptr, new_ptr);
-            self.set_edge_ptr(parent_ptr, action, new_ptr);
+
+            actions[action].set_ptr(new_ptr);
 
             Some(new_ptr)
         } else {
@@ -144,9 +166,9 @@ impl Tree {
         self[ptr].actions()[action].clone()
     }
 
-    pub fn set_edge_ptr(&self, ptr: NodePtr, action: usize, set: NodePtr) {
-        self[ptr].actions()[action].set_ptr(set);
-    }
+    //pub fn set_edge_ptr(&self, ptr: NodePtr, action: usize, set: NodePtr) {
+    //    self[ptr].actions()[action].set_ptr(set);
+    //}
 
     pub fn update_edge_stats(&self, ptr: NodePtr, action: usize, result: f32) -> f32 {
         let actions = &self[ptr].actions();
