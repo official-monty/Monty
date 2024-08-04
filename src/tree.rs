@@ -64,6 +64,10 @@ impl Tree {
 
 
     pub fn copy_across(&self, from: NodePtr, to: NodePtr) {
+        if from == to {
+            return;
+        }
+
         let f = &mut *self[from].actions_mut();
         let t = &mut *self[to].actions_mut();
 
@@ -75,11 +79,6 @@ impl Tree {
 
         assert!(t.is_empty());
 
-        if from == to {
-            return;
-        }
-
-        self[to].set_state(self[from].state());
         std::mem::swap(f, t);
     }
 
