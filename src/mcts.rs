@@ -302,7 +302,13 @@ impl<'a> Searcher<'a> {
 
             let child_ptr = self.tree.fetch_node(pos, ptr, edge.ptr(), action)?;
 
-            let u = self.perform_one_iteration(pos, child_ptr, &edge.stats(), depth)?;
+            self.tree[child_ptr].inc_threads();
+
+            let maybe_u = self.perform_one_iteration(pos, child_ptr, &edge.stats(), depth);
+
+            self.tree[child_ptr].dec_threads();
+
+            let u = maybe_u?;
 
             let new_q = self.tree.update_edge_stats(ptr, action, u);
             self.tree.push_hash(hash, new_q);
@@ -340,7 +346,12 @@ impl<'a> Searcher<'a> {
         let expl = cpuct * expl_scale;
 
         self.tree.get_best_child_by_key(ptr, |action| {
-            let q = SearchHelpers::get_action_value(action, fpu);
+            let q = if !action.ptr().is_null() && self.tree[action.ptr()].threads() > 0 {
+                0.0
+            } else {
+                SearchHelpers::get_action_value(action, fpu)
+            };
+
             let u = expl * action.policy() / (1 + action.visits()) as f32;
 
             q + u

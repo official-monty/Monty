@@ -6,6 +6,7 @@ use crate::{chess::Move, tree::{Edge, NodePtr}, ChessState, GameState, MctsParam
 pub struct Node {
     actions: RwLock<Vec<Edge>>,
     state: AtomicU16,
+    threads: AtomicU16,
 }
 
 impl Node {
@@ -13,6 +14,7 @@ impl Node {
         Node {
             actions: RwLock::new(Vec::new()),
             state: AtomicU16::new(u16::from(state)),
+            threads: AtomicU16::new(0),
         }
     }
 
@@ -27,6 +29,18 @@ impl Node {
 
     pub fn num_actions(&self) -> usize {
         self.actions.read().unwrap().len()
+    }
+
+    pub fn threads(&self) -> u16 {
+        self.threads.load(Ordering::Relaxed)
+    }
+
+    pub fn inc_threads(&self) {
+        self.threads.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn dec_threads(&self) {
+        self.threads.fetch_sub(1, Ordering::Relaxed);
     }
 
     pub fn actions(&self) -> RwLockReadGuard<Vec<Edge>> {
