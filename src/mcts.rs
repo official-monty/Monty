@@ -274,7 +274,7 @@ impl<'a> Searcher<'a> {
         let cpuct = SearchHelpers::get_cpuct(&self.params, edge, is_root);
         let fpu = SearchHelpers::get_fpu(edge);
         let expl_scale = SearchHelpers::get_explore_scaling(&self.params, edge);
-        let gini_impurity = 0.93 + (1.0 - node.gini_impurity()) * 0.2;
+        let gini_impurity = 1.0 - 0.5 * (node.gini_impurity() + 0.5).ln();
 
         let expl = cpuct * expl_scale * gini_impurity;
 
