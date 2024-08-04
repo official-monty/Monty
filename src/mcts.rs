@@ -51,8 +51,159 @@ impl<'a> Searcher<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn playout_until_full_main(
+        &self,
+        limits: &Limits,
+        timer: &Instant,
+        nodes: &mut usize,
+        depth: &mut usize,
+        cumulative_depth: &mut usize,
+        best_move: &mut Move,
+        best_move_changes: &mut i32,
+        previous_score: &mut f32,
+        uci_output: bool,
+    ) {
+        if self.playout_until_full_internal(
+            nodes,
+            cumulative_depth,
+            |n, cd| {
+                self.check_limits(
+                    limits,
+                    timer,
+                    n,
+                    best_move,
+                    best_move_changes,
+                    previous_score,
+                    depth,
+                    cd,
+                    uci_output,
+                )
+            }
+        ) {
+            self.abort.store(true, Ordering::Relaxed);
+        }
+    }
+
+    fn playout_until_full_worker(&mut self, nodes: &mut usize, cumulative_depth: &mut usize) {
+        let _ = self.playout_until_full_internal(nodes, cumulative_depth, |_, _| false);
+    }
+
+    fn playout_until_full_internal<F>(
+        &self,
+        nodes: &mut usize,
+        cumulative_depth: &mut usize,
+        mut stop: F,
+    ) -> bool
+    where F: FnMut(usize, usize) -> bool
+    {
+        loop {
+            let mut pos = self.root_position.clone();
+            let mut this_depth = 0;
+
+            if let Some(u) = self.perform_one_iteration(
+                &mut pos,
+                self.tree.root_node(),
+                self.tree.root_stats(),
+                &mut this_depth,
+            ) {
+                self.tree.root_stats().update(u);
+            } else {
+                return false;
+            }
+
+            *cumulative_depth += this_depth - 1;
+            *nodes += 1;
+
+            // proven checkmate
+            if self.tree[self.tree.root_node()].is_terminal() {
+                return true;
+            }
+
+            // stop signal sent
+            if self.abort.load(Ordering::Relaxed) {
+                return true;
+            }
+
+            if stop(*nodes, *cumulative_depth) {
+                return true;
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn check_limits(
+        &self,
+        limits: &Limits,
+        timer: &Instant,
+        nodes: usize,
+        best_move: &mut Move,
+        best_move_changes: &mut i32,
+        previous_score: &mut f32,
+        depth: &mut usize,
+        cumulative_depth: usize,
+        uci_output: bool,
+    ) -> bool {
+        if nodes % 128 == 0 {
+            if let Some(time) = limits.max_time {
+                if timer.elapsed().as_millis() >= time {
+                    return true;
+                }
+            }
+
+            let new_best_move = self.get_best_move();
+            if new_best_move != *best_move {
+                *best_move = new_best_move;
+                *best_move_changes += 1;
+            }
+        }
+
+        if nodes % 4096 == 0 {
+            // Time management
+            if let Some(time) = limits.opt_time {
+                let (should_stop, score) = SearchHelpers::soft_time_cutoff(
+                    self,
+                    timer,
+                    *previous_score,
+                    *best_move_changes,
+                    nodes,
+                    time
+                );
+
+                if should_stop {
+                    return true;
+                }
+
+                if nodes % 16384 == 0 {
+                    *best_move_changes = 0;
+                }
+
+                *previous_score = if *previous_score == f32::NEG_INFINITY {
+                    score
+                } else {
+                    (score + 2.0 * *previous_score) / 3.0
+                };
+            }
+        }
+
+        // define "depth" as the average depth of selection
+        let avg_depth = cumulative_depth / nodes;
+        if avg_depth > *depth {
+            *depth = avg_depth;
+            if *depth >= limits.max_depth {
+                return true;
+            }
+
+            if uci_output {
+                self.search_report(*depth, timer, nodes);
+            }
+        }
+
+        false
+    }
+
     pub fn search(
-        &mut self,
+        &self,
         limits: Limits,
         uci_output: bool,
         total_nodes: &mut usize,
@@ -78,110 +229,19 @@ impl<'a> Searcher<'a> {
         let mut previous_score = f32::NEG_INFINITY;
 
         // search loop
-        loop {
-            let mut pos = self.root_position.clone();
-            let mut this_depth = 0;
+        while !self.abort.load(Ordering::Relaxed) {
+            self.playout_until_full_main(
+                &limits,
+                &timer,
+                &mut nodes,
+                &mut depth,
+                &mut cumulative_depth,
+                &mut best_move,
+                &mut best_move_changes,
+                &mut previous_score, uci_output,
+            );
 
-            if let Some(u) = self.perform_one_iteration(
-                &mut pos,
-                self.tree.root_node(),
-                self.tree.root_stats(),
-                &mut this_depth,
-            ) {
-                self.tree.root_stats().update(u);
-            }
-
-            cumulative_depth += this_depth - 1;
-
-            // proven checkmate
-            if self.tree[self.tree.root_node()].is_terminal() {
-                break;
-            }
-
-            if nodes >= limits.max_nodes {
-                break;
-            }
-
-            if self.abort.load(Ordering::Relaxed) {
-                break;
-            }
-
-            nodes += 1;
-
-            if nodes % 128 == 0 {
-                if let Some(time) = limits.max_time {
-                    if timer.elapsed().as_millis() >= time {
-                        break;
-                    }
-                }
-
-                let new_best_move = self.get_best_move();
-                if new_best_move != best_move {
-                    best_move = new_best_move;
-                    best_move_changes += 1;
-                }
-            }
-
-            if nodes % 4096 == 0 {
-                // Time management
-                if let Some(time) = limits.opt_time {
-                    let elapsed = timer.elapsed().as_millis();
-
-                    // Use more time if our eval is falling, and vice versa
-                    let (_, mut score) = self.get_pv(0);
-                    score = Searcher::get_cp(score);
-                    let eval_diff = if previous_score == f32::NEG_INFINITY {
-                        0.0
-                    } else {
-                        previous_score - score
-                    };
-                    let falling_eval = (1.0 + eval_diff * self.params.tm_falling_eval1()).clamp(
-                        self.params.tm_falling_eval2(),
-                        self.params.tm_falling_eval3(),
-                    );
-
-                    // Use more time if our best move is changing frequently
-                    let best_move_instability = (1.0
-                        + (best_move_changes as f32 * self.params.tm_bmi1()).ln_1p())
-                    .clamp(self.params.tm_bmi2(), self.params.tm_bmi3());
-
-                    // Use less time if our best move has a large percentage of visits, and vice versa
-                    let nodes_effort = self.get_best_action().visits() as f32 / nodes as f32;
-                    let best_move_visits = (self.params.tm_bmv1()
-                        - ((nodes_effort + self.params.tm_bmv2()) * self.params.tm_bmv3()).ln_1p()
-                            * self.params.tm_bmv4())
-                    .clamp(self.params.tm_bmv5(), self.params.tm_bmv6());
-
-                    let total_time =
-                        (time as f32 * falling_eval * best_move_instability * best_move_visits)
-                            as u128;
-                    if elapsed >= total_time {
-                        break;
-                    }
-
-                    if nodes % 16384 == 0 {
-                        best_move_changes = 0;
-                    }
-                    previous_score = if previous_score == f32::NEG_INFINITY {
-                        score
-                    } else {
-                        (score + 2.0 * previous_score) / 3.0
-                    };
-                }
-            }
-
-            // define "depth" as the average depth of selection
-            let avg_depth = cumulative_depth / nodes;
-            if avg_depth > depth {
-                depth = avg_depth;
-                if depth >= limits.max_depth {
-                    break;
-                }
-
-                if uci_output {
-                    self.search_report(depth, &timer, nodes);
-                }
-            }
+            self.tree.flip();
         }
 
         self.abort.store(true, Ordering::Relaxed);
@@ -197,7 +257,7 @@ impl<'a> Searcher<'a> {
         (Move::from(best_child.mov()), best_child.q())
     }
 
-    fn perform_one_iteration(&mut self, pos: &mut ChessState, ptr: NodePtr, node_stats: &ActionStats, depth: &mut usize) -> Option<f32> {
+    fn perform_one_iteration(&self, pos: &mut ChessState, ptr: NodePtr, node_stats: &ActionStats, depth: &mut usize) -> Option<f32> {
         *depth += 1;
 
         let hash = pos.hash();

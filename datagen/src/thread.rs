@@ -119,7 +119,7 @@ impl<'a> DatagenThread<'a> {
 
             let abort = AtomicBool::new(false);
             tree.try_use_subtree(&position, &None);
-            let mut searcher = Searcher::new(
+            let searcher = Searcher::new(
                 position.clone(),
                 &tree,
                 &self.params,

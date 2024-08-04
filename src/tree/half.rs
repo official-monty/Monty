@@ -36,7 +36,7 @@ impl TreeHalf {
     pub fn push_new(&self, state: GameState) -> NodePtr {
         let idx = self.used.fetch_add(1, Ordering::Relaxed);
 
-        if idx == self.nodes.len() {
+        if idx >= self.nodes.len() {
             return NodePtr::NULL;
         }
 

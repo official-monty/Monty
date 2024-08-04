@@ -1,4 +1,6 @@
-use crate::{mcts::MctsParams, tree::{ActionStats, Edge}};
+use std::time::Instant;
+
+use crate::{mcts::{MctsParams, Searcher}, tree::{ActionStats, Edge}};
 
 pub struct SearchHelpers;
 
@@ -106,5 +108,47 @@ impl SearchHelpers {
 
             (opt_time, max_time)
         }
+    }
+
+    pub fn soft_time_cutoff(
+        searcher: &Searcher,
+        timer: &Instant,
+        previous_score: f32,
+        best_move_changes: i32,
+        nodes: usize,
+        time: u128,
+    ) -> (bool, f32) {
+        let elapsed = timer.elapsed().as_millis();
+
+        // Use more time if our eval is falling, and vice versa
+        let (_, mut score) = searcher.get_pv(0);
+        score = Searcher::get_cp(score);
+        let eval_diff = if previous_score == f32::NEG_INFINITY {
+            0.0
+        } else {
+            previous_score - score
+        };
+        let falling_eval = (1.0 + eval_diff * searcher.params.tm_falling_eval1()).clamp(
+            searcher.params.tm_falling_eval2(),
+            searcher.params.tm_falling_eval3(),
+        );
+
+        // Use more time if our best move is changing frequently
+        let best_move_instability = (1.0
+            + (best_move_changes as f32 * searcher.params.tm_bmi1()).ln_1p())
+        .clamp(searcher.params.tm_bmi2(), searcher.params.tm_bmi3());
+
+        // Use less time if our best move has a large percentage of visits, and vice versa
+        let nodes_effort = searcher.get_best_action().visits() as f32 / nodes as f32;
+        let best_move_visits = (searcher.params.tm_bmv1()
+            - ((nodes_effort + searcher.params.tm_bmv2()) * searcher.params.tm_bmv3()).ln_1p()
+                * searcher.params.tm_bmv4())
+        .clamp(searcher.params.tm_bmv5(), searcher.params.tm_bmv6());
+
+        let total_time =
+            (time as f32 * falling_eval * best_move_instability * best_move_visits)
+                as u128;
+
+        (elapsed >= total_time, score)
     }
 }

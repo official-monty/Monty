@@ -13,7 +13,7 @@ pub use ptr::NodePtr;
 pub use stats::ActionStats;
 
 use std::{
-    sync::{atomic::{AtomicBool, Ordering}, Mutex},
+    sync::atomic::{AtomicBool, Ordering},
     time::Instant,
 };
 
@@ -24,7 +24,6 @@ use crate::{
 pub struct Tree {
     tree: [TreeHalf; 2],
     half: AtomicBool,
-    flip_lock: Mutex<()>,
     hash: HashTable,
     root_stats: ActionStats,
 }
@@ -52,7 +51,6 @@ impl Tree {
             half: AtomicBool::new(false),
             hash: HashTable::new(hash_cap / 4),
             root_stats: ActionStats::default(),
-            flip_lock: Mutex::new(()),
         }
     }
 
@@ -64,11 +62,6 @@ impl Tree {
         self.tree[self.half()].is_full()
     }
 
-    fn flip(&self) {
-        let old = usize::from(self.half.fetch_xor(true, Ordering::Relaxed));
-        self.tree[old].clear_ptrs();
-        self.tree[old ^ 1].clear();
-    }
 
     pub fn copy_across(&self, from: NodePtr, to: NodePtr) {
         if from == to {
@@ -82,23 +75,23 @@ impl Tree {
         std::mem::swap(f, t);
     }
 
+    pub fn flip(&self) {
+        let old_root_ptr = self.root_node();
+
+        let old = usize::from(self.half.fetch_xor(true, Ordering::Relaxed));
+        self.tree[old].clear_ptrs();
+        self.tree[old ^ 1].clear();
+
+        let new_root_ptr = self.tree[self.half()].push_new(GameState::Ongoing);
+
+        self.copy_across(old_root_ptr, new_root_ptr);
+    }
+
     #[must_use]
     pub fn push_new(&self, state: GameState) -> Option<NodePtr> {
         let new_ptr = self.tree[self.half()].push_new(state);
 
         if new_ptr.is_null() {
-            let _lock = self.flip_lock.lock();
-
-            if self.is_full() {
-                let old_root_ptr = self.root_node();
-
-                self.flip();
-
-                let new_root_ptr = self.tree[self.half()].push_new(GameState::Ongoing);
-
-                self.copy_across(old_root_ptr, new_root_ptr);
-            }
-
             None
         } else {
             Some(new_ptr)

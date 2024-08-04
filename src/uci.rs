@@ -143,7 +143,7 @@ impl Uci {
             let abort = AtomicBool::new(false);
             let pos = ChessState::from_fen(fen);
             tree.try_use_subtree(&pos, &None);
-            let mut searcher = Searcher::new(pos, &tree, params, policy, value, &abort);
+            let searcher = Searcher::new(pos, &tree, params, policy, value, &abort);
             let timer = Instant::now();
             searcher.search(limits, false, &mut total_nodes);
             time += timer.elapsed().as_secs_f32();
@@ -316,7 +316,7 @@ fn go(
 
     std::thread::scope(|s| {
         s.spawn(|| {
-            let mut searcher = Searcher::new(pos.clone(), tree, params, policy, value, &abort);
+            let searcher = Searcher::new(pos.clone(), tree, params, policy, value, &abort);
             let (mov, _) = searcher.search(limits, true, &mut 0);
             println!("bestmove {}", pos.conv_mov_to_str(mov));
 
