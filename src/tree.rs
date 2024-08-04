@@ -91,6 +91,7 @@ impl Tree {
 
         if copy_across {
             let new_root_ptr = self.tree[self.half()].push_new(GameState::Ongoing);
+            self[new_root_ptr].clear();
 
             self.copy_across(old_root_ptr, new_root_ptr);
         }
@@ -229,6 +230,7 @@ impl Tree {
                 found = true;
 
                 if root != self.root_node() {
+                    self[self.root_node()].clear();
                     self.copy_across(root, self.root_node());
                     self.root_stats = stats;
                     println!("info string found subtree");
