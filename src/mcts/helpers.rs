@@ -74,7 +74,7 @@ impl SearchHelpers {
         } else {
             // Increment time control (x seconds + y increment)
             let inc = increment.unwrap_or(0);
-            let mtg = 30;
+            let mtg = params.tm_mtg() as u64;
 
             let time_left = (time + inc * (mtg - 1) - 10 * (2 + mtg)).max(1) as f64;
             let log_time = (time_left / 1000.0).log10();
