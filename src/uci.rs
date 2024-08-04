@@ -162,6 +162,7 @@ fn preamble() {
     println!("id name monty {}", env!("CARGO_PKG_VERSION"));
     println!("id author Jamie Whiting");
     println!("option name Hash type spin default 64 min 1 max 8192");
+    println!("option name Threads type spin default 1 min 1 max 512");
     println!("option name report_moves type button");
     Uci::options();
     MctsParams::info(MctsParams::default());
