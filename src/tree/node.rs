@@ -64,12 +64,14 @@ impl Node {
         params: &MctsParams,
         policy: &PolicyNetwork,
     ) {
-        assert!(self.is_not_expanded());
+        let mut actions = self.actions_mut();
+
+        if actions.len() != 0 {
+            return;
+        }
 
         let feats = pos.get_policy_feats();
         let mut max = f32::NEG_INFINITY;
-
-        let mut actions = self.actions_mut();
 
         pos.map_legal_moves(|mov| {
             let policy = pos.get_policy(mov, &feats, policy);

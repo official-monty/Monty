@@ -11,8 +11,7 @@ use crate::{
 };
 
 use std::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Instant,
+    sync::atomic::{AtomicBool, Ordering}, thread, time::Instant
 };
 
 #[derive(Clone, Copy)]
@@ -85,7 +84,7 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    fn playout_until_full_worker(&mut self, nodes: &mut usize, cumulative_depth: &mut usize) {
+    fn playout_until_full_worker(&self, nodes: &mut usize, cumulative_depth: &mut usize) {
         let _ = self.playout_until_full_internal(nodes, cumulative_depth, |_, _| false);
     }
 
@@ -208,6 +207,7 @@ impl<'a> Searcher<'a> {
 
     pub fn search(
         &self,
+        threads: usize,
         limits: Limits,
         uci_output: bool,
         total_nodes: &mut usize,
@@ -234,16 +234,24 @@ impl<'a> Searcher<'a> {
 
         // search loop
         while !self.abort.load(Ordering::Relaxed) {
-            self.playout_until_full_main(
-                &limits,
-                &timer,
-                &mut nodes,
-                &mut depth,
-                &mut cumulative_depth,
-                &mut best_move,
-                &mut best_move_changes,
-                &mut previous_score, uci_output,
-            );
+            thread::scope(|s| {
+                s.spawn(|| {
+                    self.playout_until_full_main(
+                        &limits,
+                        &timer,
+                        &mut nodes,
+                        &mut depth,
+                        &mut cumulative_depth,
+                        &mut best_move,
+                        &mut best_move_changes,
+                        &mut previous_score, uci_output,
+                    );
+                });
+
+                for _ in 0..threads - 1 {
+                    s.spawn(|| self.playout_until_full_worker(&mut 0, &mut 0));
+                }
+            });
 
             self.tree.flip();
         }

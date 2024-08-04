@@ -68,6 +68,7 @@ impl Uci {
                         report_moves,
                         policy,
                         value,
+                        threads,
                         &mut stored_message,
                     );
 
@@ -145,7 +146,7 @@ impl Uci {
             tree.try_use_subtree(&pos, &None);
             let searcher = Searcher::new(pos, &tree, params, policy, value, &abort);
             let timer = Instant::now();
-            searcher.search(limits, false, &mut total_nodes);
+            searcher.search(1, limits, false, &mut total_nodes);
             time += timer.elapsed().as_secs_f32();
             tree.clear();
         }
@@ -241,6 +242,7 @@ fn go(
     report_moves: bool,
     policy: &PolicyNetwork,
     value: &ValueNetwork,
+    threads: usize,
     stored_message: &mut Option<String>,
 ) {
     let mut max_nodes = i32::MAX as usize;
@@ -317,7 +319,7 @@ fn go(
     std::thread::scope(|s| {
         s.spawn(|| {
             let searcher = Searcher::new(pos.clone(), tree, params, policy, value, &abort);
-            let (mov, _) = searcher.search(limits, true, &mut 0);
+            let (mov, _) = searcher.search(threads, limits, true, &mut 0);
             println!("bestmove {}", pos.conv_mov_to_str(mov));
 
             if report_moves {

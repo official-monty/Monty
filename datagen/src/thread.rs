@@ -128,7 +128,7 @@ impl<'a> DatagenThread<'a> {
                 &abort,
             );
 
-            let (bm, score) = searcher.search(limits, false, &mut 0);
+            let (bm, score) = searcher.search(1, limits, false, &mut 0);
 
             game.push(position.stm(), bm, score);
 
