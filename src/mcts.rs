@@ -144,6 +144,10 @@ impl<'a> Searcher<'a> {
         cumulative_depth: usize,
         uci_output: bool,
     ) -> bool {
+        if nodes >= limits.max_nodes {
+            return true;
+        }
+
         if nodes % 128 == 0 {
             if let Some(time) = limits.max_time {
                 if timer.elapsed().as_millis() >= time {
