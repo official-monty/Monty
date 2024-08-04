@@ -166,10 +166,6 @@ impl Tree {
         self[ptr].actions()[action].clone()
     }
 
-    //pub fn set_edge_ptr(&self, ptr: NodePtr, action: usize, set: NodePtr) {
-    //    self[ptr].actions()[action].set_ptr(set);
-    //}
-
     pub fn update_edge_stats(&self, ptr: NodePtr, action: usize, result: f32) -> f32 {
         let actions = &self[ptr].actions();
         let edge = &actions[action];

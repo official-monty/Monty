@@ -264,9 +264,8 @@ impl<'a> Searcher<'a> {
             self.search_report(depth.max(1), &timer, nodes);
         }
 
-        let best_action = self.tree.get_best_child(self.tree.root_node());
-        let best_child = self.tree.edge_copy(self.tree.root_node(), best_action);
-        (Move::from(best_child.mov()), best_child.q())
+        let best_action = self.get_best_action();
+        (Move::from(best_action.mov()), best_action.q())
     }
 
     fn perform_one_iteration(&self, pos: &mut ChessState, ptr: NodePtr, node_stats: &ActionStats, depth: &mut usize) -> Option<f32> {
@@ -387,8 +386,7 @@ impl<'a> Searcher<'a> {
     fn get_pv(&self, mut depth: usize) -> (Vec<Move>, f32) {
         let mate = self.tree[self.tree.root_node()].is_terminal();
 
-        let idx = self.tree.get_best_child(self.tree.root_node());
-        let mut action = self.tree.edge_copy(self.tree.root_node(), idx);
+        let mut action = self.get_best_action();
 
         let score = if !action.ptr().is_null() {
             match self.tree[action.ptr()].state() {
@@ -402,8 +400,9 @@ impl<'a> Searcher<'a> {
         };
 
         let mut pv = Vec::new();
+        let half = self.tree.half() > 0;
 
-        while (mate || depth > 0) && !action.ptr().is_null() {
+        while (mate || depth > 0) && !action.ptr().is_null() && action.ptr().half() == half {
             pv.push(Move::from(action.mov()));
             let idx = self.tree.get_best_child(action.ptr());
 
@@ -424,9 +423,7 @@ impl<'a> Searcher<'a> {
     }
 
     fn get_best_move(&self) -> Move {
-        let idx = self.tree.get_best_child(self.tree.root_node());
-        let action = self.tree.edge_copy(self.tree.root_node(), idx);
-        Move::from(action.mov())
+        Move::from(self.get_best_action().mov())
     }
 
     fn get_cp(score: f32) -> f32 {
