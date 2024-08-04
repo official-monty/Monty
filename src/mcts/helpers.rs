@@ -1,4 +1,4 @@
-use crate::{mcts::MctsParams, tree::Edge};
+use crate::{mcts::MctsParams, tree::Edge, tree::Node};
 
 pub struct SearchHelpers;
 
@@ -30,8 +30,11 @@ impl SearchHelpers {
     /// Exploration Scaling
     ///
     /// Larger value implies more exploration.
-    pub fn get_explore_scaling(params: &MctsParams, parent: &Edge) -> f32 {
-        (params.expl_tau() * (parent.visits().max(1) as f32).ln()).exp()
+    pub fn get_explore_scaling(params: &MctsParams, parent: &Edge, node: &Node) -> f32 {
+        let mut scale = (params.expl_tau() * (parent.visits().max(1) as f32).ln()).exp();
+        let gini = node.gini_impurity();
+        scale *= -1.034 * gini * gini + 0.213 * gini + 1.500;
+        scale
     }
 
     /// First Play Urgency
