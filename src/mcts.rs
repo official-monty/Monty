@@ -6,12 +6,13 @@ pub use params::MctsParams;
 
 use crate::{
     chess::Move,
-    tree::{Edge, Node, Tree},
+    tree::{ActionStats, Edge, NodePtr, Tree},
     ChessState, GameState, PolicyNetwork, ValueNetwork,
 };
 
 use std::{
     sync::atomic::{AtomicBool, Ordering},
+    thread,
     time::Instant,
 };
 
@@ -25,8 +26,8 @@ pub struct Limits {
 
 pub struct Searcher<'a> {
     root_position: ChessState,
-    tree: Tree,
-    params: MctsParams,
+    tree: &'a Tree,
+    params: &'a MctsParams,
     policy: &'a PolicyNetwork,
     value: &'a ValueNetwork,
     abort: &'a AtomicBool,
@@ -35,8 +36,8 @@ pub struct Searcher<'a> {
 impl<'a> Searcher<'a> {
     pub fn new(
         root_position: ChessState,
-        tree: Tree,
-        params: MctsParams,
+        tree: &'a Tree,
+        params: &'a MctsParams,
         policy: &'a PolicyNetwork,
         value: &'a ValueNetwork,
         abort: &'a AtomicBool,
@@ -51,12 +52,164 @@ impl<'a> Searcher<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn playout_until_full_main(
+        &self,
+        limits: &Limits,
+        timer: &Instant,
+        nodes: &mut usize,
+        depth: &mut usize,
+        cumulative_depth: &mut usize,
+        best_move: &mut Move,
+        best_move_changes: &mut i32,
+        previous_score: &mut f32,
+        uci_output: bool,
+    ) {
+        if self.playout_until_full_internal(nodes, cumulative_depth, |n, cd| {
+            self.check_limits(
+                limits,
+                timer,
+                n,
+                best_move,
+                best_move_changes,
+                previous_score,
+                depth,
+                cd,
+                uci_output,
+            )
+        }) {
+            self.abort.store(true, Ordering::Relaxed);
+        }
+    }
+
+    fn playout_until_full_worker(&self, nodes: &mut usize, cumulative_depth: &mut usize) {
+        let _ = self.playout_until_full_internal(nodes, cumulative_depth, |_, _| false);
+    }
+
+    fn playout_until_full_internal<F>(
+        &self,
+        nodes: &mut usize,
+        cumulative_depth: &mut usize,
+        mut stop: F,
+    ) -> bool
+    where
+        F: FnMut(usize, usize) -> bool,
+    {
+        loop {
+            let mut pos = self.root_position.clone();
+            let mut this_depth = 0;
+
+            if let Some(u) = self.perform_one_iteration(
+                &mut pos,
+                self.tree.root_node(),
+                self.tree.root_stats(),
+                &mut this_depth,
+            ) {
+                self.tree.root_stats().update(u);
+            } else {
+                return false;
+            }
+
+            *cumulative_depth += this_depth - 1;
+            *nodes += 1;
+
+            // proven checkmate
+            if self.tree[self.tree.root_node()].is_terminal() {
+                return true;
+            }
+
+            // stop signal sent
+            if self.abort.load(Ordering::Relaxed) {
+                return true;
+            }
+
+            if stop(*nodes, *cumulative_depth) {
+                return true;
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn check_limits(
+        &self,
+        limits: &Limits,
+        timer: &Instant,
+        nodes: usize,
+        best_move: &mut Move,
+        best_move_changes: &mut i32,
+        previous_score: &mut f32,
+        depth: &mut usize,
+        cumulative_depth: usize,
+        uci_output: bool,
+    ) -> bool {
+        if nodes >= limits.max_nodes {
+            return true;
+        }
+
+        if nodes % 128 == 0 {
+            if let Some(time) = limits.max_time {
+                if timer.elapsed().as_millis() >= time {
+                    return true;
+                }
+            }
+
+            let new_best_move = self.get_best_move();
+            if new_best_move != *best_move {
+                *best_move = new_best_move;
+                *best_move_changes += 1;
+            }
+        }
+
+        if nodes % 4096 == 0 {
+            // Time management
+            if let Some(time) = limits.opt_time {
+                let (should_stop, score) = SearchHelpers::soft_time_cutoff(
+                    self,
+                    timer,
+                    *previous_score,
+                    *best_move_changes,
+                    nodes,
+                    time,
+                );
+
+                if should_stop {
+                    return true;
+                }
+
+                if nodes % 16384 == 0 {
+                    *best_move_changes = 0;
+                }
+
+                *previous_score = if *previous_score == f32::NEG_INFINITY {
+                    score
+                } else {
+                    (score + 2.0 * *previous_score) / 3.0
+                };
+            }
+        }
+
+        // define "depth" as the average depth of selection
+        let avg_depth = cumulative_depth / nodes;
+        if avg_depth > *depth {
+            *depth = avg_depth;
+            if *depth >= limits.max_depth {
+                return true;
+            }
+
+            if uci_output {
+                self.search_report(*depth, timer, nodes);
+            }
+        }
+
+        false
+    }
+
     pub fn search(
-        &mut self,
+        &self,
+        threads: usize,
         limits: Limits,
         uci_output: bool,
         total_nodes: &mut usize,
-        prev_board: &Option<ChessState>,
         #[cfg(feature = "datagen")]
         use_dirichlet_noise: bool,
         #[cfg(feature = "datagen")]
@@ -65,14 +218,13 @@ impl<'a> Searcher<'a> {
         let timer = Instant::now();
 
         // attempt to reuse the current tree stored in memory
-        self.tree.try_use_subtree(&self.root_position, prev_board);
         let node = self.tree.root_node();
 
         // relabel root policies with root PST value
         if self.tree[node].has_children() {
-            self.tree[node].relabel_policy(&self.root_position, &self.params, self.policy);
+            self.tree[node].relabel_policy(&self.root_position, self.params, self.policy);
         } else {
-            self.tree[node].expand::<true>(&self.root_position, &self.params, self.policy);
+            self.tree[node].expand::<true>(&self.root_position, self.params, self.policy);
         }
 
         // add dirichlet noise in datagen
@@ -90,95 +242,31 @@ impl<'a> Searcher<'a> {
         let mut previous_score = f32::NEG_INFINITY;
 
         // search loop
-        loop {
-            let mut pos = self.root_position.clone();
-            let mut this_depth = 0;
-            self.perform_one_iteration(&mut pos, self.tree.root_node(), &mut this_depth);
+        while !self.abort.load(Ordering::Relaxed) {
+            thread::scope(|s| {
+                s.spawn(|| {
+                    self.playout_until_full_main(
+                        &limits,
+                        &timer,
+                        &mut nodes,
+                        &mut depth,
+                        &mut cumulative_depth,
+                        &mut best_move,
+                        &mut best_move_changes,
+                        &mut previous_score,
+                        uci_output,
+                    );
+                });
 
-            cumulative_depth += this_depth - 1;
-
-            // proven checkmate
-            if self.tree[self.tree.root_node()].is_terminal() {
-                break;
-            }
-
-            if nodes >= limits.max_nodes {
-                break;
-            }
-
-            nodes += 1;
-
-            if nodes % 256 == 0 {
-                if self.abort.load(Ordering::Relaxed) {
-                    break;
+                for _ in 0..threads - 1 {
+                    s.spawn(|| self.playout_until_full_worker(&mut 0, &mut 0));
                 }
+            });
 
-                if let Some(time) = limits.max_time {
-                    if timer.elapsed().as_millis() >= time {
-                        break;
-                    }
-                }
-
-                let new_best_move = self.get_best_move();
-                if new_best_move != best_move {
-                    best_move = new_best_move;
-                    best_move_changes += 1;
-                }
-            }
-
-            if nodes % 16384 == 0 {
-                // Time management
-                if let Some(time) = limits.opt_time {
-                    let elapsed = timer.elapsed().as_millis();
-
-                    // Use more time if our eval is falling, and vice versa
-                    let (_, mut score) = self.get_pv(0);
-                    score = Searcher::get_cp(score);
-                    let eval_diff = if previous_score == f32::NEG_INFINITY {
-                        0.0
-                    } else {
-                        previous_score - score
-                    };
-                    let falling_eval = (1.0 + eval_diff * 0.05).clamp(0.60, 1.80);
-
-                    // Use more time if our best move is changing frequently
-                    let best_move_instability =
-                        (1.0 + (best_move_changes as f32 * 0.3).ln_1p()).clamp(1.0, 3.2);
-
-                    // Use less time if our best move has a large percentage of visits, and vice versa
-                    let nodes_effort = self.get_best_action().visits() as f32 / nodes as f32;
-                    let best_move_visits =
-                        (2.5 - ((nodes_effort + 0.3) * 0.55).ln_1p() * 4.0).clamp(0.55, 1.50);
-
-                    let total_time =
-                        (time as f32 * falling_eval * best_move_instability * best_move_visits)
-                            as u128;
-                    if elapsed >= total_time {
-                        break;
-                    }
-
-                    best_move_changes = 0;
-                    previous_score = if previous_score == f32::NEG_INFINITY {
-                        score
-                    } else {
-                        (score + previous_score) / 2.0
-                    };
-                }
-            }
-
-            // define "depth" as the average depth of selection
-            let avg_depth = cumulative_depth / nodes;
-            if avg_depth > depth {
-                depth = avg_depth;
-                if depth >= limits.max_depth {
-                    break;
-                }
-
-                if uci_output {
-                    self.search_report(depth, &timer, nodes);
-                }
-            }
+            self.tree.flip(true);
         }
+
+        self.abort.store(true, Ordering::Relaxed);
 
         *total_nodes += nodes;
 
@@ -192,27 +280,28 @@ impl<'a> Searcher<'a> {
         #[cfg(feature = "datagen")]
         let best_action = self.tree.get_best_child_temp(self.tree.root_node(), temp);
 
-        let best_child = &self.tree.edge(self.tree.root_node(), best_action);
+        let best_child = self.tree.edge_copy(self.tree.root_node(), best_action);
         (Move::from(best_child.mov()), best_child.q())
     }
 
-    fn perform_one_iteration(&mut self, pos: &mut ChessState, ptr: i32, depth: &mut usize) -> f32 {
+    fn perform_one_iteration(
+        &self,
+        pos: &mut ChessState,
+        ptr: NodePtr,
+        node_stats: &ActionStats,
+        depth: &mut usize,
+    ) -> Option<f32> {
         *depth += 1;
 
-        self.tree.make_recently_used(ptr);
-
-        let hash = self.tree[ptr].hash();
-        let parent = self.tree[ptr].parent();
-        let action = self.tree[ptr].action();
+        let hash = pos.hash();
 
         let mut child_state = GameState::Ongoing;
-        let pvisits = self.tree.edge(parent, action).visits();
 
-        let mut u = if self.tree[ptr].is_terminal() || pvisits == 0 {
+        let u = if self.tree[ptr].is_terminal() || node_stats.visits() == 0 {
             // probe hash table to use in place of network
             if self.tree[ptr].state() == GameState::Ongoing {
                 if let Some(entry) = self.tree.probe_hash(hash) {
-                    1.0 - entry.wins / entry.visits as f32
+                    entry.q()
                 } else {
                     self.get_utility(ptr, pos)
                 }
@@ -222,70 +311,68 @@ impl<'a> Searcher<'a> {
         } else {
             // expand node on the second visit
             if self.tree[ptr].is_not_expanded() {
-                self.tree[ptr].expand::<false>(pos, &self.params, self.policy);
+                self.tree[ptr].expand::<false>(pos, self.params, self.policy);
             }
 
             // select action to take via PUCT
-            let action = self.pick_action(ptr);
+            let action = self.pick_action(ptr, node_stats);
 
-            let edge = self.tree.edge(ptr, action);
+            let edge = self.tree.edge_copy(ptr, action);
+
             pos.make_move(Move::from(edge.mov()));
 
-            let mut child_ptr = edge.ptr();
+            let child_ptr = self.tree.fetch_node(pos, ptr, edge.ptr(), action)?;
 
-            // create and push node if not present
-            if child_ptr == -1 {
-                let state = pos.game_state();
-                child_ptr = self.tree.push(Node::new(state, pos.hash(), ptr, action));
-                self.tree.edge_mut(ptr, action).set_ptr(child_ptr);
-            }
+            self.tree[child_ptr].inc_threads();
 
-            let u = self.perform_one_iteration(pos, child_ptr, depth);
+            let maybe_u = self.perform_one_iteration(pos, child_ptr, &edge.stats(), depth);
+
+            self.tree[child_ptr].dec_threads();
+
+            let u = maybe_u?;
+
+            let new_q = self.tree.update_edge_stats(ptr, action, u);
+            self.tree.push_hash(hash, new_q);
+
             child_state = self.tree[child_ptr].state();
 
             u
         };
 
-        // flip perspective of score
-        u = 1.0 - u;
-        self.tree.edge_mut(parent, action).update(u);
-
-        let edge = self.tree.edge(parent, action);
-        self.tree.push_hash(hash, edge.visits(), edge.wins());
-
         self.tree.propogate_proven_mates(ptr, child_state);
 
-        self.tree.make_recently_used(ptr);
-
-        u
+        Some(1.0 - u)
     }
 
-    fn get_utility(&self, ptr: i32, pos: &ChessState) -> f32 {
+    fn get_utility(&self, ptr: NodePtr, pos: &ChessState) -> f32 {
         match self.tree[ptr].state() {
-            GameState::Ongoing => pos.get_value_wdl(self.value, &self.params),
+            GameState::Ongoing => pos.get_value_wdl(self.value, self.params),
             GameState::Draw => 0.5,
             GameState::Lost(_) => 0.0,
             GameState::Won(_) => 1.0,
         }
     }
 
-    fn pick_action(&self, ptr: i32) -> usize {
+    fn pick_action(&self, ptr: NodePtr, node_stats: &ActionStats) -> usize {
         if !self.tree[ptr].has_children() {
             panic!("trying to pick from no children!");
         }
 
-        let node = &self.tree[ptr];
-        let edge = self.tree.edge(node.parent(), node.action());
-        let is_root = edge.ptr() == self.tree.root_node();
+        let is_root = ptr == self.tree.root_node();
 
-        let cpuct = SearchHelpers::get_cpuct(&self.params, edge, is_root);
-        let fpu = SearchHelpers::get_fpu(edge);
-        let expl_scale = SearchHelpers::get_explore_scaling(&self.params, edge);
+        let cpuct = SearchHelpers::get_cpuct(self.params, node_stats, is_root);
+        let fpu = SearchHelpers::get_fpu(node_stats);
+        let expl_scale = SearchHelpers::get_explore_scaling(self.params, node_stats);
 
         let expl = cpuct * expl_scale;
 
         self.tree.get_best_child_by_key(ptr, |action| {
-            let q = SearchHelpers::get_action_value(action, fpu);
+            let q = if !action.ptr().is_null() && self.tree[action.ptr()].threads() > 0 {
+                0.0
+            } else {
+                SearchHelpers::get_action_value(action, fpu)
+            };
+
             let u = expl * action.policy() / (1 + action.visits()) as f32;
 
             q + u
@@ -308,9 +395,8 @@ impl<'a> Searcher<'a> {
         let elapsed = timer.elapsed();
         let nps = nodes as f32 / elapsed.as_secs_f32();
         let ms = elapsed.as_millis();
-        let hf = self.tree.len() * 1000 / self.tree.cap();
 
-        print!("time {ms} nodes {nodes} nps {nps:.0} hashfull {hf} pv");
+        print!("time {ms} nodes {nodes} nps {nps:.0} pv");
 
         for mov in pv_line {
             print!(" {}", self.root_position.conv_mov_to_str(mov));
@@ -322,10 +408,9 @@ impl<'a> Searcher<'a> {
     fn get_pv(&self, mut depth: usize) -> (Vec<Move>, f32) {
         let mate = self.tree[self.tree.root_node()].is_terminal();
 
-        let idx = self.tree.get_best_child(self.tree.root_node());
-        let mut action = self.tree.edge(self.tree.root_node(), idx);
+        let mut action = self.get_best_action();
 
-        let score = if action.ptr() != -1 {
+        let score = if !action.ptr().is_null() {
             match self.tree[action.ptr()].state() {
                 GameState::Lost(_) => 1.1,
                 GameState::Won(_) => -0.1,
@@ -337,8 +422,9 @@ impl<'a> Searcher<'a> {
         };
 
         let mut pv = Vec::new();
+        let half = self.tree.half() > 0;
 
-        while (mate || depth > 0) && action.ptr() != -1 {
+        while (mate || depth > 0) && !action.ptr().is_null() && action.ptr().half() == half {
             pv.push(Move::from(action.mov()));
             let idx = self.tree.get_best_child(action.ptr());
 
@@ -346,34 +432,28 @@ impl<'a> Searcher<'a> {
                 break;
             }
 
-            action = self.tree.edge(action.ptr(), idx);
-            depth -= 1;
+            action = self.tree.edge_copy(action.ptr(), idx);
+            depth = depth.saturating_sub(1);
         }
 
         (pv, score)
     }
 
-    fn get_best_action(&self) -> &Edge {
+    fn get_best_action(&self) -> Edge {
         let idx = self.tree.get_best_child(self.tree.root_node());
-        self.tree.edge(self.tree.root_node(), idx)
+        self.tree.edge_copy(self.tree.root_node(), idx)
     }
 
     fn get_best_move(&self) -> Move {
-        let idx = self.tree.get_best_child(self.tree.root_node());
-        let action = self.tree.edge(self.tree.root_node(), idx);
-        Move::from(action.mov())
+        Move::from(self.get_best_action().mov())
     }
 
     fn get_cp(score: f32) -> f32 {
         -400.0 * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln()
     }
 
-    pub fn tree_and_board(self) -> (Tree, ChessState) {
-        (self.tree, self.root_position)
-    }
-
     pub fn display_moves(&self) {
-        for action in self.tree[self.tree.root_node()].actions() {
+        for action in self.tree[self.tree.root_node()].actions().iter() {
             let mov = self.root_position.conv_mov_to_str(action.mov().into());
             let q = action.q() * 100.0;
             println!("{mov} -> {q:.2}%");

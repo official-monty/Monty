@@ -1,11 +1,21 @@
 mod edge;
+mod half;
 mod hash;
 mod node;
+mod ptr;
+mod stats;
 
 pub use edge::Edge;
+use half::TreeHalf;
 use hash::{HashEntry, HashTable};
 pub use node::Node;
-use std::time::Instant;
+pub use ptr::NodePtr;
+pub use stats::ActionStats;
+
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
+};
 
 use crate::{
     chess::{ChessState, Move},
@@ -13,210 +23,180 @@ use crate::{
 };
 
 pub struct Tree {
-    tree: Vec<Node>,
+    tree: [TreeHalf; 2],
+    half: AtomicBool,
     hash: HashTable,
-    root: i32,
-    empty: i32,
-    used: usize,
-    lru_head: i32,
-    lru_tail: i32,
-    parent_edge: Edge,
+    root_stats: ActionStats,
 }
 
-impl std::ops::Index<i32> for Tree {
+impl std::ops::Index<NodePtr> for Tree {
     type Output = Node;
 
-    fn index(&self, index: i32) -> &Self::Output {
-        &self.tree[index as usize]
-    }
-}
-
-impl std::ops::IndexMut<i32> for Tree {
-    fn index_mut(&mut self, index: i32) -> &mut Self::Output {
-        &mut self.tree[index as usize]
+    fn index(&self, index: NodePtr) -> &Self::Output {
+        &self.tree[usize::from(index.half())][index]
     }
 }
 
 impl Tree {
     pub fn new_mb(mb: usize) -> Self {
-        let cap = mb * 1024 * 1024 / std::mem::size_of::<Node>();
-        Self::new(cap)
+        let bytes = mb * 1024 * 1024;
+        Self::new(bytes / (48 + 20 * 20), bytes / 48 / 16)
     }
 
-    fn new(cap: usize) -> Self {
-        let mut tree = Self {
-            tree: vec![Node::new(GameState::Ongoing, 0, -1, 0); cap / 8],
-            hash: HashTable::new(cap / 16),
-            root: -1,
-            empty: 0,
-            used: 0,
-            lru_head: -1,
-            lru_tail: -1,
-            parent_edge: Edge::new(0, 0, 0),
-        };
-
-        let end = tree.cap() as i32 - 1;
-
-        for i in 0..end {
-            tree[i].set_fwd_link(i + 1);
+    fn new(tree_cap: usize, hash_cap: usize) -> Self {
+        Self {
+            tree: [
+                TreeHalf::new(tree_cap / 2, false),
+                TreeHalf::new(tree_cap / 2, true),
+            ],
+            half: AtomicBool::new(false),
+            hash: HashTable::new(hash_cap / 4),
+            root_stats: ActionStats::default(),
         }
-
-        tree[end].set_fwd_link(-1);
-
-        tree
     }
 
-    pub fn push(&mut self, node: Node) -> i32 {
-        let mut new = self.empty;
+    pub fn half(&self) -> usize {
+        usize::from(self.half.load(Ordering::Relaxed))
+    }
 
-        // tree is full, do some LRU pruning
-        if new == -1 {
-            new = self.lru_tail;
-            let parent = self[new].parent();
-            let action = self[new].action();
+    pub fn is_full(&self) -> bool {
+        self.tree[self.half()].is_full()
+    }
 
-            self.edge_mut(parent, action).set_ptr(-1);
-
-            self.delete(new);
+    pub fn copy_across(&self, from: NodePtr, to: NodePtr) {
+        if from == to {
+            return;
         }
 
-        assert_ne!(new, -1);
+        let f = &mut *self[from].actions_mut();
+        let t = &mut *self[to].actions_mut();
 
-        self.used += 1;
-        self.empty = self[self.empty].fwd_link();
-        self[new] = node;
+        self[to].set_state(self[from].state());
 
-        self.append_to_lru(new);
-
-        if self.used == 1 {
-            self.lru_tail = new;
+        if f.is_empty() {
+            return;
         }
 
-        new
+        assert!(t.is_empty());
+
+        std::mem::swap(f, t);
+    }
+
+    pub fn flip(&self, copy_across: bool) {
+        let old_root_ptr = self.root_node();
+
+        let old = usize::from(self.half.fetch_xor(true, Ordering::Relaxed));
+        self.tree[old].clear_ptrs();
+        self.tree[old ^ 1].clear();
+
+        if copy_across {
+            let new_root_ptr = self.tree[self.half()].push_new(GameState::Ongoing);
+            self[new_root_ptr].clear();
+
+            self.copy_across(old_root_ptr, new_root_ptr);
+        }
+    }
+
+    #[must_use]
+    pub fn push_new(&self, state: GameState) -> Option<NodePtr> {
+        let new_ptr = self.tree[self.half()].push_new(state);
+
+        if new_ptr.is_null() {
+            None
+        } else {
+            Some(new_ptr)
+        }
+    }
+
+    #[must_use]
+    pub fn fetch_node(
+        &self,
+        pos: &ChessState,
+        parent_ptr: NodePtr,
+        ptr: NodePtr,
+        action: usize,
+    ) -> Option<NodePtr> {
+        if ptr.is_null() {
+            let actions = self[parent_ptr].actions_mut();
+
+            let most_recent_ptr = actions[action].ptr();
+            if !most_recent_ptr.is_null() {
+                return Some(most_recent_ptr);
+            }
+
+            assert_eq!(ptr, most_recent_ptr);
+
+            let state = pos.game_state();
+            let new_ptr = self.push_new(state)?;
+
+            actions[action].set_ptr(new_ptr);
+
+            Some(new_ptr)
+        } else if ptr.half() != self.half.load(Ordering::Relaxed) {
+            let actions = self[parent_ptr].actions_mut();
+
+            let most_recent_ptr = actions[action].ptr();
+            if most_recent_ptr.half() == self.half.load(Ordering::Relaxed) {
+                return Some(most_recent_ptr);
+            }
+
+            assert_eq!(ptr, most_recent_ptr);
+
+            let new_ptr = self.push_new(GameState::Ongoing)?;
+
+            self.copy_across(ptr, new_ptr);
+
+            actions[action].set_ptr(new_ptr);
+
+            Some(new_ptr)
+        } else {
+            Some(ptr)
+        }
+    }
+
+    pub fn root_node(&self) -> NodePtr {
+        NodePtr::new(self.half.load(Ordering::Relaxed), 0)
+    }
+
+    pub fn root_stats(&self) -> &ActionStats {
+        &self.root_stats
+    }
+
+    pub fn edge_copy(&self, ptr: NodePtr, action: usize) -> Edge {
+        self[ptr].actions()[action].clone()
+    }
+
+    pub fn update_edge_stats(&self, ptr: NodePtr, action: usize, result: f32) -> f32 {
+        let actions = &self[ptr].actions();
+        let edge = &actions[action];
+        edge.update(result);
+        edge.q()
     }
 
     pub fn probe_hash(&self, hash: u64) -> Option<HashEntry> {
         self.hash.get(hash)
     }
 
-    pub fn push_hash(&mut self, hash: u64, visits: i32, wins: f32) {
-        self.hash.push(hash, visits, wins);
+    pub fn push_hash(&self, hash: u64, wins: f32) {
+        self.hash.push(hash, wins);
     }
 
-    pub fn delete(&mut self, ptr: i32) {
-        self.remove_from_lru(ptr);
-        self[ptr].clear();
-
-        let empty = self.empty;
-        self[ptr].set_fwd_link(empty);
-
-        self.empty = ptr;
-        self.used -= 1;
-        assert!(self.used < self.cap());
-    }
-
-    pub fn make_recently_used(&mut self, ptr: i32) {
-        self.remove_from_lru(ptr);
-        self.append_to_lru(ptr);
-    }
-
-    fn append_to_lru(&mut self, ptr: i32) {
-        let old_head = self.lru_head;
-        if old_head != -1 {
-            self[old_head].set_bwd_link(ptr);
-        }
-        self.lru_head = ptr;
-        self[ptr].set_fwd_link(old_head);
-        self[ptr].set_bwd_link(-1);
-    }
-
-    fn remove_from_lru(&mut self, ptr: i32) {
-        let bwd = self[ptr].bwd_link();
-        let fwd = self[ptr].fwd_link();
-
-        if bwd != -1 {
-            self[bwd].set_fwd_link(fwd);
-        } else {
-            self.lru_head = fwd;
-        }
-
-        if fwd != -1 {
-            self[fwd].set_bwd_link(bwd);
-        } else {
-            self.lru_tail = bwd;
-        }
-
-        self[ptr].set_bwd_link(-1);
-        self[ptr].set_fwd_link(-1);
-    }
-
-    pub fn root_node(&self) -> i32 {
-        self.root
-    }
-
-    pub fn cap(&self) -> usize {
-        self.tree.len()
-    }
-
-    pub fn len(&self) -> usize {
-        self.used
-    }
-
-    pub fn remaining(&self) -> usize {
-        self.cap() - self.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    fn clear_halves(&self) {
+        self.tree[0].clear();
+        self.tree[1].clear();
+        self.root_stats.clear();
     }
 
     pub fn clear(&mut self) {
-        if self.used == 0 {
-            return;
-        }
-
+        self.clear_halves();
         self.hash.clear();
-        self.root = -1;
-        self.empty = 0;
-        self.used = 0;
-        self.lru_head = -1;
-        self.lru_tail = -1;
-        self.parent_edge = Edge::new(0, 0, 0);
-
-        let end = self.cap() as i32 - 1;
-
-        for i in 0..end {
-            self[i] = Node::new(GameState::Ongoing, 0, -1, 0);
-            self[i].set_fwd_link(i + 1);
-        }
-
-        self[end].set_fwd_link(-1);
     }
 
-    pub fn make_root_node(&mut self, node: i32) {
-        self.root = node;
-        self.parent_edge = *self.edge(self[node].parent(), self[node].action());
-        self[node].clear_parent();
-        self[node].set_state(GameState::Ongoing);
+    pub fn is_empty(&self) -> bool {
+        self.tree[0].is_empty() && self.tree[1].is_empty()
     }
 
-    pub fn edge(&self, ptr: i32, idx: usize) -> &Edge {
-        if ptr == -1 {
-            &self.parent_edge
-        } else {
-            &self[ptr].actions()[idx]
-        }
-    }
-
-    pub fn edge_mut(&mut self, ptr: i32, idx: usize) -> &mut Edge {
-        if ptr == -1 {
-            &mut self.parent_edge
-        } else {
-            &mut self[ptr].actions_mut()[idx]
-        }
-    }
-
-    pub fn propogate_proven_mates(&mut self, ptr: i32, child_state: GameState) {
+    pub fn propogate_proven_mates(&self, ptr: NodePtr, child_state: GameState) {
         match child_state {
             // if the child node resulted in a loss, then
             // this node has a guaranteed win
@@ -226,8 +206,8 @@ impl Tree {
             GameState::Won(n) => {
                 let mut proven_loss = true;
                 let mut max_win_len = n;
-                for action in self[ptr].actions() {
-                    if action.ptr() == -1 {
+                for action in self[ptr].actions().iter() {
+                    if action.ptr().is_null() {
                         proven_loss = false;
                         break;
                     } else if let GameState::Won(n) = self[action.ptr()].state() {
@@ -251,9 +231,7 @@ impl Tree {
         let t = Instant::now();
 
         if self.is_empty() {
-            let node = self.push(Node::new(GameState::Ongoing, root.hash(), -1, 0));
-            self.make_root_node(node);
-
+            self.push_new(GameState::Ongoing).unwrap();
             return;
         }
 
@@ -264,13 +242,16 @@ impl Tree {
         if let Some(board) = prev_board {
             println!("info string searching for subtree");
 
-            let root = self.recurse_find(self.root, board, root, 2);
+            let (root, stats) =
+                self.recurse_find(self.root_node(), board, root, self.root_stats.clone(), 2);
 
-            if root != -1 && self[root].has_children() {
+            if !root.is_null() && self[root].has_children() {
                 found = true;
 
                 if root != self.root_node() {
-                    self.make_root_node(root);
+                    self[self.root_node()].clear();
+                    self.copy_across(root, self.root_node());
+                    self.root_stats = stats;
                     println!("info string found subtree");
                 } else {
                     println!("info string using current tree");
@@ -280,8 +261,9 @@ impl Tree {
 
         if !found {
             println!("info string no subtree found");
-            let node = self.push(Node::new(GameState::Ongoing, root.hash(), -1, 0));
-            self.make_root_node(node);
+            self.clear_halves();
+            self.flip(false);
+            self.push_new(GameState::Ongoing).unwrap();
         }
 
         println!(
@@ -292,38 +274,40 @@ impl Tree {
 
     fn recurse_find(
         &self,
-        start: i32,
+        start: NodePtr,
         this_board: &ChessState,
         board: &ChessState,
+        stats: ActionStats,
         depth: u8,
-    ) -> i32 {
+    ) -> (NodePtr, ActionStats) {
         if this_board.is_same(board) {
-            return start;
+            return (start, stats);
         }
 
-        if start == -1 || depth == 0 {
-            return -1;
+        if start.is_null() || depth == 0 {
+            return (NodePtr::NULL, ActionStats::default());
         }
 
-        let node = &self.tree[start as usize];
+        let node = &self[start];
 
-        for action in node.actions() {
+        for action in node.actions().iter() {
             let child_idx = action.ptr();
             let mut child_board = this_board.clone();
 
             child_board.make_move(Move::from(action.mov()));
 
-            let found = self.recurse_find(child_idx, &child_board, board, depth - 1);
+            let found =
+                self.recurse_find(child_idx, &child_board, board, action.stats(), depth - 1);
 
-            if found != -1 {
+            if !found.0.is_null() {
                 return found;
             }
         }
 
-        -1
+        (NodePtr::NULL, ActionStats::default())
     }
 
-    pub fn get_best_child_by_key<F: FnMut(&Edge) -> f32>(&self, ptr: i32, mut key: F) -> usize {
+    pub fn get_best_child_by_key<F: FnMut(&Edge) -> f32>(&self, ptr: NodePtr, mut key: F) -> usize {
         let mut best_child = usize::MAX;
         let mut best_score = f32::NEG_INFINITY;
 
@@ -339,11 +323,11 @@ impl Tree {
         best_child
     }
 
-    pub fn get_best_child(&self, ptr: i32) -> usize {
+    pub fn get_best_child(&self, ptr: NodePtr) -> usize {
         self.get_best_child_by_key(ptr, |child| {
             if child.visits() == 0 {
                 f32::NEG_INFINITY
-            } else if child.ptr() != -1 {
+            } else if !child.ptr().is_null() {
                 match self[child.ptr()].state() {
                     GameState::Lost(n) => 1.0 + f32::from(n),
                     GameState::Won(n) => f32::from(n) - 256.0,
@@ -357,7 +341,7 @@ impl Tree {
     }
 
     #[cfg(feature = "datagen")]
-    pub fn get_best_child_temp(&self, ptr: i32, temp: f32) -> usize {
+    pub fn get_best_child_temp(&self, ptr: NodePtr, temp: f32) -> usize {
         use rand::prelude::*;
         use rand_distr::Uniform;
 
@@ -393,12 +377,12 @@ impl Tree {
         node.actions().len() - 1
     }
 
-    pub fn display(&self, idx: i32, depth: usize) {
+    pub fn display(&self, idx: NodePtr, depth: usize) {
         let mut bars = vec![true; depth + 1];
-        self.display_recurse(Edge::new(idx, 0, 0), depth + 1, 0, &mut bars);
+        self.display_recurse(&Edge::new(idx, 0, 0), depth + 1, 0, &mut bars);
     }
 
-    fn display_recurse(&self, edge: Edge, depth: usize, ply: usize, bars: &mut [bool]) {
+    fn display_recurse(&self, edge: &Edge, depth: usize, ply: usize, bars: &mut [bool]) {
         let node = &self[edge.ptr()];
 
         if depth == 0 {
@@ -435,19 +419,23 @@ impl Tree {
                 node.state(),
             );
         } else {
-            println!("root");
+            println!(
+                "root Q({:.2}%) N({})",
+                self.root_stats.q() * 100.0,
+                self.root_stats.visits(),
+            );
         }
 
         let mut active = Vec::new();
-        for &action in node.actions() {
-            if action.ptr() != -1 {
-                active.push(action);
+        for action in node.actions().iter() {
+            if !action.ptr().is_null() {
+                active.push(action.clone());
             }
         }
 
         let end = active.len() - 1;
 
-        for (i, &action) in active.iter().enumerate() {
+        for (i, action) in active.iter().enumerate() {
             if i == end {
                 bars[ply] = false;
             }

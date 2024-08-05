@@ -106,16 +106,11 @@ impl<'a> DatagenThread<'a> {
             }
 
             let abort = AtomicBool::new(false);
-            let mut searcher = Searcher::new(
-                position.clone(),
-                tree,
-                self.params.clone(),
-                policy,
-                value,
-                &abort,
-            );
+            tree.try_use_subtree(&position, &None);
+            let searcher =
+                Searcher::new(position.clone(), &tree, &self.params, policy, value, &abort);
 
-            let (bm, score) = searcher.search(limits, false, &mut 0, &None, true, temp);
+            let (bm, score) = searcher.search(1, limits, false, &mut 0, true, temp);
 
             temp *= 0.9;
             if temp <= 0.2 {
@@ -124,8 +119,6 @@ impl<'a> DatagenThread<'a> {
 
             game.push(position.stm(), bm, score);
 
-            tree = searcher.tree_and_board().0;
-
             let mut root_count = 0;
             position.map_legal_moves(|_| root_count += 1);
 
@@ -133,7 +126,7 @@ impl<'a> DatagenThread<'a> {
             if root_count <= 112 {
                 let mut policy_pos = PolicyData::new(position.clone(), bm, score);
 
-                for action in tree[tree.root_node()].actions() {
+                for action in tree[tree.root_node()].actions().iter() {
                     policy_pos.push(action.mov().into(), action.visits());
                 }
 

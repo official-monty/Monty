@@ -1,107 +1,95 @@
-use crate::{chess::Move, tree::Edge, ChessState, GameState, MctsParams, PolicyNetwork};
+use std::sync::{
+    atomic::{AtomicU16, Ordering},
+    RwLock, RwLockReadGuard, RwLockWriteGuard,
+};
 
-#[derive(Clone, Debug)]
+use crate::{
+    chess::Move,
+    tree::{Edge, NodePtr},
+    ChessState, GameState, MctsParams, PolicyNetwork,
+};
+
+#[derive(Debug)]
 pub struct Node {
-    actions: Vec<Edge>,
-    state: GameState,
-    hash: u64,
-
-    // used for lru
-    bwd_link: i32,
-    fwd_link: i32,
-    parent: i32,
-    action: u16,
+    actions: RwLock<Vec<Edge>>,
+    state: AtomicU16,
+    threads: AtomicU16,
 }
 
 impl Node {
-    pub fn new(state: GameState, hash: u64, parent: i32, action: usize) -> Self {
+    pub fn new(state: GameState) -> Self {
         Node {
-            actions: Vec::new(),
-            state,
-            hash,
-            parent,
-            bwd_link: -1,
-            fwd_link: -1,
-            action: action as u16,
+            actions: RwLock::new(Vec::new()),
+            state: AtomicU16::new(u16::from(state)),
+            threads: AtomicU16::new(0),
         }
     }
 
-    pub fn parent(&self) -> i32 {
-        self.parent
+    pub fn set_new(&self, state: GameState) {
+        *self.actions_mut() = Vec::new();
+        self.set_state(state);
     }
 
     pub fn is_terminal(&self) -> bool {
-        self.state != GameState::Ongoing
+        self.state() != GameState::Ongoing
     }
 
-    pub fn actions(&self) -> &[Edge] {
-        &self.actions
+    pub fn num_actions(&self) -> usize {
+        self.actions.read().unwrap().len()
     }
 
-    pub fn actions_mut(&mut self) -> &mut [Edge] {
-        &mut self.actions
+    pub fn threads(&self) -> u16 {
+        self.threads.load(Ordering::Relaxed)
+    }
+
+    pub fn inc_threads(&self) {
+        self.threads.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn dec_threads(&self) {
+        self.threads.fetch_sub(1, Ordering::Relaxed);
+    }
+
+    pub fn actions(&self) -> RwLockReadGuard<Vec<Edge>> {
+        self.actions.read().unwrap()
+    }
+
+    pub fn actions_mut(&self) -> RwLockWriteGuard<Vec<Edge>> {
+        self.actions.write().unwrap()
     }
 
     pub fn state(&self) -> GameState {
-        self.state
+        GameState::from(self.state.load(Ordering::Relaxed))
     }
 
-    pub fn hash(&self) -> u64 {
-        self.hash
-    }
-
-    pub fn bwd_link(&self) -> i32 {
-        self.bwd_link
-    }
-
-    pub fn fwd_link(&self) -> i32 {
-        self.fwd_link
-    }
-
-    pub fn set_state(&mut self, state: GameState) {
-        self.state = state;
+    pub fn set_state(&self, state: GameState) {
+        self.state.store(u16::from(state), Ordering::Relaxed);
     }
 
     pub fn has_children(&self) -> bool {
-        !self.actions.is_empty()
-    }
-
-    pub fn action(&self) -> usize {
-        usize::from(self.action)
-    }
-
-    pub fn clear_parent(&mut self) {
-        self.parent = -1;
-        self.action = 0;
+        self.actions.read().unwrap().len() != 0
     }
 
     pub fn is_not_expanded(&self) -> bool {
-        self.state == GameState::Ongoing && self.actions.is_empty()
+        self.state() == GameState::Ongoing && !self.has_children()
     }
 
-    pub fn clear(&mut self) {
-        self.actions.clear();
-        self.state = GameState::Ongoing;
-        self.hash = 0;
-        self.bwd_link = -1;
-        self.fwd_link = -1;
-    }
-
-    pub fn set_fwd_link(&mut self, ptr: i32) {
-        self.fwd_link = ptr;
-    }
-
-    pub fn set_bwd_link(&mut self, ptr: i32) {
-        self.bwd_link = ptr;
+    pub fn clear(&self) {
+        *self.actions.write().unwrap() = Vec::new();
+        self.set_state(GameState::Ongoing);
     }
 
     pub fn expand<const ROOT: bool>(
-        &mut self,
+        &self,
         pos: &ChessState,
         params: &MctsParams,
         policy: &PolicyNetwork,
     ) {
-        assert!(self.is_not_expanded());
+        let mut actions = self.actions_mut();
+
+        if actions.len() != 0 {
+            return;
+        }
 
         let feats = pos.get_policy_feats();
         let mut max = f32::NEG_INFINITY;
@@ -110,15 +98,18 @@ impl Node {
             let policy = pos.get_policy(mov, &feats, policy);
 
             // trick for calculating policy before quantising
-            self.actions
-                .push(Edge::new(f32::to_bits(policy) as i32, mov.into(), 0));
+            actions.push(Edge::new(
+                NodePtr::from_raw(f32::to_bits(policy)),
+                mov.into(),
+                0,
+            ));
             max = max.max(policy);
         });
 
         let mut total = 0.0;
 
-        for action in &mut self.actions {
-            let mut policy = f32::from_bits(action.ptr() as u32);
+        for action in actions.iter_mut() {
+            let mut policy = f32::from_bits(action.ptr().inner());
 
             policy = if ROOT {
                 ((policy - max) / params.root_pst()).exp()
@@ -126,30 +117,25 @@ impl Node {
                 (policy - max).exp()
             };
 
-            action.set_ptr(f32::to_bits(policy) as i32);
+            action.set_ptr(NodePtr::from_raw(f32::to_bits(policy)));
 
             total += policy;
         }
 
-        for action in &mut self.actions {
-            let policy = f32::from_bits(action.ptr() as u32) / total;
-            action.set_ptr(-1);
+        for action in actions.iter_mut() {
+            let policy = f32::from_bits(action.ptr().inner()) / total;
+            action.set_ptr(NodePtr::NULL);
             action.set_policy(policy);
         }
     }
 
-    pub fn relabel_policy(
-        &mut self,
-        pos: &ChessState,
-        params: &MctsParams,
-        policy: &PolicyNetwork,
-    ) {
+    pub fn relabel_policy(&self, pos: &ChessState, params: &MctsParams, policy: &PolicyNetwork) {
         let feats = pos.get_policy_feats();
         let mut max = f32::NEG_INFINITY;
 
         let mut policies = Vec::new();
 
-        for action in &self.actions {
+        for action in self.actions().iter() {
             let mov = Move::from(action.mov());
             let policy = pos.get_policy(mov, &feats, policy);
             policies.push(policy);
@@ -163,25 +149,27 @@ impl Node {
             total += *policy;
         }
 
-        for (i, action) in self.actions.iter_mut().enumerate() {
+        for (i, action) in self.actions_mut().iter_mut().enumerate() {
             action.set_policy(policies[i] / total);
         }
     }
 
     #[cfg(feature = "datagen")]
-    pub fn add_dirichlet_noise(&mut self, alpha: f32, prop: f32) {
+    pub fn add_dirichlet_noise(&self, alpha: f32, prop: f32) {
         use rand::prelude::*;
         use rand_distr::Dirichlet;
 
-        if self.actions.len() <= 1 {
+        let actions = &mut *self.actions_mut();
+
+        if actions.len() <= 1 {
             return;
         }
 
         let mut rng = rand::thread_rng();
-        let dist = Dirichlet::new(&vec![alpha; self.actions.len()]).unwrap();
+        let dist = Dirichlet::new(&vec![alpha; actions.len()]).unwrap();
         let samples = dist.sample(&mut rng);
 
-        for (action, &noise) in self.actions.iter_mut().zip(samples.iter()) {
+        for (action, &noise) in actions.iter_mut().zip(samples.iter()) {
             let policy = (1.0 - prop) * action.policy() + prop * noise;
 
             action.set_policy(policy);

@@ -41,7 +41,7 @@ pub struct Destination {
 
 impl Destination {
     pub fn push(&mut self, game: &Binpack, stop: &AtomicBool) {
-        if stop.load(Ordering::SeqCst) {
+        if stop.load(Ordering::Relaxed) {
             return;
         }
 
@@ -51,7 +51,7 @@ impl Destination {
         game.serialise_into(&mut self.writer).unwrap();
 
         if self.games >= self.limit {
-            stop.store(true, Ordering::SeqCst);
+            stop.store(true, Ordering::Relaxed);
             return;
         }
 

@@ -3,9 +3,6 @@
 # Monty
 #### "MCTS is cool."
 
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/official-monty/Monty?style=for-the-badge)](https://github.com/official-monty/Monty/releases/latest)
-[![Commits](https://img.shields.io/github/commits-since/official-monty/Monty/latest?style=for-the-badge)](https://github.com/official-monty/Monty/commits/main)
-
 </div>
 
 ## Compiling
@@ -43,13 +40,14 @@ Functional patches are required to pass on montytest, with an STC followed by an
 
 ## Terms of use
 
-Monty is free and distributed under the [**GNU General Public License version 3**][license-link] (GPL v3). Essentially,
+Monty is free and distributed under the [**GNU Affero General Public License**][license-link] (AGPL v3). Essentially,
 this means you are free to do almost exactly what you want with the program, including distributing it among your friends, 
 making it available for download from your website, selling it (either by itself or as part of some bigger software package), 
 or using it as the starting point for a software project of your own.
 
-The only real limitation is that whenever you distribute Monty in some way, you MUST always include the license and the full 
-source code (or a pointer to where the source code can be found) to generate the exact binary you are distributing. If you make 
-any changes to the source code, these changes must also be made available under GPL v3.
+The only real limitation is that whenever you distribute Monty in some way, including distribution over a network (such as providing 
+access to Monty via a web application or service), you MUST always include the license and the full source code (or a pointer to where 
+the source code can be found) to generate the exact binary you are distributing. If you make any changes to the source code, these 
+changes must also be made available under AGPL v3.
 
 [license-link]:       https://github.com/official-monty/Monty/blob/master/Copying.txt
