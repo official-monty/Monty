@@ -1,8 +1,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::GameState;
 use super::{Node, NodePtr};
-
+use crate::GameState;
 
 pub struct TreeHalf {
     nodes: Vec<Node>,
@@ -71,6 +70,3 @@ impl TreeHalf {
         self.used() >= self.nodes.len()
     }
 }
-
-
-

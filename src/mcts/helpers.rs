@@ -1,6 +1,9 @@
 use std::time::Instant;
 
-use crate::{mcts::{MctsParams, Searcher}, tree::{ActionStats, Edge}};
+use crate::{
+    mcts::{MctsParams, Searcher},
+    tree::{ActionStats, Edge},
+};
 
 pub struct SearchHelpers;
 
@@ -146,8 +149,7 @@ impl SearchHelpers {
         .clamp(searcher.params.tm_bmv5(), searcher.params.tm_bmv6());
 
         let total_time =
-            (time as f32 * falling_eval * best_move_instability * best_move_visits)
-                as u128;
+            (time as f32 * falling_eval * best_move_instability * best_move_visits) as u128;
 
         (elapsed >= total_time, score)
     }

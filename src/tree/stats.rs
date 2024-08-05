@@ -55,8 +55,10 @@ impl ActionStats {
         let q = (self.q64() * v + r) / (v + 1.0);
         let sq_q = (self.sq_q() * v + r.powi(2)) / (v + 1.0);
 
-        self.q.store((q * f64::from(u32::MAX)) as u32, Ordering::Relaxed);
-        self.sq_q.store((sq_q * f64::from(u32::MAX)) as u32, Ordering::Relaxed);
+        self.q
+            .store((q * f64::from(u32::MAX)) as u32, Ordering::Relaxed);
+        self.sq_q
+            .store((sq_q * f64::from(u32::MAX)) as u32, Ordering::Relaxed);
     }
 
     pub fn clear(&self) {

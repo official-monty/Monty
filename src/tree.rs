@@ -18,7 +18,8 @@ use std::{
 };
 
 use crate::{
-    chess::{ChessState, Move}, GameState
+    chess::{ChessState, Move},
+    GameState,
 };
 
 pub struct Tree {
@@ -61,7 +62,6 @@ impl Tree {
     pub fn is_full(&self) -> bool {
         self.tree[self.half()].is_full()
     }
-
 
     pub fn copy_across(&self, from: NodePtr, to: NodePtr) {
         if from == to {
@@ -136,7 +136,7 @@ impl Tree {
             let actions = self[parent_ptr].actions_mut();
 
             let most_recent_ptr = actions[action].ptr();
-            if most_recent_ptr.half() == self.half.load(Ordering::Relaxed){
+            if most_recent_ptr.half() == self.half.load(Ordering::Relaxed) {
                 return Some(most_recent_ptr);
             }
 
@@ -242,7 +242,8 @@ impl Tree {
         if let Some(board) = prev_board {
             println!("info string searching for subtree");
 
-            let (root, stats) = self.recurse_find(self.root_node(), board, root, self.root_stats.clone(), 2);
+            let (root, stats) =
+                self.recurse_find(self.root_node(), board, root, self.root_stats.clone(), 2);
 
             if !root.is_null() && self[root].has_children() {
                 found = true;
@@ -295,7 +296,8 @@ impl Tree {
 
             child_board.make_move(Move::from(action.mov()));
 
-            let found = self.recurse_find(child_idx, &child_board, board, action.stats(), depth - 1);
+            let found =
+                self.recurse_find(child_idx, &child_board, board, action.stats(), depth - 1);
 
             if !found.0.is_null() {
                 return found;

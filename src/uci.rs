@@ -52,7 +52,13 @@ impl Uci {
             let cmd = *commands.first().unwrap_or(&"oops");
             match cmd {
                 "isready" => println!("readyok"),
-                "setoption" => setoption(&commands, &mut params, &mut report_moves, &mut tree, &mut threads),
+                "setoption" => setoption(
+                    &commands,
+                    &mut params,
+                    &mut report_moves,
+                    &mut tree,
+                    &mut threads,
+                ),
                 "position" => position(commands, &mut pos),
                 "go" => {
                     // increment game ply every time `go` is called
@@ -169,7 +175,13 @@ fn preamble() {
     println!("uciok");
 }
 
-fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool, tree: &mut Tree, threads: &mut usize) {
+fn setoption(
+    commands: &[&str],
+    params: &mut MctsParams,
+    report_moves: &mut bool,
+    tree: &mut Tree,
+    threads: &mut usize,
+) {
     if let ["setoption", "name", "report_moves"] = commands {
         *report_moves = !*report_moves;
         return;
@@ -182,7 +194,7 @@ fn setoption(commands: &[&str], params: &mut MctsParams, report_moves: &mut bool
 
         if *x == "Threads" {
             *threads = y.parse().unwrap();
-            return
+            return;
         }
 
         (*x, y.parse::<i32>().unwrap_or(0))

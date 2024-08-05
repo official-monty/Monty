@@ -1,6 +1,13 @@
-use std::sync::{atomic::{AtomicU16, Ordering}, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{
+    atomic::{AtomicU16, Ordering},
+    RwLock, RwLockReadGuard, RwLockWriteGuard,
+};
 
-use crate::{chess::Move, tree::{Edge, NodePtr}, ChessState, GameState, MctsParams, PolicyNetwork};
+use crate::{
+    chess::Move,
+    tree::{Edge, NodePtr},
+    ChessState, GameState, MctsParams, PolicyNetwork,
+};
 
 #[derive(Debug)]
 pub struct Node {
@@ -91,13 +98,17 @@ impl Node {
             let policy = pos.get_policy(mov, &feats, policy);
 
             // trick for calculating policy before quantising
-            actions.push(Edge::new(NodePtr::from_raw(f32::to_bits(policy)), mov.into(), 0));
+            actions.push(Edge::new(
+                NodePtr::from_raw(f32::to_bits(policy)),
+                mov.into(),
+                0,
+            ));
             max = max.max(policy);
         });
 
         let mut total = 0.0;
 
-        for action in actions.iter_mut()  {
+        for action in actions.iter_mut() {
             let mut policy = f32::from_bits(action.ptr().inner());
 
             policy = if ROOT {
@@ -118,12 +129,7 @@ impl Node {
         }
     }
 
-    pub fn relabel_policy(
-        &self,
-        pos: &ChessState,
-        params: &MctsParams,
-        policy: &PolicyNetwork,
-    ) {
+    pub fn relabel_policy(&self, pos: &ChessState, params: &MctsParams, policy: &PolicyNetwork) {
         let feats = pos.get_policy_feats();
         let mut max = f32::NEG_INFINITY;
 

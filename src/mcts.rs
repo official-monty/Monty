@@ -11,7 +11,9 @@ use crate::{
 };
 
 use std::{
-    sync::atomic::{AtomicBool, Ordering}, thread, time::Instant
+    sync::atomic::{AtomicBool, Ordering},
+    thread,
+    time::Instant,
 };
 
 #[derive(Clone, Copy)]
@@ -63,23 +65,19 @@ impl<'a> Searcher<'a> {
         previous_score: &mut f32,
         uci_output: bool,
     ) {
-        if self.playout_until_full_internal(
-            nodes,
-            cumulative_depth,
-            |n, cd| {
-                self.check_limits(
-                    limits,
-                    timer,
-                    n,
-                    best_move,
-                    best_move_changes,
-                    previous_score,
-                    depth,
-                    cd,
-                    uci_output,
-                )
-            }
-        ) {
+        if self.playout_until_full_internal(nodes, cumulative_depth, |n, cd| {
+            self.check_limits(
+                limits,
+                timer,
+                n,
+                best_move,
+                best_move_changes,
+                previous_score,
+                depth,
+                cd,
+                uci_output,
+            )
+        }) {
             self.abort.store(true, Ordering::Relaxed);
         }
     }
@@ -94,7 +92,8 @@ impl<'a> Searcher<'a> {
         cumulative_depth: &mut usize,
         mut stop: F,
     ) -> bool
-    where F: FnMut(usize, usize) -> bool
+    where
+        F: FnMut(usize, usize) -> bool,
     {
         loop {
             let mut pos = self.root_position.clone();
@@ -170,7 +169,7 @@ impl<'a> Searcher<'a> {
                     *previous_score,
                     *best_move_changes,
                     nodes,
-                    time
+                    time,
                 );
 
                 if should_stop {
@@ -244,7 +243,8 @@ impl<'a> Searcher<'a> {
                         &mut cumulative_depth,
                         &mut best_move,
                         &mut best_move_changes,
-                        &mut previous_score, uci_output,
+                        &mut previous_score,
+                        uci_output,
                     );
                 });
 
@@ -268,7 +268,13 @@ impl<'a> Searcher<'a> {
         (Move::from(best_action.mov()), best_action.q())
     }
 
-    fn perform_one_iteration(&self, pos: &mut ChessState, ptr: NodePtr, node_stats: &ActionStats, depth: &mut usize) -> Option<f32> {
+    fn perform_one_iteration(
+        &self,
+        pos: &mut ChessState,
+        ptr: NodePtr,
+        node_stats: &ActionStats,
+        depth: &mut usize,
+    ) -> Option<f32> {
         *depth += 1;
 
         let hash = pos.hash();

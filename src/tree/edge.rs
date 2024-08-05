@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU16, AtomicU32, AtomicI16, Ordering};
+use std::sync::atomic::{AtomicI16, AtomicU16, AtomicU32, Ordering};
 
 use super::{ActionStats, NodePtr};
 
@@ -82,7 +82,8 @@ impl Edge {
     }
 
     pub fn set_policy(&self, policy: f32) {
-        self.policy.store((policy * f32::from(i16::MAX)) as i16, Ordering::Relaxed)
+        self.policy
+            .store((policy * f32::from(i16::MAX)) as i16, Ordering::Relaxed)
     }
 
     pub fn update(&self, result: f32) {

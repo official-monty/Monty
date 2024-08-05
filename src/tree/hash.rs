@@ -23,17 +23,13 @@ impl Clone for HashEntryInternal {
 
 impl From<&HashEntryInternal> for HashEntry {
     fn from(value: &HashEntryInternal) -> Self {
-        unsafe {
-            std::mem::transmute(value.0.load(Ordering::Relaxed))
-        }
+        unsafe { std::mem::transmute(value.0.load(Ordering::Relaxed)) }
     }
 }
 
 impl From<HashEntry> for u32 {
     fn from(value: HashEntry) -> Self {
-        unsafe {
-            std::mem::transmute(value)
-        }
+        unsafe { std::mem::transmute(value) }
     }
 }
 
@@ -81,6 +77,8 @@ impl HashTable {
             q: (q * f32::from(u16::MAX)) as u16,
         };
 
-        self.table[idx as usize].0.store(u32::from(entry), Ordering::Relaxed)
+        self.table[idx as usize]
+            .0
+            .store(u32::from(entry), Ordering::Relaxed)
     }
 }
