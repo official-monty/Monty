@@ -1,4 +1,9 @@
-use crate::{mcts::MctsParams, tree::Edge};
+use std::time::Instant;
+
+use crate::{
+    mcts::{MctsParams, Searcher},
+    tree::{ActionStats, Edge},
+};
 
 pub struct SearchHelpers;
 
@@ -6,7 +11,7 @@ impl SearchHelpers {
     /// CPUCT
     ///
     /// Larger value implies more exploration.
-    pub fn get_cpuct(params: &MctsParams, parent: &Edge, is_root: bool) -> f32 {
+    pub fn get_cpuct(params: &MctsParams, node_stats: &ActionStats, is_root: bool) -> f32 {
         // baseline CPUCT value
         let mut cpuct = if is_root {
             params.root_cpuct()
@@ -16,11 +21,11 @@ impl SearchHelpers {
 
         // scale CPUCT as visits increase
         let scale = params.cpuct_visits_scale() * 128.0;
-        cpuct *= 1.0 + ((parent.visits() as f32 + scale) / scale).ln();
+        cpuct *= 1.0 + ((node_stats.visits() as f32 + scale) / scale).ln();
 
         // scale CPUCT with variance of Q
-        if parent.visits() > 1 {
-            let frac = parent.var().sqrt() / params.cpuct_var_scale();
+        if node_stats.visits() > 1 {
+            let frac = node_stats.var().sqrt() / params.cpuct_var_scale();
             cpuct *= 1.0 + params.cpuct_var_weight() * (frac - 1.0);
         }
 
@@ -30,16 +35,16 @@ impl SearchHelpers {
     /// Exploration Scaling
     ///
     /// Larger value implies more exploration.
-    pub fn get_explore_scaling(params: &MctsParams, parent: &Edge) -> f32 {
-        (params.expl_tau() * (parent.visits().max(1) as f32).ln()).exp()
+    pub fn get_explore_scaling(params: &MctsParams, node_stats: &ActionStats) -> f32 {
+        (params.expl_tau() * (node_stats.visits().max(1) as f32).ln()).exp()
     }
 
     /// First Play Urgency
     ///
     /// #### Note
     /// Must return a value in [0, 1].
-    pub fn get_fpu(parent: &Edge) -> f32 {
-        1.0 - parent.q()
+    pub fn get_fpu(node_stats: &ActionStats) -> f32 {
+        1.0 - node_stats.q()
     }
 
     /// Get a predicted win probability for an action
@@ -106,5 +111,46 @@ impl SearchHelpers {
 
             (opt_time, max_time)
         }
+    }
+
+    pub fn soft_time_cutoff(
+        searcher: &Searcher,
+        timer: &Instant,
+        previous_score: f32,
+        best_move_changes: i32,
+        nodes: usize,
+        time: u128,
+    ) -> (bool, f32) {
+        let elapsed = timer.elapsed().as_millis();
+
+        // Use more time if our eval is falling, and vice versa
+        let (_, mut score) = searcher.get_pv(0);
+        score = Searcher::get_cp(score);
+        let eval_diff = if previous_score == f32::NEG_INFINITY {
+            0.0
+        } else {
+            previous_score - score
+        };
+        let falling_eval = (1.0 + eval_diff * searcher.params.tm_falling_eval1()).clamp(
+            searcher.params.tm_falling_eval2(),
+            searcher.params.tm_falling_eval3(),
+        );
+
+        // Use more time if our best move is changing frequently
+        let best_move_instability = (1.0
+            + (best_move_changes as f32 * searcher.params.tm_bmi1()).ln_1p())
+        .clamp(searcher.params.tm_bmi2(), searcher.params.tm_bmi3());
+
+        // Use less time if our best move has a large percentage of visits, and vice versa
+        let nodes_effort = searcher.get_best_action().visits() as f32 / nodes as f32;
+        let best_move_visits = (searcher.params.tm_bmv1()
+            - ((nodes_effort + searcher.params.tm_bmv2()) * searcher.params.tm_bmv3()).ln_1p()
+                * searcher.params.tm_bmv4())
+        .clamp(searcher.params.tm_bmv5(), searcher.params.tm_bmv6());
+
+        let total_time =
+            (time as f32 * falling_eval * best_move_instability * best_move_visits) as u128;
+
+        (elapsed >= total_time, score)
     }
 }
