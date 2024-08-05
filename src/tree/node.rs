@@ -32,6 +32,7 @@ impl Node {
     pub fn set_new(&self, state: GameState) {
         *self.actions_mut() = Vec::new();
         self.set_state(state);
+        self.set_gini_impurity(0.0);
     }
 
     pub fn is_terminal(&self) -> bool {
@@ -80,6 +81,11 @@ impl Node {
 
     pub fn gini_impurity(&self) -> f32 {
         f32::from_bits(self.gini_impurity.load(Ordering::Relaxed))
+    }
+
+    pub fn set_gini_impurity(&self, gini_impurity: f32) {
+        self.gini_impurity
+            .store(f32::to_bits(gini_impurity), Ordering::Relaxed);
     }
 
     pub fn clear(&self) {
@@ -140,8 +146,7 @@ impl Node {
         }
 
         let gini_impurity = (1.0 - sum_of_squares).clamp(0.0, 1.0);
-        self.gini_impurity
-            .store(f32::to_bits(gini_impurity), Ordering::Relaxed);
+        self.set_gini_impurity(gini_impurity);
     }
 
     pub fn relabel_policy(&self, pos: &ChessState, params: &MctsParams, policy: &PolicyNetwork) {
