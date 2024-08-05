@@ -346,7 +346,8 @@ impl<'a> Searcher<'a> {
 
         let cpuct = SearchHelpers::get_cpuct(self.params, node_stats, is_root);
         let fpu = SearchHelpers::get_fpu(node_stats);
-        let expl_scale = SearchHelpers::get_explore_scaling(self.params, node_stats);
+        let expl_scale =
+            SearchHelpers::get_explore_scaling(self.params, node_stats, &self.tree[ptr]);
 
         let expl = cpuct * expl_scale;
 

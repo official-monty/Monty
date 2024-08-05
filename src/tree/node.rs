@@ -1,5 +1,5 @@
 use std::sync::{
-    atomic::{AtomicU16, Ordering},
+    atomic::{AtomicU16, AtomicU32, Ordering},
     RwLock, RwLockReadGuard, RwLockWriteGuard,
 };
 
@@ -14,6 +14,9 @@ pub struct Node {
     actions: RwLock<Vec<Edge>>,
     state: AtomicU16,
     threads: AtomicU16,
+
+    // heuristics used in search
+    gini_impurity: AtomicU32,
 }
 
 impl Node {
@@ -22,6 +25,7 @@ impl Node {
             actions: RwLock::new(Vec::new()),
             state: AtomicU16::new(u16::from(state)),
             threads: AtomicU16::new(0),
+            gini_impurity: AtomicU32::new(0),
         }
     }
 
@@ -74,6 +78,10 @@ impl Node {
         self.state() == GameState::Ongoing && !self.has_children()
     }
 
+    pub fn gini_impurity(&self) -> f32 {
+        f32::from_bits(self.gini_impurity.load(Ordering::Relaxed))
+    }
+
     pub fn clear(&self) {
         *self.actions.write().unwrap() = Vec::new();
         self.set_state(GameState::Ongoing);
@@ -122,11 +130,18 @@ impl Node {
             total += policy;
         }
 
+        let mut sum_of_squares = 0.0;
+
         for action in actions.iter_mut() {
             let policy = f32::from_bits(action.ptr().inner()) / total;
             action.set_ptr(NodePtr::NULL);
             action.set_policy(policy);
+            sum_of_squares += policy * policy;
         }
+
+        let gini_impurity = (1.0 - sum_of_squares).clamp(0.0, 1.0);
+        self.gini_impurity
+            .store(f32::to_bits(gini_impurity), Ordering::Relaxed);
     }
 
     pub fn relabel_policy(&self, pos: &ChessState, params: &MctsParams, policy: &PolicyNetwork) {
