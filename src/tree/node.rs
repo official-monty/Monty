@@ -91,6 +91,7 @@ impl Node {
     pub fn clear(&self) {
         *self.actions.write().unwrap() = Vec::new();
         self.set_state(GameState::Ongoing);
+        self.set_gini_impurity(0.0);
     }
 
     pub fn expand<const ROOT: bool>(
