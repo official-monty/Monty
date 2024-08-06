@@ -38,19 +38,19 @@ impl std::ops::Index<NodePtr> for Tree {
 }
 
 impl Tree {
-    pub fn new_mb(mb: usize) -> Self {
+    pub fn new_mb(mb: usize, threads: usize) -> Self {
         let bytes = mb * 1024 * 1024;
-        Self::new(bytes / (48 + 20 * 20), bytes / 48 / 16)
+        Self::new(bytes / (48 + 20 * 20), bytes / 48 / 16, threads)
     }
 
-    fn new(tree_cap: usize, hash_cap: usize) -> Self {
+    fn new(tree_cap: usize, hash_cap: usize, threads: usize) -> Self {
         Self {
             tree: [
                 TreeHalf::new(tree_cap / 2, false),
                 TreeHalf::new(tree_cap / 2, true),
             ],
             half: AtomicBool::new(false),
-            hash: HashTable::new(hash_cap / 4),
+            hash: HashTable::new(hash_cap / 4, threads),
             root_stats: ActionStats::default(),
         }
     }
@@ -187,9 +187,9 @@ impl Tree {
         self.root_stats.clear();
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self, threads: usize) {
         self.clear_halves();
-        self.hash.clear();
+        self.hash.clear(threads);
     }
 
     pub fn is_empty(&self) -> bool {

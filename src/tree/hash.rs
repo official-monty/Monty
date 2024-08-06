@@ -38,16 +38,44 @@ pub struct HashTable {
 }
 
 impl HashTable {
-    pub fn new(size: usize) -> Self {
-        Self {
-            table: vec![HashEntryInternal::default(); size],
+    pub fn new(size: usize, threads: usize) -> Self {
+        let chunk_size = (size + threads - 1) / threads;
+
+        let mut table = HashTable { table: Vec::new() };
+        table.table.reserve_exact(size);
+
+        unsafe {
+            use std::mem::{size_of, MaybeUninit};
+            let ptr = table.table.as_mut_ptr().cast();
+            let uninit: &mut [MaybeUninit<u8>] =
+                std::slice::from_raw_parts_mut(ptr, size * size_of::<HashEntryInternal>());
+
+            std::thread::scope(|s| {
+                for chunk in uninit.chunks_mut(chunk_size) {
+                    s.spawn(|| {
+                        chunk.as_mut_ptr().write_bytes(0, chunk.len());
+                    });
+                }
+            });
+
+            table.table.set_len(size);
         }
+
+        table
     }
 
-    pub fn clear(&mut self) {
-        for entry in &mut self.table {
-            *entry = HashEntryInternal::default();
-        }
+    pub fn clear(&mut self, threads: usize) {
+        let chunk_size = (self.table.len() + threads - 1) / threads;
+
+        std::thread::scope(|s| {
+            for chunk in self.table.chunks_mut(chunk_size) {
+                s.spawn(|| {
+                    for entry in chunk.iter_mut() {
+                        *entry = HashEntryInternal::default();
+                    }
+                });
+            }
+        });
     }
 
     pub fn fetch(&self, hash: u64) -> HashEntry {

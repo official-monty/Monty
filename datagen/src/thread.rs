@@ -107,7 +107,7 @@ impl<'a> DatagenThread<'a> {
         let mut records = Vec::new();
         let mut result = 0.5;
 
-        let mut tree = Tree::new_mb(8);
+        let mut tree = Tree::new_mb(8, 1);
 
         let mut game = Binpack::new(position.clone());
 
@@ -164,7 +164,7 @@ impl<'a> DatagenThread<'a> {
                 }
             }
 
-            tree.clear();
+            tree.clear(1);
         }
 
         if let Some(out) = pout {
