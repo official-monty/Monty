@@ -253,7 +253,7 @@ impl<'a> Searcher<'a> {
                 }
             });
 
-            self.tree.flip(true);
+            self.tree.flip(true, threads);
         }
 
         self.abort.store(true, Ordering::Relaxed);

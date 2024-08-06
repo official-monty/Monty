@@ -149,7 +149,7 @@ impl Uci {
         for fen in bench_fens {
             let abort = AtomicBool::new(false);
             let pos = ChessState::from_fen(fen);
-            tree.try_use_subtree(&pos, &None);
+            tree.try_use_subtree(&pos, &None, 1);
             let searcher = Searcher::new(pos, &tree, params, policy, value, &abort);
             let timer = Instant::now();
             searcher.search(1, limits, false, &mut total_nodes);
@@ -320,7 +320,7 @@ fn go(
 
     let abort = AtomicBool::new(false);
 
-    tree.try_use_subtree(pos, &prev);
+    tree.try_use_subtree(pos, &prev, threads);
 
     let limits = Limits {
         max_time,

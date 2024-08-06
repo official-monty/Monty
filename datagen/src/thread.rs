@@ -118,7 +118,7 @@ impl<'a> DatagenThread<'a> {
             }
 
             let abort = AtomicBool::new(false);
-            tree.try_use_subtree(&position, &None);
+            tree.try_use_subtree(&position, &None, 1);
             let searcher =
                 Searcher::new(position.clone(), &tree, &self.params, policy, value, &abort);
 

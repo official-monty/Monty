@@ -82,11 +82,11 @@ impl Tree {
         std::mem::swap(f, t);
     }
 
-    pub fn flip(&self, copy_across: bool) {
+    pub fn flip(&self, copy_across: bool, threads: usize) {
         let old_root_ptr = self.root_node();
 
         let old = usize::from(self.half.fetch_xor(true, Ordering::Relaxed));
-        self.tree[old].clear_ptrs();
+        self.tree[old].clear_ptrs(threads);
         self.tree[old ^ 1].clear();
 
         if copy_across {
@@ -227,7 +227,7 @@ impl Tree {
         }
     }
 
-    pub fn try_use_subtree(&mut self, root: &ChessState, prev_board: &Option<ChessState>) {
+    pub fn try_use_subtree(&mut self, root: &ChessState, prev_board: &Option<ChessState>, threads: usize) {
         let t = Instant::now();
 
         if self.is_empty() {
@@ -262,7 +262,7 @@ impl Tree {
         if !found {
             println!("info string no subtree found");
             self.clear_halves();
-            self.flip(false);
+            self.flip(false, threads);
             self.push_new(GameState::Ongoing).unwrap();
         }
 
