@@ -18,15 +18,32 @@ impl std::ops::Index<NodePtr> for TreeHalf {
 }
 
 impl TreeHalf {
-    pub fn new(size: usize, half: bool) -> Self {
+    pub fn new(size: usize, half: bool, threads: usize) -> Self {
         let mut res = Self {
-            nodes: Vec::with_capacity(size),
+            nodes: Vec::new(),
             used: AtomicUsize::new(0),
             half,
         };
 
-        for _ in 0..size {
-            res.nodes.push(Node::new(GameState::Ongoing));
+        res.nodes.reserve_exact(size);
+
+        unsafe {
+            use std::mem::MaybeUninit;
+            let chunk_size = (size + threads - 1) / threads;
+            let ptr = res.nodes.as_mut_ptr().cast();
+            let uninit: &mut [MaybeUninit<Node>] = std::slice::from_raw_parts_mut(ptr, size);
+
+            std::thread::scope(|s| {
+                for chunk in uninit.chunks_mut(chunk_size) {
+                    s.spawn(|| {
+                        for node in chunk {
+                            node.write(Node::new(GameState::Ongoing));
+                        }
+                    });
+                }
+            });
+
+            res.nodes.set_len(size);
         }
 
         res

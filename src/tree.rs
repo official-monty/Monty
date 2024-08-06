@@ -46,8 +46,8 @@ impl Tree {
     fn new(tree_cap: usize, hash_cap: usize, threads: usize) -> Self {
         Self {
             tree: [
-                TreeHalf::new(tree_cap / 2, false),
-                TreeHalf::new(tree_cap / 2, true),
+                TreeHalf::new(tree_cap / 2, false, threads),
+                TreeHalf::new(tree_cap / 2, true, threads),
             ],
             half: AtomicBool::new(false),
             hash: HashTable::new(hash_cap / 4, threads),
