@@ -10,8 +10,11 @@ else
 	AVX2 := monty-$(VER)-avx2
 endif
 
+default:
+	cargo rustc --release --bin monty -- -C target-cpu=native --emit link=$(NAME)
+
 montytest:
-	cargo rustc --release --bin monty --features=uci-minimal -- -C target-cpu=native --emit link=$(NAME)
+	cargo rustc --release --bin monty --features=uci-minimal,print-tunables -- -C target-cpu=native --emit link=$(NAME)
 
 embed:
 	cargo rustc --release --bin monty --features=embed -- -C target-cpu=native --emit link=$(NAME)
