@@ -172,7 +172,7 @@ fn preamble() {
     println!("option name report_moves type button");
     Uci::options();
 
-    #[cfg(feature = "print-tunables")]
+    #[cfg(feature = "tunable")]
     MctsParams::info(MctsParams::default());
 
     println!("uciok");
