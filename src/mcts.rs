@@ -248,7 +248,7 @@ impl<'a> Searcher<'a> {
                         &mut previous_score,
                         #[cfg(not(feature = "uci-minimal"))]
                         uci_output,
-                    )
+                    );
                 });
 
                 for _ in 0..threads - 1 {
