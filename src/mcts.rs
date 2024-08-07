@@ -256,10 +256,10 @@ impl<'a> Searcher<'a> {
                 }
             });
 
-            self.tree.flip(true, threads);
+            if !self.abort.load(Ordering::Relaxed) {
+                self.tree.flip(true, threads);
+            }
         }
-
-        self.abort.store(true, Ordering::Relaxed);
 
         *total_nodes += nodes;
 
