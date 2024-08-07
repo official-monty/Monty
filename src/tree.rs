@@ -227,7 +227,12 @@ impl Tree {
         }
     }
 
-    pub fn try_use_subtree(&mut self, root: &ChessState, prev_board: &Option<ChessState>, threads: usize) {
+    pub fn try_use_subtree(
+        &mut self,
+        root: &ChessState,
+        prev_board: &Option<ChessState>,
+        threads: usize,
+    ) {
         let t = Instant::now();
 
         if self.is_empty() {

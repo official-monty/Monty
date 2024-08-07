@@ -92,7 +92,6 @@ impl TreeHalf {
                     Self::clear_ptrs_single_threaded(self.half, node_chunk)
                 }
             });
-
         });
     }
 
