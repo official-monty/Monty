@@ -24,7 +24,7 @@ impl Uci {
         let mut pos = ChessState::default();
         let mut root_game_ply = 0;
         let mut params = MctsParams::default();
-        let mut tree = Tree::new_mb(64);
+        let mut tree = Tree::new_mb(64, 1);
         let mut report_moves = false;
         let mut threads = 1;
 
@@ -125,7 +125,7 @@ impl Uci {
                 "ucinewgame" => {
                     prev = None;
                     root_game_ply = 0;
-                    tree.clear();
+                    tree.clear(threads);
                 }
                 _ => {}
             }
@@ -144,17 +144,17 @@ impl Uci {
             max_nodes: 1_000_000,
         };
 
-        let mut tree = Tree::new_mb(32);
+        let mut tree = Tree::new_mb(32, 1);
 
         for fen in bench_fens {
             let abort = AtomicBool::new(false);
             let pos = ChessState::from_fen(fen);
-            tree.try_use_subtree(&pos, &None);
+            tree.try_use_subtree(&pos, &None, 1);
             let searcher = Searcher::new(pos, &tree, params, policy, value, &abort);
             let timer = Instant::now();
             searcher.search(1, limits, false, &mut total_nodes);
             time += timer.elapsed().as_secs_f32();
-            tree.clear();
+            tree.clear(1);
         }
 
         println!(
@@ -206,7 +206,7 @@ fn setoption(
     };
 
     if name == "Hash" {
-        *tree = Tree::new_mb(val as usize);
+        *tree = Tree::new_mb(val as usize, *threads);
     } else {
         params.set(name, val);
     }
@@ -323,7 +323,7 @@ fn go(
 
     let abort = AtomicBool::new(false);
 
-    tree.try_use_subtree(pos, &prev);
+    tree.try_use_subtree(pos, &prev, threads);
 
     let limits = Limits {
         max_time,

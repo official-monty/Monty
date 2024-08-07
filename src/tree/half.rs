@@ -18,15 +18,32 @@ impl std::ops::Index<NodePtr> for TreeHalf {
 }
 
 impl TreeHalf {
-    pub fn new(size: usize, half: bool) -> Self {
+    pub fn new(size: usize, half: bool, threads: usize) -> Self {
         let mut res = Self {
-            nodes: Vec::with_capacity(size),
+            nodes: Vec::new(),
             used: AtomicUsize::new(0),
             half,
         };
 
-        for _ in 0..size {
-            res.nodes.push(Node::new(GameState::Ongoing));
+        res.nodes.reserve_exact(size);
+
+        unsafe {
+            use std::mem::MaybeUninit;
+            let chunk_size = (size + threads - 1) / threads;
+            let ptr = res.nodes.as_mut_ptr().cast();
+            let uninit: &mut [MaybeUninit<Node>] = std::slice::from_raw_parts_mut(ptr, size);
+
+            std::thread::scope(|s| {
+                for chunk in uninit.chunks_mut(chunk_size) {
+                    s.spawn(|| {
+                        for node in chunk {
+                            node.write(Node::new(GameState::Ongoing));
+                        }
+                    });
+                }
+            });
+
+            res.nodes.set_len(size);
         }
 
         res
@@ -48,14 +65,34 @@ impl TreeHalf {
         self.used.store(0, Ordering::Relaxed);
     }
 
-    pub fn clear_ptrs(&self) {
-        for node in &self.nodes {
+    pub fn clear_ptrs(&self, threads: usize) {
+        if threads == 1 {
+            Self::clear_ptrs_single_threaded(self.half, &self.nodes);
+        } else {
+            self.clear_ptrs_multi_threaded(threads);
+        }
+    }
+
+    fn clear_ptrs_single_threaded(half: bool, nodes: &[Node]) {
+        for node in nodes {
             for action in &mut *node.actions_mut() {
-                if action.ptr().half() != self.half {
+                if action.ptr().half() != half {
                     action.set_ptr(NodePtr::NULL);
                 }
             }
         }
+    }
+
+    fn clear_ptrs_multi_threaded(&self, threads: usize) {
+        std::thread::scope(|s| {
+            let chunk_size = (self.nodes.len() + threads - 1) / threads;
+
+            s.spawn(move || {
+                for node_chunk in self.nodes.chunks(chunk_size) {
+                    Self::clear_ptrs_single_threaded(self.half, node_chunk)
+                }
+            });
+        });
     }
 
     pub fn is_empty(&self) -> bool {

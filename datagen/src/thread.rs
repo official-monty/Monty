@@ -107,7 +107,7 @@ impl<'a> DatagenThread<'a> {
         let mut records = Vec::new();
         let mut result = 0.5;
 
-        let mut tree = Tree::new_mb(8);
+        let mut tree = Tree::new_mb(8, 1);
 
         let mut game = Binpack::new(position.clone());
 
@@ -118,7 +118,7 @@ impl<'a> DatagenThread<'a> {
             }
 
             let abort = AtomicBool::new(false);
-            tree.try_use_subtree(&position, &None);
+            tree.try_use_subtree(&position, &None, 1);
             let searcher =
                 Searcher::new(position.clone(), &tree, &self.params, policy, value, &abort);
 
@@ -164,7 +164,7 @@ impl<'a> DatagenThread<'a> {
                 }
             }
 
-            tree.clear();
+            tree.clear(1);
         }
 
         if let Some(out) = pout {
