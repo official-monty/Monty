@@ -64,8 +64,8 @@ impl<'a> Searcher<'a> {
         best_move_changes: &mut i32,
         previous_score: &mut f32,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
-    ) {
-        if self.playout_until_full_internal(nodes, cumulative_depth, |n, cd| {
+    ) -> bool {
+        self.playout_until_full_internal(nodes, cumulative_depth, |n, cd| {
             self.check_limits(
                 limits,
                 timer,
@@ -78,9 +78,7 @@ impl<'a> Searcher<'a> {
                 #[cfg(not(feature = "uci-minimal"))]
                 uci_output,
             )
-        }) {
-            self.abort.store(true, Ordering::Relaxed);
-        }
+        })
     }
 
     fn playout_until_full_worker(&self, nodes: &mut usize, cumulative_depth: &mut usize) {
@@ -235,8 +233,8 @@ impl<'a> Searcher<'a> {
 
         // search loop
         while !self.abort.load(Ordering::Relaxed) {
-            thread::scope(|s| {
-                s.spawn(|| {
+            let abort = thread::scope(|s| {
+                let abort = s.spawn(|| {
                     self.playout_until_full_main(
                         &limits,
                         &timer,
@@ -248,18 +246,22 @@ impl<'a> Searcher<'a> {
                         &mut previous_score,
                         #[cfg(not(feature = "uci-minimal"))]
                         uci_output,
-                    );
+                    )
                 });
 
                 for _ in 0..threads - 1 {
                     s.spawn(|| self.playout_until_full_worker(&mut 0, &mut 0));
                 }
+
+                abort.join().unwrap()
             });
 
-            self.tree.flip(true, threads);
+            if abort {
+                self.abort.store(true, Ordering::Relaxed);
+            } else {
+                self.tree.flip(true, threads);
+            }
         }
-
-        self.abort.store(true, Ordering::Relaxed);
 
         *total_nodes += nodes;
 
