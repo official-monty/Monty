@@ -171,7 +171,10 @@ fn preamble() {
     println!("option name Threads type spin default 1 min 1 max 512");
     println!("option name report_moves type button");
     Uci::options();
+
+    #[cfg(feature = "tunable")]
     MctsParams::info(MctsParams::default());
+
     println!("uciok");
 }
 

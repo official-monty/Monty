@@ -16,6 +16,8 @@ goober = { git = 'https://github.com/jw1912/goober.git' }
 [features]
 embed = []
 datagen = []
+uci-minimal = []
+tunable = []
 
 [workspace]
 members = ["datagen", "train/policy", "train/value"]

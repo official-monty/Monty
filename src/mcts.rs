@@ -63,7 +63,7 @@ impl<'a> Searcher<'a> {
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
-        uci_output: bool,
+        #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) {
         if self.playout_until_full_internal(nodes, cumulative_depth, |n, cd| {
             self.check_limits(
@@ -75,6 +75,7 @@ impl<'a> Searcher<'a> {
                 previous_score,
                 depth,
                 cd,
+                #[cfg(not(feature = "uci-minimal"))]
                 uci_output,
             )
         }) {
@@ -140,7 +141,7 @@ impl<'a> Searcher<'a> {
         previous_score: &mut f32,
         depth: &mut usize,
         cumulative_depth: usize,
-        uci_output: bool,
+        #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) -> bool {
         if nodes >= limits.max_nodes {
             return true;
@@ -196,6 +197,7 @@ impl<'a> Searcher<'a> {
                 return true;
             }
 
+            #[cfg(not(feature = "uci-minimal"))]
             if uci_output {
                 self.search_report(*depth, timer, nodes);
             }
@@ -244,6 +246,7 @@ impl<'a> Searcher<'a> {
                         &mut best_move,
                         &mut best_move_changes,
                         &mut previous_score,
+                        #[cfg(not(feature = "uci-minimal"))]
                         uci_output,
                     );
                 });
