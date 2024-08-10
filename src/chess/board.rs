@@ -17,10 +17,11 @@ pub struct Board {
     enp_sq: u8,
     rights: u8,
     halfm: u8,
+    fullm: u16,
 }
 
 impl Board {
-    pub fn from_raw(bb: [u64; 8], stm: bool, enp_sq: u8, rights: u8, halfm: u8) -> Self {
+    pub fn from_raw(bb: [u64; 8], stm: bool, enp_sq: u8, rights: u8, halfm: u8, fullm: u16) -> Self {
         Self {
             bb,
             hash: 0,
@@ -29,10 +30,9 @@ impl Board {
             enp_sq,
             rights,
             halfm,
+            fullm,
         }
     }
-
-    // ACCESSOR METHODS
 
     #[must_use]
     pub fn piece(&self, piece: usize) -> u64 {
@@ -61,6 +61,11 @@ impl Board {
     #[must_use]
     pub fn halfm(&self) -> u8 {
         self.halfm
+    }
+
+    #[must_use]
+    pub fn fullm(&self) -> u16 {
+        self.fullm
     }
 
     #[must_use]
@@ -425,6 +430,7 @@ impl Board {
         self.enp_sq = 0;
         self.rights &= castling.mask(usize::from(mov.to())) & castling.mask(usize::from(mov.src()));
         self.halfm += 1;
+        self.fullm += u16::from(side == Side::BLACK);
 
         if moved == Piece::PAWN || mov.is_capture() {
             self.halfm = 0;
@@ -504,6 +510,14 @@ impl Board {
             let chs: Vec<char> = vec[3].chars().collect();
             8 * chs[1].to_string().parse::<u8>().unwrap_or(0) + chs[0] as u8 - 105
         };
+
+        if let Some(hfm) = vec.get(4) {
+            pos.halfm = hfm.parse().unwrap();
+        }
+
+        if let Some(fm) = vec.get(5) {
+            pos.fullm = fm.parse().unwrap();
+        }
 
         pos
     }

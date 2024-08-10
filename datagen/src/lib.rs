@@ -3,6 +3,7 @@ mod rng;
 mod thread;
 
 pub use dataformat::{Binpack, CompressedChessBoard, PolicyData};
+use montyformat::MontyFormat;
 pub use rng::Rand;
 pub use thread::{write, DatagenThread};
 
@@ -11,7 +12,7 @@ use monty::{MctsParams, PolicyNetwork, ValueNetwork};
 use std::{
     env::Args,
     fs::File,
-    io::{BufWriter, Read},
+    io::{BufWriter, Read, Write},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -34,6 +35,7 @@ pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {
 
 pub struct Destination {
     writer: BufWriter<File>,
+    reusable_buffer: Vec<u8>,
     games: usize,
     limit: usize,
     results: [usize; 3],
@@ -49,6 +51,29 @@ impl Destination {
         self.results[result] += 1;
         self.games += 1;
         game.serialise_into(&mut self.writer).unwrap();
+
+        if self.games >= self.limit {
+            stop.store(true, Ordering::Relaxed);
+            return;
+        }
+
+        if self.games % 32 == 0 {
+            self.report();
+        }
+    }
+
+    pub fn push_policy(&mut self, game: &MontyFormat, stop: &AtomicBool) {
+        if stop.load(Ordering::Relaxed) {
+            return;
+        }
+
+        let result = (game.result * 2.0) as usize;
+        self.results[result] += 1;
+        self.games += 1;
+
+        game.serialise_into_buffer(&mut self.reusable_buffer).unwrap();
+        self.writer.write_all(&self.reusable_buffer).unwrap();
+        self.reusable_buffer.clear();
 
         if self.games >= self.limit {
             stop.store(true, Ordering::Relaxed);
@@ -86,6 +111,7 @@ pub fn run_datagen(
     let vout = BufWriter::new(vout);
     let dest = Destination {
         writer: vout,
+        reusable_buffer: Vec::new(),
         games: 0,
         limit: opts.games,
         results: [0; 3],

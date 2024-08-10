@@ -66,7 +66,7 @@ impl From<CompressedChessBoard> for Board {
         bbs[6] = pbq & prq & rqk;
         bbs[7] = nbk & rqk;
 
-        Board::from_raw(bbs, value.stm, value.enp_sq, value.rights, value.halfm)
+        Board::from_raw(bbs, value.stm, value.enp_sq, value.rights, value.halfm, 1)
     }
 }
 
