@@ -101,6 +101,7 @@ name = "datagen"
 version = "0.1.0"
 dependencies = [
  "monty",
+ "montyformat",
 ]
 
 [[package]]
@@ -244,6 +245,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "montyformat"
+version = "0.1.0"
+source = "git+https://github.com/official-monty/montyformat.git?tag=v0.1.0#905ed0236c67adc0fcd902af6e54fe69fe117d20"
+
+[[package]]
 name = "nom"
 version = "7.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -282,6 +288,7 @@ dependencies = [
  "datagen",
  "goober",
  "monty",
+ "montyformat",
 ]
 
 [[package]]

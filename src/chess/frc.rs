@@ -47,6 +47,10 @@ impl Castling {
             ..Default::default()
         };
 
+        for sq in ret.castle_mask.iter_mut() {
+            *sq = 15;
+        }
+
         ret.castle_mask[usize::from(rook_files[0][0])] = 7;
         ret.castle_mask[usize::from(rook_files[0][1])] = 11;
         ret.castle_mask[usize::from(rook_files[1][0]) + 56] = 13;

@@ -1,8 +1,9 @@
-use crate::{to_slice_with_lifetime, Binpack, Destination, PolicyData, Rand};
+use crate::{to_slice_with_lifetime, Binpack, Destination, Rand};
 
 use monty::{
     ChessState, GameState, Limits, MctsParams, PolicyNetwork, Searcher, Tree, ValueNetwork,
 };
+use montyformat::{MontyFormat, SearchData};
 
 use std::{
     fs::File,
@@ -44,30 +45,21 @@ impl<'a> DatagenThread<'a> {
         policy: &PolicyNetwork,
         value: &ValueNetwork,
     ) {
-        let pout_path = format!("monty-policy-{}.data", self.rng.rand_int());
-        let mut pout = if output_policy {
-            Some(BufWriter::new(
-                File::create(pout_path.as_str()).expect("Provide a correct path!"),
-            ))
-        } else {
-            None
-        };
-
         loop {
             if self.stop.load(Ordering::Relaxed) {
                 break;
             }
 
-            self.run_game(node_limit, &mut pout, policy, value);
+            self.run_game(node_limit, policy, value, output_policy);
         }
     }
 
     fn run_game(
         &mut self,
         node_limit: usize,
-        pout: &mut Option<BufWriter<File>>,
         policy: &PolicyNetwork,
         value: &ValueNetwork,
+        output_policy: bool,
     ) {
         let mut position = if let Some(book) = &self.book {
             let idx = self.rng.rand_int() as usize % book.len();
@@ -104,12 +96,29 @@ impl<'a> DatagenThread<'a> {
             opt_time: None,
         };
 
-        let mut records = Vec::new();
         let mut result = 0.5;
 
         let mut tree = Tree::new_mb(8, 1);
 
         let mut game = Binpack::new(position.clone());
+
+        let pos = position.board();
+
+        let montyformat_position = montyformat::chess::Position::from_raw(
+            pos.bbs(),
+            pos.stm() > 0,
+            pos.enp_sq(),
+            pos.rights(),
+            pos.halfm(),
+            pos.fullm(),
+        );
+
+        let montyformat_castling = montyformat::chess::Castling::from_raw(
+            &montyformat_position,
+            position.castling().rook_files(),
+        );
+
+        let mut policy_game = MontyFormat::new(montyformat_position, montyformat_castling);
 
         // play out game
         loop {
@@ -129,16 +138,25 @@ impl<'a> DatagenThread<'a> {
             let mut root_count = 0;
             position.map_legal_moves(|_| root_count += 1);
 
-            // disallow positions with >106 moves and moves when in check
-            if root_count <= 112 {
-                let mut policy_pos = PolicyData::new(position.clone(), bm, score);
+            let dist = if root_count == 0 {
+                None
+            } else {
+                let mut dist = Vec::new();
 
                 for action in tree[tree.root_node()].actions().iter() {
-                    policy_pos.push(action.mov().into(), action.visits());
+                    let mov = montyformat::chess::Move::from(action.mov());
+                    dist.push((mov, action.visits() as u32));
                 }
 
-                records.push(policy_pos);
-            }
+                assert_eq!(root_count, dist.len());
+
+                Some(dist)
+            };
+
+            let best_move = montyformat::chess::Move::from(u16::from(bm));
+            let search_data = SearchData::new(best_move, score, dist);
+
+            policy_game.push(search_data);
 
             position.make_move(bm);
 
@@ -167,22 +185,20 @@ impl<'a> DatagenThread<'a> {
             tree.clear(1);
         }
 
-        if let Some(out) = pout {
-            for policy in &mut records {
-                policy.set_result(result);
-            }
-
-            write(&records, out);
-        }
-
         game.set_result(result);
+        policy_game.result = result;
 
         if self.stop.load(Ordering::Relaxed) {
             return;
         }
 
         let mut dest = self.dest.lock().unwrap();
-        dest.push(&game, self.stop);
+
+        if output_policy {
+            dest.push_policy(&policy_game, self.stop);
+        } else {
+            dest.push(&game, self.stop);
+        }
     }
 }
 
