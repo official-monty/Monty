@@ -227,11 +227,7 @@ impl Tree {
         }
     }
 
-    pub fn try_use_subtree(
-        &mut self,
-        root: &ChessState,
-        prev_board: &Option<ChessState>,
-    ) {
+    pub fn try_use_subtree(&mut self, root: &ChessState, prev_board: &Option<ChessState>) {
         let t = Instant::now();
 
         if self.is_empty() {
