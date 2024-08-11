@@ -21,7 +21,14 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn from_raw(bb: [u64; 8], stm: bool, enp_sq: u8, rights: u8, halfm: u8, fullm: u16) -> Self {
+    pub fn from_raw(
+        bb: [u64; 8],
+        stm: bool,
+        enp_sq: u8,
+        rights: u8,
+        halfm: u8,
+        fullm: u16,
+    ) -> Self {
         Self {
             bb,
             hash: 0,

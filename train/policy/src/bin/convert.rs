@@ -50,7 +50,7 @@ fn main() {
                         result: game.result,
                         best_move: u16::from(data.best_move),
                     };
-                    
+
                     for (i, (mov, visits)) in dist.iter().enumerate() {
                         policy_data.moves[i] = (u16::from(*mov), *visits as u16);
                     }

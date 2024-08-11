@@ -101,10 +101,9 @@ impl<'a> DatagenThread<'a> {
         let mut tree = Tree::new_mb(8, 1);
 
         let mut game = Binpack::new(position.clone());
-        
 
         let pos = position.board();
-        
+
         let montyformat_position = montyformat::chess::Position::from_raw(
             pos.bbs(),
             pos.stm() > 0,
@@ -200,7 +199,6 @@ impl<'a> DatagenThread<'a> {
         } else {
             dest.push(&game, self.stop);
         }
-        
     }
 }
 

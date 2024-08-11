@@ -71,7 +71,8 @@ impl Destination {
         self.results[result] += 1;
         self.games += 1;
 
-        game.serialise_into_buffer(&mut self.reusable_buffer).unwrap();
+        game.serialise_into_buffer(&mut self.reusable_buffer)
+            .unwrap();
         self.writer.write_all(&self.reusable_buffer).unwrap();
         self.reusable_buffer.clear();
 
