@@ -72,7 +72,6 @@ impl Tree {
         let t = &mut *self[to].actions_mut();
 
         self[to].set_state(self[from].state());
-        self[to].set_gini_impurity(self[from].gini_impurity());
 
         if f.is_empty() {
             return;
