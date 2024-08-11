@@ -149,6 +149,8 @@ impl<'a> DatagenThread<'a> {
                     dist.push((mov, action.visits() as u32));
                 }
 
+                assert_eq!(root_count, dist.len());
+
                 Some(dist)
             };
 
@@ -191,11 +193,11 @@ impl<'a> DatagenThread<'a> {
             return;
         }
 
+        let mut dest = self.dest.lock().unwrap();
+
         if output_policy {
-            let mut dest = self.dest.lock().unwrap();
             dest.push_policy(&policy_game, self.stop);
         } else {
-            let mut dest = self.dest.lock().unwrap();
             dest.push(&game, self.stop);
         }
         

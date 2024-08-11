@@ -247,7 +247,7 @@ dependencies = [
 [[package]]
 name = "montyformat"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/montyformat.git#cb33bbb2c442e6160f4c3ce1e3778c2fd2afbcec"
+source = "git+https://github.com/jw1912/montyformat.git#ac415503d43d5bd0e770843eeab37e76634e371c"
 
 [[package]]
 name = "nom"

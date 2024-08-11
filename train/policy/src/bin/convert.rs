@@ -24,7 +24,6 @@ fn main() {
     let mut games = 0;
 
     while let Ok(game) = MontyFormat::deserialise_from(&mut reader) {
-        println!("games: {games}");
         let mut pos = game.startpos;
         let castling = game.castling;
 
