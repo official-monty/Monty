@@ -154,7 +154,10 @@ pub struct RunOptions {
 }
 
 pub fn parse_args(args: Args) -> Option<RunOptions> {
-    let mut opts = RunOptions::default();
+    let mut opts = RunOptions {
+        policy_data: true,
+        ..Default::default()
+    };
 
     let mut mode = 0;
 
