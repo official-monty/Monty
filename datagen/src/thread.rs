@@ -61,12 +61,16 @@ impl<'a> DatagenThread<'a> {
         value: &ValueNetwork,
         output_policy: bool,
     ) {
-        let mut position = if let Some(book) = &self.book {
+        let startfen = if let Some(book) = &self.book {
             let idx = self.rng.rand_int() as usize % book.len();
-            ChessState::from_fen(book[idx])
+            book[idx]
         } else {
-            ChessState::from_fen(ChessState::STARTPOS)
+            ChessState::STARTPOS
         };
+
+        println!("Parsing FEN: {startfen}");
+
+        let mut position = ChessState::from_fen(startfen);
 
         // play 8 or 9 random moves
         for _ in 0..(8 + (self.rng.rand_int() % 2)) {

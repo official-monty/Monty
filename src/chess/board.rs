@@ -519,11 +519,21 @@ impl Board {
         };
 
         if let Some(hfm) = vec.get(4) {
-            pos.halfm = hfm.parse().unwrap_or(0);
+            pos.halfm = if let Ok(hfm) = hfm.parse() {
+                hfm
+            } else {
+                println!("Couldn't parse halfmove counter: {hfm}?");
+                0
+            }
         }
 
         if let Some(fm) = vec.get(5) {
-            pos.fullm = fm.parse().unwrap_or(1);
+            pos.fullm = if let Ok(fm) = fm.parse() {
+                fm
+            } else {
+                println!("Couldn't parse fullmove counter: {fm}?");
+                0
+            }
         }
 
         pos
