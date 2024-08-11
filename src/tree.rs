@@ -231,7 +231,6 @@ impl Tree {
         &mut self,
         root: &ChessState,
         prev_board: &Option<ChessState>,
-        threads: usize,
     ) {
         let t = Instant::now();
 
@@ -267,7 +266,6 @@ impl Tree {
         if !found {
             println!("info string no subtree found");
             self.clear_halves();
-            self.flip(false, threads);
             self.push_new(GameState::Ongoing).unwrap();
         }
 
