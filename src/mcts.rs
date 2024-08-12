@@ -128,7 +128,6 @@ impl<'a> Searcher<'a> {
                 self.tree.root_node(),
                 self.tree.root_stats(),
                 &mut this_depth,
-                total_nodes,
             ) {
                 self.tree.root_stats().update(u);
             } else {
@@ -137,6 +136,7 @@ impl<'a> Searcher<'a> {
 
             total_depth.fetch_add(this_depth - 1, Ordering::Relaxed);
             total_mcts_nodes.fetch_add(1, Ordering::Relaxed);
+            total_nodes.fetch_add(this_depth, Ordering::Relaxed);
             if let Some(n) = thread_mcts_nodes {
                 n.fetch_add(1, Ordering::Relaxed);
             }
@@ -323,10 +323,8 @@ impl<'a> Searcher<'a> {
         ptr: NodePtr,
         node_stats: &ActionStats,
         depth: &mut usize,
-        total_nodes: &AtomicUsize,
     ) -> Option<f32> {
         *depth += 1;
-        total_nodes.fetch_add(1, Ordering::Relaxed);
 
         let hash = pos.hash();
 
@@ -360,8 +358,7 @@ impl<'a> Searcher<'a> {
 
             self.tree[child_ptr].inc_threads();
 
-            let maybe_u =
-                self.perform_one_iteration(pos, child_ptr, &edge.stats(), depth, total_nodes);
+            let maybe_u = self.perform_one_iteration(pos, child_ptr, &edge.stats(), depth);
 
             self.tree[child_ptr].dec_threads();
 
