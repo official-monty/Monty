@@ -131,8 +131,8 @@ macro_rules! make_mcts_params {
 
 make_mcts_params! {
     root_pst: f32 = 3.64, 1.0, 10.0, 0.4, 0.002;
-    root_cpuct: f32 = 0.314, 0.1, 5.0, 0.065, 0.002;
-    cpuct: f32 = 0.314, 0.1, 5.0, 0.065, 0.002;
+    root_cpuct: f32 = 1.0, 0.1, 5.0, 0.065, 0.002;
+    cpuct: f32 = 1.0, 0.1, 5.0, 0.065, 0.002;
     cpuct_var_weight: f32 = 0.851, 0.0, 2.0, 0.085, 0.002;
     cpuct_var_scale: f32 = 0.257, 0.0, 2.0, 0.02, 0.002;
     cpuct_visits_scale: f32 = 37.3, 1.0, 512.0, 3.2, 0.002;
