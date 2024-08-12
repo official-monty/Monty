@@ -260,8 +260,8 @@ impl<'a> Searcher<'a> {
         let total_nodes = AtomicUsize::new(0);
         let total_mcts_nodes = AtomicUsize::new(0);
         let total_depth = AtomicUsize::new(0);
-        let mut avg_depth = AtomicUsize::new(0);
-        let mut main_mcts_nodes = AtomicUsize::new(0);
+        let avg_depth = AtomicUsize::new(0);
+        let main_mcts_nodes = AtomicUsize::new(0);
 
         let mut best_move = Move::NULL;
         let mut best_move_changes = 0;
@@ -277,8 +277,8 @@ impl<'a> Searcher<'a> {
                         &total_nodes,
                         &total_mcts_nodes,
                         &total_depth,
-                        &mut avg_depth,
-                        &mut main_mcts_nodes,
+                        &avg_depth,
+                        &main_mcts_nodes,
                         &mut best_move,
                         &mut best_move_changes,
                         &mut previous_score,
