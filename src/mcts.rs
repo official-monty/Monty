@@ -29,7 +29,6 @@ pub struct SearchStats {
     pub total_nodes: AtomicUsize,
     pub total_mcts_nodes: AtomicUsize,
     pub main_mcts_nodes: AtomicUsize,
-    pub total_depth: AtomicUsize,
     pub avg_depth: AtomicUsize,
 }
 
@@ -72,11 +71,11 @@ impl<'a> Searcher<'a> {
         previous_score: &mut f32,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) {
-        if self.playout_until_full_internal(search_stats, true, |stats| {
+        if self.playout_until_full_internal(search_stats, true, || {
             self.check_limits(
                 limits,
                 timer,
-                stats,
+                search_stats,
                 best_move,
                 best_move_changes,
                 previous_score,
@@ -89,7 +88,7 @@ impl<'a> Searcher<'a> {
     }
 
     fn playout_until_full_worker(&self, search_stats: &SearchStats) {
-        let _ = self.playout_until_full_internal(search_stats, false, |_| false);
+        let _ = self.playout_until_full_internal(search_stats, false, || false);
     }
 
     fn playout_until_full_internal<F>(
@@ -99,7 +98,7 @@ impl<'a> Searcher<'a> {
         mut stop: F,
     ) -> bool
     where
-        F: FnMut(&SearchStats) -> bool,
+        F: FnMut() -> bool,
     {
         loop {
             let mut pos = self.root_position.clone();
@@ -116,9 +115,6 @@ impl<'a> Searcher<'a> {
                 return false;
             }
 
-            search_stats
-                .total_depth
-                .fetch_add(this_depth - 1, Ordering::Relaxed);
             search_stats
                 .total_mcts_nodes
                 .fetch_add(1, Ordering::Relaxed);
@@ -139,7 +135,7 @@ impl<'a> Searcher<'a> {
                 return true;
             }
 
-            if stop(search_stats) {
+            if stop() {
                 return true;
             }
         }
@@ -205,8 +201,9 @@ impl<'a> Searcher<'a> {
         }
 
         // define "depth" as the average depth of selection
-        let new_depth = search_stats.total_depth.load(Ordering::Relaxed)
-            / search_stats.total_mcts_nodes.load(Ordering::Relaxed);
+        let total_depth = search_stats.total_nodes.load(Ordering::Relaxed)
+            - search_stats.total_mcts_nodes.load(Ordering::Relaxed);
+        let new_depth = total_depth / search_stats.total_mcts_nodes.load(Ordering::Relaxed);
         if new_depth > search_stats.avg_depth.load(Ordering::Relaxed) {
             search_stats.avg_depth.store(new_depth, Ordering::Relaxed);
             if new_depth >= limits.max_depth {
