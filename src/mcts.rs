@@ -24,6 +24,15 @@ pub struct Limits {
     pub max_nodes: usize,
 }
 
+#[derive(Default)]
+pub struct SearchStats {
+    pub total_nodes: AtomicUsize,
+    pub total_mcts_nodes: AtomicUsize,
+    pub main_mcts_nodes: AtomicUsize,
+    pub total_depth: AtomicUsize,
+    pub avg_depth: AtomicUsize,
+}
+
 pub struct Searcher<'a> {
     root_position: ChessState,
     tree: &'a Tree,
@@ -57,67 +66,40 @@ impl<'a> Searcher<'a> {
         &self,
         limits: &Limits,
         timer: &Instant,
-        total_nodes: &AtomicUsize,
-        total_mcts_nodes: &AtomicUsize,
-        total_depth: &AtomicUsize,
-        avg_depth: &AtomicUsize,
-        main_mcts_nodes: &AtomicUsize,
+        search_stats: &SearchStats,
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) {
-        if self.playout_until_full_internal(
-            Some(main_mcts_nodes),
-            total_nodes,
-            total_mcts_nodes,
-            total_depth,
-            |n, mcts_n, cd| {
-                self.check_limits(
-                    limits,
-                    timer,
-                    main_mcts_nodes,
-                    n,
-                    mcts_n,
-                    best_move,
-                    best_move_changes,
-                    previous_score,
-                    avg_depth,
-                    cd,
-                    #[cfg(not(feature = "uci-minimal"))]
-                    uci_output,
-                )
-            },
-        ) {
+        if self.playout_until_full_internal(search_stats, true, |stats| {
+            self.check_limits(
+                limits,
+                timer,
+                stats,
+                best_move,
+                best_move_changes,
+                previous_score,
+                #[cfg(not(feature = "uci-minimal"))]
+                uci_output,
+            )
+        }) {
             self.abort.store(true, Ordering::Relaxed);
         }
     }
 
-    fn playout_until_full_worker(
-        &self,
-        total_nodes: &AtomicUsize,
-        total_mcts_nodes: &AtomicUsize,
-        total_depth: &AtomicUsize,
-    ) {
-        let _ = self.playout_until_full_internal(
-            None,
-            total_nodes,
-            total_mcts_nodes,
-            total_depth,
-            |_, _, _| false,
-        );
+    fn playout_until_full_worker(&self, search_stats: &SearchStats) {
+        let _ = self.playout_until_full_internal(search_stats, false, |_| false);
     }
 
     fn playout_until_full_internal<F>(
         &self,
-        thread_mcts_nodes: Option<&AtomicUsize>,
-        total_nodes: &AtomicUsize,
-        total_mcts_nodes: &AtomicUsize,
-        total_depth: &AtomicUsize,
+        search_stats: &SearchStats,
+        main_thread: bool,
         mut stop: F,
     ) -> bool
     where
-        F: FnMut(&AtomicUsize, &AtomicUsize, &AtomicUsize) -> bool,
+        F: FnMut(&SearchStats) -> bool,
     {
         loop {
             let mut pos = self.root_position.clone();
@@ -134,11 +116,17 @@ impl<'a> Searcher<'a> {
                 return false;
             }
 
-            total_depth.fetch_add(this_depth - 1, Ordering::Relaxed);
-            total_mcts_nodes.fetch_add(1, Ordering::Relaxed);
-            total_nodes.fetch_add(this_depth, Ordering::Relaxed);
-            if let Some(n) = thread_mcts_nodes {
-                n.fetch_add(1, Ordering::Relaxed);
+            search_stats
+                .total_depth
+                .fetch_add(this_depth - 1, Ordering::Relaxed);
+            search_stats
+                .total_mcts_nodes
+                .fetch_add(1, Ordering::Relaxed);
+            search_stats
+                .total_nodes
+                .fetch_add(this_depth, Ordering::Relaxed);
+            if main_thread {
+                search_stats.main_mcts_nodes.fetch_add(1, Ordering::Relaxed);
             }
 
             // proven checkmate
@@ -151,7 +139,7 @@ impl<'a> Searcher<'a> {
                 return true;
             }
 
-            if stop(total_nodes, total_mcts_nodes, total_depth) {
+            if stop(search_stats) {
                 return true;
             }
         }
@@ -162,19 +150,15 @@ impl<'a> Searcher<'a> {
         &self,
         limits: &Limits,
         timer: &Instant,
-        main_mcts_nodes: &AtomicUsize,
-        total_nodes: &AtomicUsize,
-        total_mcts_nodes: &AtomicUsize,
+        search_stats: &SearchStats,
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
-        avg_depth: &AtomicUsize,
-        total_depth: &AtomicUsize,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) -> bool {
-        let mcts_nodes = main_mcts_nodes.load(Ordering::Relaxed);
+        let mcts_nodes = search_stats.main_mcts_nodes.load(Ordering::Relaxed);
 
-        if total_mcts_nodes.load(Ordering::Relaxed) >= limits.max_nodes {
+        if search_stats.total_mcts_nodes.load(Ordering::Relaxed) >= limits.max_nodes {
             return true;
         }
 
@@ -221,17 +205,21 @@ impl<'a> Searcher<'a> {
         }
 
         // define "depth" as the average depth of selection
-        let new_depth =
-            total_depth.load(Ordering::Relaxed) / total_mcts_nodes.load(Ordering::Relaxed);
-        if new_depth > avg_depth.load(Ordering::Relaxed) {
-            avg_depth.store(new_depth, Ordering::Relaxed);
+        let new_depth = search_stats.total_depth.load(Ordering::Relaxed)
+            / search_stats.total_mcts_nodes.load(Ordering::Relaxed);
+        if new_depth > search_stats.avg_depth.load(Ordering::Relaxed) {
+            search_stats.avg_depth.store(new_depth, Ordering::Relaxed);
             if new_depth >= limits.max_depth {
                 return true;
             }
 
             #[cfg(not(feature = "uci-minimal"))]
             if uci_output {
-                self.search_report(new_depth, timer, total_nodes.load(Ordering::Relaxed));
+                self.search_report(
+                    new_depth,
+                    timer,
+                    search_stats.total_nodes.load(Ordering::Relaxed),
+                );
             }
         }
 
@@ -257,11 +245,7 @@ impl<'a> Searcher<'a> {
             self.tree[node].expand::<true>(&self.root_position, self.params, self.policy);
         }
 
-        let total_nodes = AtomicUsize::new(0);
-        let total_mcts_nodes = AtomicUsize::new(0);
-        let total_depth = AtomicUsize::new(0);
-        let avg_depth = AtomicUsize::new(0);
-        let main_mcts_nodes = AtomicUsize::new(0);
+        let search_stats = SearchStats::default();
 
         let mut best_move = Move::NULL;
         let mut best_move_changes = 0;
@@ -274,11 +258,7 @@ impl<'a> Searcher<'a> {
                     self.playout_until_full_main(
                         &limits,
                         &timer,
-                        &total_nodes,
-                        &total_mcts_nodes,
-                        &total_depth,
-                        &avg_depth,
-                        &main_mcts_nodes,
+                        &search_stats,
                         &mut best_move,
                         &mut best_move_changes,
                         &mut previous_score,
@@ -288,13 +268,7 @@ impl<'a> Searcher<'a> {
                 });
 
                 for _ in 0..threads - 1 {
-                    s.spawn(|| {
-                        self.playout_until_full_worker(
-                            &total_nodes,
-                            &total_mcts_nodes,
-                            &total_depth,
-                        )
-                    });
+                    s.spawn(|| self.playout_until_full_worker(&search_stats));
                 }
             });
 
@@ -303,13 +277,13 @@ impl<'a> Searcher<'a> {
             }
         }
 
-        *update_nodes += total_nodes.load(Ordering::Relaxed);
+        *update_nodes += search_stats.total_nodes.load(Ordering::Relaxed);
 
         if uci_output {
             self.search_report(
-                avg_depth.load(Ordering::Relaxed).max(1),
+                search_stats.avg_depth.load(Ordering::Relaxed).max(1),
                 &timer,
-                total_nodes.load(Ordering::Relaxed),
+                search_stats.total_nodes.load(Ordering::Relaxed),
             );
         }
 
