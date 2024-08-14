@@ -4,7 +4,7 @@ use super::{layer::Layer, QA};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
-pub const ValueFileDefaultName: &str = "nn-f3bd88cdf0ac.network";
+pub const ValueFileDefaultName: &str = "nn-c3e7b78c4f09.network";
 
 const SCALE: i32 = 400;
 
