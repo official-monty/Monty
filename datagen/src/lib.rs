@@ -158,6 +158,8 @@ pub fn parse_args(args: Args) -> Option<RunOptions> {
 
     let mut mode = 0;
 
+    opts.policy_data = true;
+
     for arg in args {
         match arg.as_str() {
             "bench" => return None,
