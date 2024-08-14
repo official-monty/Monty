@@ -519,11 +519,11 @@ impl Board {
         };
 
         if let Some(hfm) = vec.get(4) {
-            pos.halfm = hfm.parse().unwrap();
+            pos.halfm = hfm.parse().unwrap_or(0);
         }
 
         if let Some(fm) = vec.get(5) {
-            pos.fullm = fm.parse().unwrap();
+            pos.fullm = fm.parse().unwrap_or(1);
         }
 
         pos
