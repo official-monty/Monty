@@ -1,6 +1,6 @@
 use crate::Board;
 
-use super::{accumulator::Accumulator, QA};
+use super::{accumulator::Accumulator, activation::Activation, QA};
 
 #[derive(Clone, Copy)]
 pub struct Layer<T: Copy, const M: usize, const N: usize> {
@@ -16,30 +16,35 @@ impl<const M: usize, const N: usize> Layer<i16, M, N> {
 
         out
     }
+
+    pub fn forward_from_slice(&self, feats: &[usize]) -> Accumulator<i16, N> {
+        let mut out = self.biases;
+
+        for &feat in feats {
+            out.add(&self.weights[feat])
+        }
+
+        out
+    }
 }
 
 impl<const M: usize, const N: usize> Layer<f32, M, N> {
-    #[inline]
-    fn screlu(x: f32) -> f32 {
-        x.clamp(0.0, 1.0).powi(2)
-    }
-
-    pub fn forward(&self, inputs: &Accumulator<f32, M>) -> Accumulator<f32, N> {
+    pub fn forward<T: Activation>(&self, inputs: &Accumulator<f32, M>) -> Accumulator<f32, N> {
         let mut fwd = self.biases;
 
         for (i, d) in inputs.0.iter().zip(self.weights.iter()) {
-            let act = Self::screlu(*i);
+            let act = T::activate(*i);
             fwd.madd(act, d);
         }
 
         fwd
     }
 
-    pub fn forward_from_i16(&self, inputs: &Accumulator<i16, M>) -> Accumulator<f32, N> {
+    pub fn forward_from_i16<T: Activation>(&self, inputs: &Accumulator<i16, M>) -> Accumulator<f32, N> {
         let mut fwd = self.biases;
 
         for (i, d) in inputs.0.iter().zip(self.weights.iter()) {
-            let act = Self::screlu(f32::from(*i) / f32::from(QA));
+            let act = T::activate(f32::from(*i) / f32::from(QA));
             fwd.madd(act, d);
         }
 
@@ -52,5 +57,16 @@ impl<const M: usize, const N: usize> Layer<f32, M, N> {
         }
 
         dest.biases = self.biases.quantise(qa);
+    }
+
+    pub fn quantise(&self, qa: i16) -> Layer<i16, M, N> {
+        let mut res = Layer {
+            weights: [Accumulator([0; N]); M],
+            biases: Accumulator([0; N]),
+        };
+
+        self.quantise_into(&mut res, qa);
+
+        res
     }
 }

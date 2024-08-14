@@ -7,7 +7,7 @@ mod uci;
 pub use chess::{Board, Castling, ChessState, GameState, Move};
 pub use mcts::{Limits, MctsParams, Searcher};
 pub use networks::{
-    PolicyFileDefaultName, PolicyNetwork, SubNet, ValueFileDefaultName, ValueNetwork, UnquantisedValueNetwork,
+    PolicyFileDefaultName, PolicyNetwork, ValueFileDefaultName, ValueNetwork, UnquantisedValueNetwork, UnquantisedPolicyNetwork,
 };
 pub use tree::Tree;
 pub use uci::Uci;
