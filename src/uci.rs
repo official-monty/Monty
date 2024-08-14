@@ -83,6 +83,15 @@ impl Uci {
 
                     prev = Some(pos.clone());
                 }
+                "bench" => {
+                    let depth = if let Some(d) = commands.get(1) {
+                        d.parse().unwrap_or(ChessState::BENCH_DEPTH)
+                    } else {
+                        ChessState::BENCH_DEPTH
+                    };
+
+                    Uci::bench(depth, policy, value, &params);
+                }
                 "perft" => run_perft(&commands, &pos),
                 "quit" => std::process::exit(0),
                 "eval" => {
