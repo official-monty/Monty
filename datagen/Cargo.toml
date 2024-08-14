@@ -6,3 +6,4 @@ authors = ["Jamie Whiting"]
 
 [dependencies]
 monty = { path = "../", features = ["datagen"] }
+montyformat = { git = 'https://github.com/official-monty/montyformat.git', tag = "v0.1.0" }

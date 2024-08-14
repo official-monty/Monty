@@ -38,19 +38,19 @@ impl std::ops::Index<NodePtr> for Tree {
 }
 
 impl Tree {
-    pub fn new_mb(mb: usize) -> Self {
+    pub fn new_mb(mb: usize, threads: usize) -> Self {
         let bytes = mb * 1024 * 1024;
-        Self::new(bytes / (48 + 20 * 20), bytes / 48 / 16)
+        Self::new(bytes / (48 + 20 * 20), bytes / 48 / 16, threads)
     }
 
-    fn new(tree_cap: usize, hash_cap: usize) -> Self {
+    fn new(tree_cap: usize, hash_cap: usize, threads: usize) -> Self {
         Self {
             tree: [
-                TreeHalf::new(tree_cap / 2, false),
-                TreeHalf::new(tree_cap / 2, true),
+                TreeHalf::new(tree_cap / 2, false, threads),
+                TreeHalf::new(tree_cap / 2, true, threads),
             ],
             half: AtomicBool::new(false),
-            hash: HashTable::new(hash_cap / 4),
+            hash: HashTable::new(hash_cap / 4, threads),
             root_stats: ActionStats::default(),
         }
     }
@@ -82,11 +82,11 @@ impl Tree {
         std::mem::swap(f, t);
     }
 
-    pub fn flip(&self, copy_across: bool) {
+    pub fn flip(&self, copy_across: bool, threads: usize) {
         let old_root_ptr = self.root_node();
 
         let old = usize::from(self.half.fetch_xor(true, Ordering::Relaxed));
-        self.tree[old].clear_ptrs();
+        self.tree[old].clear_ptrs(threads);
         self.tree[old ^ 1].clear();
 
         if copy_across {
@@ -187,9 +187,9 @@ impl Tree {
         self.root_stats.clear();
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self, threads: usize) {
         self.clear_halves();
-        self.hash.clear();
+        self.hash.clear(threads);
     }
 
     pub fn is_empty(&self) -> bool {
@@ -262,7 +262,6 @@ impl Tree {
         if !found {
             println!("info string no subtree found");
             self.clear_halves();
-            self.flip(false);
             self.push_new(GameState::Ongoing).unwrap();
         }
 

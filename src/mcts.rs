@@ -11,7 +11,7 @@ use crate::{
 };
 
 use std::{
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     thread,
     time::Instant,
 };
@@ -22,6 +22,14 @@ pub struct Limits {
     pub opt_time: Option<u128>,
     pub max_depth: usize,
     pub max_nodes: usize,
+}
+
+#[derive(Default)]
+pub struct SearchStats {
+    pub total_nodes: AtomicUsize,
+    pub total_iters: AtomicUsize,
+    pub main_iters: AtomicUsize,
+    pub avg_depth: AtomicUsize,
 }
 
 pub struct Searcher<'a> {
@@ -57,24 +65,21 @@ impl<'a> Searcher<'a> {
         &self,
         limits: &Limits,
         timer: &Instant,
-        nodes: &mut usize,
-        depth: &mut usize,
-        cumulative_depth: &mut usize,
+        search_stats: &SearchStats,
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
-        uci_output: bool,
+        #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) {
-        if self.playout_until_full_internal(nodes, cumulative_depth, |n, cd| {
+        if self.playout_until_full_internal(search_stats, true, || {
             self.check_limits(
                 limits,
                 timer,
-                n,
+                search_stats,
                 best_move,
                 best_move_changes,
                 previous_score,
-                depth,
-                cd,
+                #[cfg(not(feature = "uci-minimal"))]
                 uci_output,
             )
         }) {
@@ -82,18 +87,18 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    fn playout_until_full_worker(&self, nodes: &mut usize, cumulative_depth: &mut usize) {
-        let _ = self.playout_until_full_internal(nodes, cumulative_depth, |_, _| false);
+    fn playout_until_full_worker(&self, search_stats: &SearchStats) {
+        let _ = self.playout_until_full_internal(search_stats, false, || false);
     }
 
     fn playout_until_full_internal<F>(
         &self,
-        nodes: &mut usize,
-        cumulative_depth: &mut usize,
+        search_stats: &SearchStats,
+        main_thread: bool,
         mut stop: F,
     ) -> bool
     where
-        F: FnMut(usize, usize) -> bool,
+        F: FnMut() -> bool,
     {
         loop {
             let mut pos = self.root_position.clone();
@@ -110,8 +115,13 @@ impl<'a> Searcher<'a> {
                 return false;
             }
 
-            *cumulative_depth += this_depth - 1;
-            *nodes += 1;
+            search_stats.total_iters.fetch_add(1, Ordering::Relaxed);
+            search_stats
+                .total_nodes
+                .fetch_add(this_depth, Ordering::Relaxed);
+            if main_thread {
+                search_stats.main_iters.fetch_add(1, Ordering::Relaxed);
+            }
 
             // proven checkmate
             if self.tree[self.tree.root_node()].is_terminal() {
@@ -123,7 +133,7 @@ impl<'a> Searcher<'a> {
                 return true;
             }
 
-            if stop(*nodes, *cumulative_depth) {
+            if stop() {
                 return true;
             }
         }
@@ -134,19 +144,19 @@ impl<'a> Searcher<'a> {
         &self,
         limits: &Limits,
         timer: &Instant,
-        nodes: usize,
+        search_stats: &SearchStats,
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
-        depth: &mut usize,
-        cumulative_depth: usize,
-        uci_output: bool,
+        #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) -> bool {
-        if nodes >= limits.max_nodes {
+        let iters = search_stats.main_iters.load(Ordering::Relaxed);
+
+        if search_stats.total_iters.load(Ordering::Relaxed) >= limits.max_nodes {
             return true;
         }
 
-        if nodes % 128 == 0 {
+        if iters % 128 == 0 {
             if let Some(time) = limits.max_time {
                 if timer.elapsed().as_millis() >= time {
                     return true;
@@ -160,7 +170,7 @@ impl<'a> Searcher<'a> {
             }
         }
 
-        if nodes % 4096 == 0 {
+        if iters % 4096 == 0 {
             // Time management
             if let Some(time) = limits.opt_time {
                 let (should_stop, score) = SearchHelpers::soft_time_cutoff(
@@ -168,7 +178,7 @@ impl<'a> Searcher<'a> {
                     timer,
                     *previous_score,
                     *best_move_changes,
-                    nodes,
+                    iters,
                     time,
                 );
 
@@ -176,7 +186,7 @@ impl<'a> Searcher<'a> {
                     return true;
                 }
 
-                if nodes % 16384 == 0 {
+                if iters % 16384 == 0 {
                     *best_move_changes = 0;
                 }
 
@@ -189,15 +199,22 @@ impl<'a> Searcher<'a> {
         }
 
         // define "depth" as the average depth of selection
-        let avg_depth = cumulative_depth / nodes;
-        if avg_depth > *depth {
-            *depth = avg_depth;
-            if *depth >= limits.max_depth {
+        let total_depth = search_stats.total_nodes.load(Ordering::Relaxed)
+            - search_stats.total_iters.load(Ordering::Relaxed);
+        let new_depth = total_depth / search_stats.total_iters.load(Ordering::Relaxed);
+        if new_depth > search_stats.avg_depth.load(Ordering::Relaxed) {
+            search_stats.avg_depth.store(new_depth, Ordering::Relaxed);
+            if new_depth >= limits.max_depth {
                 return true;
             }
 
+            #[cfg(not(feature = "uci-minimal"))]
             if uci_output {
-                self.search_report(*depth, timer, nodes);
+                self.search_report(
+                    new_depth,
+                    timer,
+                    search_stats.total_nodes.load(Ordering::Relaxed),
+                );
             }
         }
 
@@ -209,7 +226,7 @@ impl<'a> Searcher<'a> {
         threads: usize,
         limits: Limits,
         uci_output: bool,
-        total_nodes: &mut usize,
+        update_nodes: &mut usize,
         #[cfg(feature = "datagen")]
         use_dirichlet_noise: bool,
         #[cfg(feature = "datagen")]
@@ -233,9 +250,8 @@ impl<'a> Searcher<'a> {
             self.tree[node].add_dirichlet_noise(0.03, 0.25);
         }
 
-        let mut nodes = 0;
-        let mut depth = 0;
-        let mut cumulative_depth = 0;
+        let search_stats = SearchStats::default();
+
 
         let mut best_move = Move::NULL;
         let mut best_move_changes = 0;
@@ -248,30 +264,33 @@ impl<'a> Searcher<'a> {
                     self.playout_until_full_main(
                         &limits,
                         &timer,
-                        &mut nodes,
-                        &mut depth,
-                        &mut cumulative_depth,
+                        &search_stats,
                         &mut best_move,
                         &mut best_move_changes,
                         &mut previous_score,
+                        #[cfg(not(feature = "uci-minimal"))]
                         uci_output,
                     );
                 });
 
                 for _ in 0..threads - 1 {
-                    s.spawn(|| self.playout_until_full_worker(&mut 0, &mut 0));
+                    s.spawn(|| self.playout_until_full_worker(&search_stats));
                 }
             });
 
-            self.tree.flip(true);
+            if !self.abort.load(Ordering::Relaxed) {
+                self.tree.flip(true, threads);
+            }
         }
 
-        self.abort.store(true, Ordering::Relaxed);
-
-        *total_nodes += nodes;
+        *update_nodes += search_stats.total_nodes.load(Ordering::Relaxed);
 
         if uci_output {
-            self.search_report(depth.max(1), &timer, nodes);
+            self.search_report(
+                search_stats.avg_depth.load(Ordering::Relaxed).max(1),
+                &timer,
+                search_stats.total_nodes.load(Ordering::Relaxed),
+            );
         }
 
         #[cfg(not(feature = "datagen"))]
