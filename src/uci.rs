@@ -27,6 +27,7 @@ impl Uci {
         let mut tree = Tree::new_mb(64, 1);
         let mut report_moves = false;
         let mut threads = 1;
+        let mut move_overhead = 40;
 
         let mut stored_message: Option<String> = None;
 
@@ -58,6 +59,7 @@ impl Uci {
                     &mut report_moves,
                     &mut tree,
                     &mut threads,
+                    &mut move_overhead,
                 ),
                 "position" => position(commands, &mut pos),
                 "go" => {
@@ -75,6 +77,7 @@ impl Uci {
                         policy,
                         value,
                         threads,
+                        move_overhead,
                         &mut stored_message,
                     );
 
@@ -169,6 +172,7 @@ fn preamble() {
     println!("id author Jamie Whiting");
     println!("option name Hash type spin default 64 min 1 max 8192");
     println!("option name Threads type spin default 1 min 1 max 512");
+    println!("option name MoveOverhead type spin default 40 min 0 max 5000");
     println!("option name report_moves type button");
     Uci::options();
 
@@ -184,6 +188,7 @@ fn setoption(
     report_moves: &mut bool,
     tree: &mut Tree,
     threads: &mut usize,
+    move_overhead: &mut usize,
 ) {
     if let ["setoption", "name", "report_moves"] = commands {
         *report_moves = !*report_moves;
@@ -197,6 +202,11 @@ fn setoption(
 
         if *x == "Threads" {
             *threads = y.parse().unwrap();
+            return;
+        }
+
+        if *x == "MoveOverhead" {
+            *move_overhead = y.parse().unwrap();
             return;
         }
 
@@ -259,6 +269,7 @@ fn go(
     policy: &PolicyNetwork,
     value: &ValueNetwork,
     threads: usize,
+    move_overhead: usize,
     stored_message: &mut Option<String>,
 ) {
     let mut max_nodes = i32::MAX as usize;
@@ -313,12 +324,12 @@ fn go(
         max_time = Some(max_time.unwrap_or(u128::MAX).min(max));
     }
 
-    // 20ms move overhead
+    // apply move overhead
     if let Some(t) = opt_time.as_mut() {
-        *t = t.saturating_sub(20);
+        *t = t.saturating_sub(move_overhead as u128);
     }
     if let Some(t) = max_time.as_mut() {
-        *t = t.saturating_sub(20);
+        *t = t.saturating_sub(move_overhead as u128);
     }
 
     let abort = AtomicBool::new(false);
