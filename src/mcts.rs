@@ -27,8 +27,8 @@ pub struct Limits {
 #[derive(Default)]
 pub struct SearchStats {
     pub total_nodes: AtomicUsize,
-    pub total_mcts_nodes: AtomicUsize,
-    pub main_mcts_nodes: AtomicUsize,
+    pub total_iters: AtomicUsize,
+    pub main_iters: AtomicUsize,
     pub avg_depth: AtomicUsize,
 }
 
@@ -115,14 +115,12 @@ impl<'a> Searcher<'a> {
                 return false;
             }
 
-            search_stats
-                .total_mcts_nodes
-                .fetch_add(1, Ordering::Relaxed);
+            search_stats.total_iters.fetch_add(1, Ordering::Relaxed);
             search_stats
                 .total_nodes
                 .fetch_add(this_depth, Ordering::Relaxed);
             if main_thread {
-                search_stats.main_mcts_nodes.fetch_add(1, Ordering::Relaxed);
+                search_stats.main_iters.fetch_add(1, Ordering::Relaxed);
             }
 
             // proven checkmate
@@ -152,13 +150,13 @@ impl<'a> Searcher<'a> {
         previous_score: &mut f32,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) -> bool {
-        let mcts_nodes = search_stats.main_mcts_nodes.load(Ordering::Relaxed);
+        let iters = search_stats.main_iters.load(Ordering::Relaxed);
 
-        if search_stats.total_mcts_nodes.load(Ordering::Relaxed) >= limits.max_nodes {
+        if search_stats.total_iters.load(Ordering::Relaxed) >= limits.max_nodes {
             return true;
         }
 
-        if mcts_nodes % 128 == 0 {
+        if iters % 128 == 0 {
             if let Some(time) = limits.max_time {
                 if timer.elapsed().as_millis() >= time {
                     return true;
@@ -172,7 +170,7 @@ impl<'a> Searcher<'a> {
             }
         }
 
-        if mcts_nodes % 4096 == 0 {
+        if iters % 4096 == 0 {
             // Time management
             if let Some(time) = limits.opt_time {
                 let (should_stop, score) = SearchHelpers::soft_time_cutoff(
@@ -180,7 +178,7 @@ impl<'a> Searcher<'a> {
                     timer,
                     *previous_score,
                     *best_move_changes,
-                    mcts_nodes,
+                    iters,
                     time,
                 );
 
@@ -188,7 +186,7 @@ impl<'a> Searcher<'a> {
                     return true;
                 }
 
-                if mcts_nodes % 16384 == 0 {
+                if iters % 16384 == 0 {
                     *best_move_changes = 0;
                 }
 
@@ -202,8 +200,8 @@ impl<'a> Searcher<'a> {
 
         // define "depth" as the average depth of selection
         let total_depth = search_stats.total_nodes.load(Ordering::Relaxed)
-            - search_stats.total_mcts_nodes.load(Ordering::Relaxed);
-        let new_depth = total_depth / search_stats.total_mcts_nodes.load(Ordering::Relaxed);
+            - search_stats.total_iters.load(Ordering::Relaxed);
+        let new_depth = total_depth / search_stats.total_iters.load(Ordering::Relaxed);
         if new_depth > search_stats.avg_depth.load(Ordering::Relaxed) {
             search_stats.avg_depth.store(new_depth, Ordering::Relaxed);
             if new_depth >= limits.max_depth {
