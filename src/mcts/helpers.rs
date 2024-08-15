@@ -38,9 +38,9 @@ impl SearchHelpers {
     pub fn get_explore_scaling(params: &MctsParams, node_stats: &ActionStats, node: &Node) -> f32 {
         let mut scale = (params.expl_tau() * (node_stats.visits().max(1) as f32).ln()).exp();
 
-        let gini = node.gini_impurity();
         #[cfg(not(feature = "datagen"))]
         {
+            let gini = node.gini_impurity();
             scale *= (0.679 - 1.634 * (gini + 0.001).ln()).min(2.1);
         }
 
