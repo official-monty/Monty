@@ -1,5 +1,5 @@
 use datagen::{PolicyData, Rand};
-use goober::{FeedForwardNetwork, OutputLayer, SparseVector, Vector, layer, activation, Matrix};
+use goober::{activation, layer, FeedForwardNetwork, Matrix, OutputLayer, SparseVector, Vector};
 use monty::{Board, Move};
 
 use crate::TrainablePolicy;

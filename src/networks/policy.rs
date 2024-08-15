@@ -1,4 +1,7 @@
-use crate::{boxed_and_zeroed, chess::{Board, Move}};
+use crate::{
+    boxed_and_zeroed,
+    chess::{Board, Move},
+};
 
 use super::{accumulator::Accumulator, activation::ReLU, layer::Layer, QA};
 

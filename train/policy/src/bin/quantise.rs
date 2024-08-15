@@ -1,11 +1,10 @@
 use std::io::Write;
 
-use monty::{read_into_struct_unchecked, UnquantisedPolicyNetwork, PolicyNetwork};
+use monty::{read_into_struct_unchecked, PolicyNetwork, UnquantisedPolicyNetwork};
 
 fn main() {
-    let unquantised: Box<UnquantisedPolicyNetwork> = unsafe {
-        read_into_struct_unchecked("nn-6b5dc1d7fff9.network")
-    };
+    let unquantised: Box<UnquantisedPolicyNetwork> =
+        unsafe { read_into_struct_unchecked("nn-6b5dc1d7fff9.network") };
 
     let quantised = unquantised.quantise();
 

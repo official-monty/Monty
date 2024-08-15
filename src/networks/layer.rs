@@ -40,7 +40,10 @@ impl<const M: usize, const N: usize> Layer<f32, M, N> {
         fwd
     }
 
-    pub fn forward_from_i16<T: Activation>(&self, inputs: &Accumulator<i16, M>) -> Accumulator<f32, N> {
+    pub fn forward_from_i16<T: Activation>(
+        &self,
+        inputs: &Accumulator<i16, M>,
+    ) -> Accumulator<f32, N> {
         let mut fwd = self.biases;
 
         for (i, d) in inputs.0.iter().zip(self.weights.iter()) {
