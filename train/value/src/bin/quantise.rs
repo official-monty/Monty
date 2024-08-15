@@ -3,9 +3,8 @@ use std::io::Write;
 use monty::{read_into_struct_unchecked, UnquantisedValueNetwork, ValueNetwork};
 
 fn main() {
-    let unquantised: Box<UnquantisedValueNetwork> = unsafe {
-        read_into_struct_unchecked("nn-2eeff9457b79.network")
-    };
+    let unquantised: Box<UnquantisedValueNetwork> =
+        unsafe { read_into_struct_unchecked("nn-2eeff9457b79.network") };
 
     let quantised = unquantised.quantise();
 
