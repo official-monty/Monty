@@ -21,6 +21,16 @@ impl<T: AddAssign<T> + Copy + Mul<T, Output = T>, const N: usize> Accumulator<T,
 }
 
 impl<const N: usize> Accumulator<f32, N> {
+    pub fn dot<T: Activation>(&self, other: &Self) -> f32 {
+        let mut res = 0.0;
+
+        for (i, j) in self.0.iter().zip(other.0.iter()) {
+            res += T::activate(*i) * T::activate(*j);
+        }
+
+        res
+    }
+
     pub fn quantise(&self, qa: i16) -> Accumulator<i16, N> {
         let mut res = Accumulator([0; N]);
 
@@ -30,16 +40,6 @@ impl<const N: usize> Accumulator<f32, N> {
             }
 
             *i = (j * f32::from(qa)) as i16;
-        }
-
-        res
-    }
-
-    pub fn dot<T: Activation>(&self, other: &Self) -> f32 {
-        let mut res = 0.0;
-
-        for (i, j) in self.0.iter().zip(other.0.iter()) {
-            res += T::activate(*i) * T::activate(*j);
         }
 
         res
