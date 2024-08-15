@@ -1,6 +1,6 @@
 use crate::{boxed_and_zeroed, Board};
 
-use super::{layer::Layer, QA};
+use super::{activation::SCReLU, layer::Layer, QA};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
@@ -26,16 +26,16 @@ pub struct ValueNetwork {
 impl ValueNetwork {
     pub fn eval(&self, board: &Board) -> i32 {
         let l2 = self.l1.forward(board);
-        let l3 = self.l2.forward_from_i16(&l2);
-        let l4 = self.l3.forward(&l3);
-        let l5 = self.l4.forward(&l4);
-        let l6 = self.l5.forward(&l5);
-        let l7 = self.l6.forward(&l6);
-        let l8 = self.l7.forward(&l7);
-        let l9 = self.l8.forward(&l8);
-        let l10 = self.l9.forward(&l9);
-        let l11 = self.l10.forward(&l10);
-        let out = self.l11.forward(&l11);
+        let l3 = self.l2.forward_from_i16::<SCReLU>(&l2);
+        let l4 = self.l3.forward::<SCReLU>(&l3);
+        let l5 = self.l4.forward::<SCReLU>(&l4);
+        let l6 = self.l5.forward::<SCReLU>(&l5);
+        let l7 = self.l6.forward::<SCReLU>(&l6);
+        let l8 = self.l7.forward::<SCReLU>(&l7);
+        let l9 = self.l8.forward::<SCReLU>(&l8);
+        let l10 = self.l9.forward::<SCReLU>(&l9);
+        let l11 = self.l10.forward::<SCReLU>(&l10);
+        let out = self.l11.forward::<SCReLU>(&l11);
 
         (out.0[0] * SCALE as f32) as i32
     }
