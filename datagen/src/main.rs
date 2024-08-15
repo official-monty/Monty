@@ -5,10 +5,10 @@ fn main() {
     let mut args = std::env::args();
     args.next();
 
+    let params = MctsParams::default();
+
     let policy = unsafe { read_into_struct_unchecked(monty::PolicyFileDefaultName) };
     let value = unsafe { read_into_struct_unchecked(monty::ValueFileDefaultName) };
-
-    let params = MctsParams::default();
 
     if let Some(opts) = parse_args(args) {
         run_datagen(params, opts, &policy, &value);
