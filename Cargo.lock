@@ -140,7 +140,7 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 [[package]]
 name = "goober"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/goober.git#32b9b52e68ef03d9d706548fb21bb3c4535c4dd2"
+source = "git+https://github.com/jw1912/goober#32b9b52e68ef03d9d706548fb21bb3c4535c4dd2"
 dependencies = [
  "goober-core",
  "goober-derive",
@@ -150,12 +150,12 @@ dependencies = [
 [[package]]
 name = "goober-core"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/goober.git#32b9b52e68ef03d9d706548fb21bb3c4535c4dd2"
+source = "git+https://github.com/jw1912/goober#32b9b52e68ef03d9d706548fb21bb3c4535c4dd2"
 
 [[package]]
 name = "goober-derive"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/goober.git#32b9b52e68ef03d9d706548fb21bb3c4535c4dd2"
+source = "git+https://github.com/jw1912/goober#32b9b52e68ef03d9d706548fb21bb3c4535c4dd2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -165,7 +165,7 @@ dependencies = [
 [[package]]
 name = "goober-layer"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/goober.git#32b9b52e68ef03d9d706548fb21bb3c4535c4dd2"
+source = "git+https://github.com/jw1912/goober#32b9b52e68ef03d9d706548fb21bb3c4535c4dd2"
 dependencies = [
  "goober-core",
 ]
@@ -241,7 +241,6 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 name = "monty"
 version = "1.0.0"
 dependencies = [
- "goober",
  "rand",
  "rand_distr",
 ]
