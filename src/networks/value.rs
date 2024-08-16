@@ -1,85 +1,78 @@
-use crate::Board;
+use crate::{boxed_and_zeroed, Board};
+
+use super::{activation::SCReLU, layer::Layer, QA};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
-pub const ValueFileDefaultName: &str = "nn-2eeff9457b79.network";
+pub const ValueFileDefaultName: &str = "nn-c3e7b78c4f09.network";
 
 const SCALE: i32 = 400;
 
 #[repr(C)]
 pub struct ValueNetwork {
-    l1: Layer<{ 768 * 4 }, 2048>,
-    l2: Layer<2048, 16>,
-    l3: Layer<16, 16>,
-    l4: Layer<16, 16>,
-    l5: Layer<16, 16>,
-    l6: Layer<16, 16>,
-    l7: Layer<16, 16>,
-    l8: Layer<16, 16>,
-    l9: Layer<16, 16>,
-    l10: Layer<16, 16>,
-    l11: Layer<16, 1>,
+    l1: Layer<i16, { 768 * 4 }, 2048>,
+    l2: Layer<f32, 2048, 16>,
+    l3: Layer<f32, 16, 16>,
+    l4: Layer<f32, 16, 16>,
+    l5: Layer<f32, 16, 16>,
+    l6: Layer<f32, 16, 16>,
+    l7: Layer<f32, 16, 16>,
+    l8: Layer<f32, 16, 16>,
+    l9: Layer<f32, 16, 16>,
+    l10: Layer<f32, 16, 16>,
+    l11: Layer<f32, 16, 1>,
 }
 
 impl ValueNetwork {
     pub fn eval(&self, board: &Board) -> i32 {
-        let mut l2 = self.l1.biases;
+        let l2 = self.l1.forward(board);
+        let l3 = self.l2.forward_from_i16::<SCReLU>(&l2);
+        let l4 = self.l3.forward::<SCReLU>(&l3);
+        let l5 = self.l4.forward::<SCReLU>(&l4);
+        let l6 = self.l5.forward::<SCReLU>(&l5);
+        let l7 = self.l6.forward::<SCReLU>(&l6);
+        let l8 = self.l7.forward::<SCReLU>(&l7);
+        let l9 = self.l8.forward::<SCReLU>(&l8);
+        let l10 = self.l9.forward::<SCReLU>(&l9);
+        let l11 = self.l10.forward::<SCReLU>(&l10);
+        let out = self.l11.forward::<SCReLU>(&l11);
 
-        board.map_value_features(|feat| {
-            for (i, d) in l2.vals.iter_mut().zip(&self.l1.weights[feat].vals) {
-                *i += *d;
-            }
-        });
-
-        let l3 = self.l2.forward(&l2);
-        let l4 = self.l3.forward(&l3);
-        let l5 = self.l4.forward(&l4);
-        let l6 = self.l5.forward(&l5);
-        let l7 = self.l6.forward(&l6);
-        let l8 = self.l7.forward(&l7);
-        let l9 = self.l8.forward(&l8);
-        let l10 = self.l9.forward(&l9);
-        let l11 = self.l10.forward(&l10);
-        let out = self.l11.forward(&l11);
-
-        (out.vals[0] * SCALE as f32) as i32
+        (out.0[0] * SCALE as f32) as i32
     }
 }
 
-#[derive(Clone, Copy)]
-struct Layer<const M: usize, const N: usize> {
-    weights: [Accumulator<N>; M],
-    biases: Accumulator<N>,
-}
-
-impl<const M: usize, const N: usize> Layer<M, N> {
-    fn forward(&self, inputs: &Accumulator<M>) -> Accumulator<N> {
-        let mut fwd = self.biases;
-
-        for (i, d) in inputs.vals.iter().zip(self.weights.iter()) {
-            let act = screlu(*i);
-            fwd.madd(act, d);
-        }
-
-        fwd
-    }
-}
-
-#[inline]
-fn screlu(x: f32) -> f32 {
-    x.clamp(0.0, 1.0).powi(2)
-}
-
-#[derive(Clone, Copy)]
 #[repr(C)]
-struct Accumulator<const HIDDEN: usize> {
-    vals: [f32; HIDDEN],
+pub struct UnquantisedValueNetwork {
+    l1: Layer<f32, { 768 * 4 }, 2048>,
+    l2: Layer<f32, 2048, 16>,
+    l3: Layer<f32, 16, 16>,
+    l4: Layer<f32, 16, 16>,
+    l5: Layer<f32, 16, 16>,
+    l6: Layer<f32, 16, 16>,
+    l7: Layer<f32, 16, 16>,
+    l8: Layer<f32, 16, 16>,
+    l9: Layer<f32, 16, 16>,
+    l10: Layer<f32, 16, 16>,
+    l11: Layer<f32, 16, 1>,
 }
 
-impl<const HIDDEN: usize> Accumulator<HIDDEN> {
-    fn madd(&mut self, mul: f32, other: &Self) {
-        for (i, &j) in self.vals.iter_mut().zip(other.vals.iter()) {
-            *i += mul * j;
-        }
+impl UnquantisedValueNetwork {
+    pub fn quantise(&self) -> Box<ValueNetwork> {
+        let mut quantised: Box<ValueNetwork> = unsafe { boxed_and_zeroed() };
+
+        self.l1.quantise_into(&mut quantised.l1, QA);
+
+        quantised.l2 = self.l2;
+        quantised.l3 = self.l3;
+        quantised.l4 = self.l4;
+        quantised.l5 = self.l5;
+        quantised.l6 = self.l6;
+        quantised.l7 = self.l7;
+        quantised.l8 = self.l8;
+        quantised.l9 = self.l9;
+        quantised.l10 = self.l10;
+        quantised.l11 = self.l11;
+
+        quantised
     }
 }
