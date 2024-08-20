@@ -35,7 +35,7 @@ impl<const N: usize> Accumulator<i16, N> {
             }
 
             for &add in adds {
-                let this_weight = &weights[usize::from(add)];
+                let this_weight = &weights[add];
 
                 for (j, reg) in regs.iter_mut().enumerate() {
                     *reg += this_weight.0[offset + j];
