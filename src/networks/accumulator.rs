@@ -21,7 +21,7 @@ impl<T: AddAssign<T> + Copy + Mul<T, Output = T>, const N: usize> Accumulator<T,
 }
 
 impl<const N: usize> Accumulator<i16, N> {
-    pub fn add_multi(&mut self, adds: &[usize], weights: &[Self]) {
+    pub fn add_multi(&mut self, adds: &[usize], weights: &[Accumulator<i8, N>]) {
         const REGS: usize = 8;
         const PER: usize = REGS * 16;
 
@@ -38,7 +38,7 @@ impl<const N: usize> Accumulator<i16, N> {
                 let this_weight = &weights[add];
 
                 for (j, reg) in regs.iter_mut().enumerate() {
-                    *reg += this_weight.0[offset + j];
+                    *reg += i16::from(this_weight.0[offset + j]);
                 }
             }
 
@@ -60,7 +60,7 @@ impl<const N: usize> Accumulator<f32, N> {
         res
     }
 
-    pub fn quantise(&self, qa: i16) -> Accumulator<i16, N> {
+    pub fn quantise_i16(&self, qa: i16) -> Accumulator<i16, N> {
         let mut res = Accumulator([0; N]);
 
         for (i, &j) in res.0.iter_mut().zip(self.0.iter()) {
@@ -69,6 +69,20 @@ impl<const N: usize> Accumulator<f32, N> {
             }
 
             *i = (j * f32::from(qa)) as i16;
+        }
+
+        res
+    }
+
+    pub fn quantise_i8(&self, qa: i8) -> Accumulator<i8, N> {
+        let mut res = Accumulator([0; N]);
+
+        for (i, &j) in res.0.iter_mut().zip(self.0.iter()) {
+            if j > 1.98 {
+                println!("{j}")
+            }
+
+            *i = (j * f32::from(qa)) as i8;
         }
 
         res

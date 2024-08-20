@@ -1,16 +1,17 @@
 use crate::{boxed_and_zeroed, Board};
 
-use super::{activation::SCReLU, layer::Layer, QA};
+use super::{activation::SCReLU, layer::Layer};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
-pub const ValueFileDefaultName: &str = "nn-c3e7b78c4f09.network";
+pub const ValueFileDefaultName: &str = "quantised.network";
 
+const QA: i16 = 128;
 const SCALE: i32 = 400;
 
 #[repr(C)]
 pub struct ValueNetwork {
-    l1: Layer<i16, { 768 * 4 }, 2048>,
+    l1: Layer<i8, { 768 * 4 }, 2048>,
     l2: Layer<f32, 2048, 16>,
     l3: Layer<f32, 16, 16>,
     l4: Layer<f32, 16, 16>,
@@ -26,7 +27,7 @@ pub struct ValueNetwork {
 impl ValueNetwork {
     pub fn eval(&self, board: &Board) -> i32 {
         let l2 = self.l1.forward(board);
-        let l3 = self.l2.forward_from_i16::<SCReLU>(&l2);
+        let l3 = self.l2.forward_from_i16::<SCReLU, QA>(&l2);
         let l4 = self.l3.forward::<SCReLU>(&l3);
         let l5 = self.l4.forward::<SCReLU>(&l4);
         let l6 = self.l5.forward::<SCReLU>(&l5);
@@ -60,7 +61,7 @@ impl UnquantisedValueNetwork {
     pub fn quantise(&self) -> Box<ValueNetwork> {
         let mut quantised: Box<ValueNetwork> = unsafe { boxed_and_zeroed() };
 
-        self.l1.quantise_into(&mut quantised.l1, QA);
+        self.l1.quantise_into_i8(&mut quantised.l1, QA as i8);
 
         quantised.l2 = self.l2;
         quantised.l3 = self.l3;
