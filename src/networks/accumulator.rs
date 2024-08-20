@@ -68,7 +68,10 @@ impl<const N: usize> Accumulator<f32, N> {
                 println!("{j}")
             }
 
-            *i = (j * f32::from(qa)) as i16;
+            let unq = j * f32::from(qa);
+            *i = unq as i16;
+
+            assert_eq!(unq.trunc(), f32::from(*i));
         }
 
         res
@@ -82,7 +85,10 @@ impl<const N: usize> Accumulator<f32, N> {
                 println!("{j}")
             }
 
-            *i = (j * f32::from(qa)) as i8;
+            let unq = j * f32::from(qa);
+            *i = unq as i8;
+
+            assert_eq!(unq.trunc(), f32::from(*i));
         }
 
         res
