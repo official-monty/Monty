@@ -10,9 +10,16 @@ pub struct Layer<T: Copy, const M: usize, const N: usize> {
 
 impl<const M: usize, const N: usize> Layer<i16, M, N> {
     pub fn forward(&self, board: &Board) -> Accumulator<i16, N> {
+        let mut count = 0;
+        let mut feats = [0; 32];
+        board.map_value_features(|feat| {
+            feats[count] = feat;
+            count += 1;
+        });
+
         let mut out = self.biases;
 
-        board.map_value_features(|feat| out.add(&self.weights[feat]));
+        out.add_multi(&feats[..count], &self.weights);
 
         out
     }
