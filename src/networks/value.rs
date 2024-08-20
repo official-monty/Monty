@@ -6,7 +6,7 @@ use super::{activation::SCReLU, layer::Layer};
 #[allow(non_upper_case_globals)]
 pub const ValueFileDefaultName: &str = "quantised.network";
 
-const QA: i16 = 128;
+const QA: i16 = 64;
 const SCALE: i32 = 400;
 
 #[repr(C)]
