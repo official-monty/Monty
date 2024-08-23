@@ -1,5 +1,7 @@
 use bullet::{
-    format::{chess::BoardIter, ChessBoard}, inputs, loader, lr, optimiser, outputs, wdl, Activation, LocalSettings, Loss, TrainerBuilder, TrainingSchedule
+    format::{chess::BoardIter, ChessBoard},
+    inputs, loader, lr, optimiser, outputs, wdl, Activation, LocalSettings, Loss, TrainerBuilder,
+    TrainingSchedule,
 };
 use monty::Board;
 
