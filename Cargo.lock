@@ -49,7 +49,7 @@ checksum = "cf4b9d6a944f767f8e5e0db018570623c85f3d925ac718db4e06d0187adb21c1"
 [[package]]
 name = "bullet_lib"
 version = "1.0.0"
-source = "git+https://github.com/jw1912/bullet#630c9622b93dbee045524bd61b977618bd184f96"
+source = "git+https://github.com/jw1912/bullet#f39de09c7c9f9f7634b8cf6977df7c02efe0fa74"
 dependencies = [
  "bindgen",
  "bulletformat",
@@ -60,9 +60,9 @@ dependencies = [
 
 [[package]]
 name = "bulletformat"
-version = "1.6.0"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e25220aef4d4194f3091b7cd93641d7e324063b287c351664e48cf19edbd42de"
+checksum = "e5261a2681e729de3d341e007d038465ee3cacb62ee87487e0b3dbeb31aec3c2"
 
 [[package]]
 name = "cc"
