@@ -1,7 +1,5 @@
 use bullet::{
-    format::{chess::BoardIter, ChessBoard},
-    inputs, outputs, Activation, LocalSettings, Loss, LrScheduler, TrainerBuilder,
-    TrainingSchedule, WdlScheduler,
+    format::{chess::BoardIter, ChessBoard}, inputs, loader, lr, optimiser, outputs, wdl, Activation, LocalSettings, Loss, TrainerBuilder, TrainingSchedule
 };
 use monty::Board;
 
@@ -9,6 +7,7 @@ const HIDDEN_SIZE: usize = 2048;
 
 fn main() {
     let mut trainer = TrainerBuilder::default()
+        .optimiser(optimiser::AdamW)
         .single_perspective()
         .input(ThreatInputs)
         .output_buckets(outputs::Single)
@@ -43,23 +42,32 @@ fn main() {
         batches_per_superbatch: 6104,
         start_superbatch: 1,
         end_superbatch: 1200,
-        wdl_scheduler: WdlScheduler::Constant { value: 0.5 },
-        lr_scheduler: LrScheduler::Step {
+        wdl_scheduler: wdl::ConstantWDL { value: 0.5 },
+        lr_scheduler: lr::StepLR {
             start: 0.001,
             gamma: 0.1,
             step: 300,
         },
         loss_function: Loss::SigmoidMSE,
         save_rate: 10,
+        optimiser_settings: optimiser::AdamWParams {
+            decay: 0.01,
+            beta1: 0.9,
+            beta2: 0.999,
+            min_weight: -1.98,
+            max_weight: 1.98,
+        },
     };
 
     let settings = LocalSettings {
         threads: 8,
-        data_file_paths: vec!["../monty-data/12-08-24.data"],
+        test_set: None,
         output_directory: "checkpoints",
     };
 
-    trainer.run(&schedule, &settings);
+    let data_loader = loader::DirectSequentialDataLoader::new(&["../monty-data/12-08-24.data"]);
+
+    trainer.run(&schedule, &settings, &data_loader);
 
     for fen in [
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -109,7 +117,7 @@ impl inputs::InputType for ThreatInputs {
             bb[usize::from(2 + (pc & 7))] ^= bit;
         }
 
-        let board = Board::from_raw(bb, false, 0, 0, 0);
+        let board = Board::from_raw(bb, false, 0, 0, 0, 1);
 
         let threats = board.threats_by(1);
         let defences = board.threats_by(0);
