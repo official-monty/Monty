@@ -81,11 +81,11 @@ impl<const N: usize> Accumulator<f32, N> {
         let mut res = Accumulator([0; N]);
 
         for (i, &j) in res.0.iter_mut().zip(self.0.iter()) {
-            if j.abs() > 1.16 {
+            if j.abs() > 0.99 {
                 println!("{j}")
             }
 
-            let unq = j.clamp(-1.16, 1.16) * f32::from(qa);
+            let unq = j * f32::from(qa);
             *i = unq as i8;
 
             assert_eq!(unq.trunc(), f32::from(*i));
