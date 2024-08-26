@@ -1,10 +1,10 @@
 use crate::{boxed_and_zeroed, Board};
 
-use super::{activation::SCReLU, layer::Layer};
+use super::{activation::SCReLU, layer::{Layer, TransposedLayer}};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
-pub const ValueFileDefaultName: &str = "nn-341a3b6ddb52.network";
+pub const ValueFileDefaultName: &str = "nn-70655825d9f7.network";
 
 const QA: i16 = 512;
 const SCALE: i32 = 400;
@@ -12,7 +12,7 @@ const SCALE: i32 = 400;
 #[repr(C)]
 pub struct ValueNetwork {
     l1: Layer<i16, { 768 * 4 }, 2048>,
-    l2: Layer<i16, 2048, 16>,
+    l2: TransposedLayer<i16, 2048, 16>,
     l3: Layer<f32, 16, 128>,
     l4: Layer<f32, 128, 1>,
 }
@@ -41,7 +41,7 @@ impl UnquantisedValueNetwork {
         let mut quantised: Box<ValueNetwork> = unsafe { boxed_and_zeroed() };
 
         self.l1.quantise_into_i16(&mut quantised.l1, QA);
-        self.l2.quantise_into_i16(&mut quantised.l2, QA);
+        self.l2.quantise_transpose_into_i16(&mut quantised.l2, QA);
 
         quantised.l3 = self.l3;
         quantised.l4 = self.l4;
