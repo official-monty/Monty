@@ -104,11 +104,11 @@ pub struct TransposedLayer<T: Copy, const M: usize, const N: usize> {
 }
 
 impl<const M: usize, const N: usize> TransposedLayer<i16, M, N> {
-    pub fn forward_from_i16<T: Activation, const QA: i16>(
+    pub fn forward_from_i16<T: Activation, const QA: i16, const QB: i16>(
         &self,
         inputs: &Accumulator<i16, M>,
     ) -> Accumulator<f32, N> {
-        const FACTOR: i16 = 16;
+        const FACTOR: i16 = 32;
 
         let mut act = [0; M];
 
@@ -127,7 +127,7 @@ impl<const M: usize, const N: usize> TransposedLayer<i16, M, N> {
         let mut res = [0.0; N];
 
         for (r, (&f, &b)) in res.iter_mut().zip(fwd.iter().zip(self.biases.0.iter())) {
-            *r = (f as f32 / f32::from(QA * FACTOR) + f32::from(b)) / f32::from(QA);
+            *r = (f as f32 / f32::from(QA * FACTOR) + f32::from(b)) / f32::from(QB);
         }
 
         Accumulator(res)
