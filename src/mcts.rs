@@ -373,7 +373,12 @@ impl<'a> Searcher<'a> {
             let mut q = SearchHelpers::get_action_value(action, fpu);
 
             if !action.ptr().is_null() {
-                q -= self.params.virtual_loss() * f32::from(self.tree[action.ptr()].threads());
+                let threads = f64::from(self.tree[action.ptr()].threads());
+                if threads > 0.0 {
+                    let visits = f64::from(action.visits());
+                    let q2 = f64::from(q) * visits / (visits + threads);
+                    q = q2 as f32;
+                }
             }
 
             let u = expl * action.policy() / (1 + action.visits()) as f32;
