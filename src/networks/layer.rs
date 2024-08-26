@@ -38,26 +38,20 @@ impl<const M: usize, const N: usize> Layer<i16, M, N> {
         &self,
         inputs: &Accumulator<i16, M>,
     ) -> Accumulator<f32, N> {
-        let mut fwd = {
-            let mut bias = [0.0; N];
-
-            for (i, &j) in bias.iter_mut().zip(self.biases.0.iter()) {
-                *i = f32::from(j);
-            }
-            
-            Accumulator(bias)
-        };
+        let mut fwd = Accumulator([0; N]);
 
         for (i, d) in inputs.0.iter().zip(self.weights.iter()) {
-            let act = T::activate(f32::from(*i) / f32::from(QA));
+            let act = i32::from(*i).clamp(0, i32::from(QA)).pow(2) / i32::from(QA);
             fwd.madd_i16(act, d);
         }
 
-        for f in fwd.0.iter_mut() {
-            *f /= f32::from(QA);
+        let mut res = [0.0; N];
+
+        for (r, (&f, &b)) in res.iter_mut().zip(fwd.0.iter().zip(self.biases.0.iter())) {
+            *r = (f as f32 / f32::from(QA) + f32::from(b)) / f32::from(QA);
         }
 
-        fwd
+        Accumulator(res)
     }
 }
 

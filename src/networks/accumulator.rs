@@ -20,6 +20,14 @@ impl<T: AddAssign<T> + Copy + Mul<T, Output = T>, const N: usize> Accumulator<T,
     }
 }
 
+impl<T: AddAssign<T> + Copy + Mul<T, Output = T> + From<i16>, const N: usize> Accumulator<T, N> {
+    pub fn madd_i16(&mut self, mul: T, other: &Accumulator<i16, N>) {
+        for (i, &j) in self.0.iter_mut().zip(other.0.iter()) {
+            *i += mul * T::from(j);
+        }
+    }
+}
+
 impl<const N: usize> Accumulator<i16, N> {
     pub fn add_multi(&mut self, adds: &[usize], weights: &[Self]) {
         const REGS: usize = 8;
@@ -75,11 +83,5 @@ impl<const N: usize> Accumulator<f32, N> {
         }
 
         res
-    }
-
-    pub fn madd_i16(&mut self, mul: f32, other: &Accumulator<i16, N>) {
-        for (i, &j) in self.0.iter_mut().zip(other.0.iter()) {
-            *i += mul * f32::from(j);
-        }
     }
 }
