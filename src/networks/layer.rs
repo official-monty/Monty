@@ -79,7 +79,7 @@ impl<const M: usize, const N: usize> Layer<f32, M, N> {
         dest.biases = self.biases.quantise_i16(qa);
     }
 
-    pub fn quantise_into_i8(&self, dest: &mut Layer<i8, M, N>, qa: i8) {
+    pub fn quantise_into_i8(&self, dest: &mut Layer<i8, M, N>, qa: i16) {
         for (acc_i, acc_j) in dest.weights.iter_mut().zip(self.weights.iter()) {
             *acc_i = acc_j.quantise_i8(qa);
         }

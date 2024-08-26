@@ -4,9 +4,9 @@ use super::{activation::SCReLU, layer::Layer};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
-pub const ValueFileDefaultName: &str = "nn-fb9b3c6159b1.network";
+pub const ValueFileDefaultName: &str = "nn-19cc52a719f4.network";
 
-const QA: i16 = 110;
+const QA: i16 = 128;
 const SCALE: i32 = 400;
 
 #[repr(C)]
@@ -40,7 +40,7 @@ impl UnquantisedValueNetwork {
     pub fn quantise(&self) -> Box<ValueNetwork> {
         let mut quantised: Box<ValueNetwork> = unsafe { boxed_and_zeroed() };
 
-        self.l1.quantise_into_i8(&mut quantised.l1, QA as i8);
+        self.l1.quantise_into_i8(&mut quantised.l1, QA);
 
         quantised.l2 = self.l2;
         quantised.l3 = self.l3;
