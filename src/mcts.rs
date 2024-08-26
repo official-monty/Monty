@@ -371,7 +371,7 @@ impl<'a> Searcher<'a> {
 
         self.tree.get_best_child_by_key(ptr, |action| {
             let mut q = SearchHelpers::get_action_value(action, fpu);
-            
+
             if !action.ptr().is_null() {
                 q -= self.params.virtual_loss() * f32::from(self.tree[action.ptr()].threads());
             }
