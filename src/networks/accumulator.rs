@@ -68,12 +68,12 @@ impl<const N: usize> Accumulator<f32, N> {
         res
     }
 
-    pub fn quantise_i16(&self, qa: i16) -> Accumulator<i16, N> {
+    pub fn quantise_i16(&self, qa: i16, warn_limit: f32) -> Accumulator<i16, N> {
         let mut res = Accumulator([0; N]);
 
         for (i, &j) in res.0.iter_mut().zip(self.0.iter()) {
-            if j > 1.98 {
-                println!("{j}")
+            if j.abs() > warn_limit {
+                println!("WARNING: {j} > {warn_limit}")
             }
 
             let unq = j * f32::from(qa);

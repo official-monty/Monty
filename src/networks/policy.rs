@@ -71,7 +71,7 @@ struct UnquantisedSubNet {
 impl UnquantisedSubNet {
     fn quantise(&self, qa: i16) -> SubNet {
         SubNet {
-            ft: self.ft.quantise_i16(qa),
+            ft: self.ft.quantise_i16(qa, 1.98),
             l2: self.l2,
         }
     }
