@@ -108,10 +108,12 @@ impl<const M: usize, const N: usize> TransposedLayer<i16, M, N> {
         &self,
         inputs: &Accumulator<i16, M>,
     ) -> Accumulator<f32, N> {
+        const FACTOR: i16 = 16;
+
         let mut act = [0; M];
 
         for (a, &i) in act.iter_mut().zip(inputs.0.iter()) {
-            *a = (i32::from(i).clamp(0, i32::from(QA)).pow(2) / i32::from(QA)) as i16;
+            *a = (i32::from(i).clamp(0, i32::from(QA)).pow(2) / i32::from(QA / FACTOR)) as i16;
         }
 
         let mut fwd = [0; N];
@@ -125,7 +127,7 @@ impl<const M: usize, const N: usize> TransposedLayer<i16, M, N> {
         let mut res = [0.0; N];
 
         for (r, (&f, &b)) in res.iter_mut().zip(fwd.iter().zip(self.biases.0.iter())) {
-            *r = (f as f32 / f32::from(QA) + f32::from(b)) / f32::from(QA);
+            *r = (f as f32 / f32::from(QA * FACTOR) + f32::from(b)) / f32::from(QA);
         }
 
         Accumulator(res)
