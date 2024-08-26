@@ -8,7 +8,7 @@ pub struct Layer<T: Copy, const M: usize, const N: usize> {
     biases: Accumulator<T, N>,
 }
 
-impl<const M: usize, const N: usize> Layer<i8, M, N> {
+impl<const M: usize, const N: usize> Layer<i16, M, N> {
     pub fn forward(&self, board: &Board) -> Accumulator<i16, N> {
         let mut count = 0;
         let mut feats = [0; 32];
@@ -17,23 +17,13 @@ impl<const M: usize, const N: usize> Layer<i8, M, N> {
             count += 1;
         });
 
-        let mut out = {
-            let mut bias = [0; N];
-
-            for (val, &weight) in bias.iter_mut().zip(self.biases.0.iter()) {
-                *val = i16::from(weight);
-            }
-
-            Accumulator(bias)
-        };
+        let mut out = self.biases;
 
         out.add_multi(&feats[..count], &self.weights);
 
         out
     }
-}
 
-impl<const M: usize, const N: usize> Layer<i16, M, N> {
     pub fn forward_from_slice(&self, feats: &[usize]) -> Accumulator<i16, N> {
         let mut out = self.biases;
 
@@ -42,6 +32,32 @@ impl<const M: usize, const N: usize> Layer<i16, M, N> {
         }
 
         out
+    }
+
+    pub fn forward_from_i16<T: Activation, const QA: i16>(
+        &self,
+        inputs: &Accumulator<i16, M>,
+    ) -> Accumulator<f32, N> {
+        let mut fwd = {
+            let mut bias = [0.0; N];
+
+            for (i, &j) in bias.iter_mut().zip(self.biases.0.iter()) {
+                *i = f32::from(j);
+            }
+            
+            Accumulator(bias)
+        };
+
+        for (i, d) in inputs.0.iter().zip(self.weights.iter()) {
+            let act = T::activate(f32::from(*i) / f32::from(QA));
+            fwd.madd_i16(act, d);
+        }
+
+        for f in fwd.0.iter_mut() {
+            *f /= f32::from(QA);
+        }
+
+        fwd
     }
 }
 
@@ -77,14 +93,6 @@ impl<const M: usize, const N: usize> Layer<f32, M, N> {
         }
 
         dest.biases = self.biases.quantise_i16(qa);
-    }
-
-    pub fn quantise_into_i8(&self, dest: &mut Layer<i8, M, N>, qa: i16) {
-        for (acc_i, acc_j) in dest.weights.iter_mut().zip(self.weights.iter()) {
-            *acc_i = acc_j.quantise_i8(qa);
-        }
-
-        dest.biases = self.biases.quantise_i8(qa);
     }
 
     pub fn quantise_i16(&self, qa: i16) -> Layer<i16, M, N> {
