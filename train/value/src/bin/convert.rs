@@ -28,7 +28,7 @@ fn main() {
     let mut games = 0;
 
     loop {
-        let err = Binpack::deserialise_map(&mut reader, |board, castling, mov, score, result| {
+        let err = Binpack::deserialise_map(&mut reader, |board, _mov, score, result| {
             let mut write = true;
 
             //if board.in_check() {
@@ -64,8 +64,6 @@ fn main() {
             if positions % 4194304 == 0 {
                 println!("Processed: {positions}");
             }
-
-            board.make(mov, castling);
         });
 
         if err.is_err() {

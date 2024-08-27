@@ -86,7 +86,7 @@ impl Binpack {
 
     pub fn deserialise_map<F>(reader: &mut impl std::io::BufRead, mut f: F) -> std::io::Result<()>
     where
-        F: FnMut(&mut Board, &Castling, Move, i16, f32),
+        F: FnMut(&Board, Move, i16, f32),
     {
         let mut startpos = [0; std::mem::size_of::<CompressedChessBoard>()];
         reader.read_exact(&mut startpos)?;
@@ -107,10 +107,12 @@ impl Binpack {
                 break;
             }
 
-            let mov = u16::from_le_bytes([buf[0], buf[1]]);
+            let mov = u16::from_le_bytes([buf[0], buf[1]]).into();
             let score = i16::from_le_bytes([buf[2], buf[3]]);
 
-            f(&mut board, &castling, mov.into(), score, result);
+            f(&board, mov, score, result);
+
+            board.make(mov, &castling)
         }
 
         Ok(())
