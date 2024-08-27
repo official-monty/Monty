@@ -34,8 +34,10 @@ impl DataLoader {
                 if shuffle_buffer.len() + reusable_buffer.len() < shuffle_buffer.capacity() {
                     shuffle_buffer.extend_from_slice(&reusable_buffer);
                 } else {
+                    println!("#[Shuffling]");
                     shuffle(&mut shuffle_buffer);
 
+                    println!("#[Running Batches]");
                     for batch in shuffle_buffer.chunks(self.batch_size) {
                         let should_break = f(batch);
 
@@ -44,6 +46,8 @@ impl DataLoader {
                         }
                     }
 
+                    println!();
+                    println!("#[Clearing Buffer]");
                     shuffle_buffer.clear();
                 }
             }  
@@ -68,7 +72,7 @@ fn parse_into_buffer(game: MontyFormat, buffer: &mut Vec<PolicyData>){
 
     for data in game.moves {
         if (data.score - 0.5).abs() > 0.49 {
-            continue;
+            
         } else if let Some(dist) = data.visit_distribution.as_ref() {
             if dist.len() < 112 {
                 let board = Board::from_raw(
