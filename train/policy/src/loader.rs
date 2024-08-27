@@ -47,7 +47,6 @@ impl DataLoader {
                     }
 
                     println!();
-                    println!("#[Clearing Buffer]");
                     shuffle_buffer.clear();
                 }
             }  

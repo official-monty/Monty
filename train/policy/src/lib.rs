@@ -5,7 +5,7 @@ use arch::PolicyNetwork;
 use datagen::PolicyData;
 use loader::DataLoader;
 
-use std::io::Write;
+use std::{io::Write, time::Instant};
 
 const BATCH_SIZE: usize = 16_384;
 const BPSB: usize = 1024;
@@ -29,6 +29,8 @@ pub fn train(
 
     let data_loader = DataLoader::new(data_path.as_str(), buffer_size_mb, BATCH_SIZE);
 
+    let mut t = Instant::now();
+
     data_loader.map_batches(|batch| {
         let mut grad = PolicyNetwork::boxed_and_zeroed();
         running_error += gradient_batch(threads, &policy, &mut grad, batch);
@@ -44,11 +46,26 @@ pub fn train(
         let _ = std::io::stdout().flush();
 
         if batch_no % BPSB == 0 {
+            let elapsed = t.elapsed().as_secs_f32();
+            t = Instant::now();
+
             sb += 1;
             println!(
-                "> Superbatch {sb}/{superbatches} Running Loss {}",
-                running_error / (BPSB * BATCH_SIZE) as f32
+                "> Superbatch {sb}/{superbatches} Running Loss {} Time {:.2}s",
+                running_error / (BPSB * BATCH_SIZE) as f32,
+                elapsed,
             );
+
+            let mut seconds_left = ((superbatches - sb) as f32 * elapsed) as u64;
+            let mut minutes_left = seconds_left / 60;
+            seconds_left -= minutes_left * 60;
+            let hours_left = minutes_left / 60;
+            minutes_left -= hours_left * 60;
+
+            println!(
+                "Estimated {hours_left}h {minutes_left}m {seconds_left}s Left in Training",
+            );
+
             running_error = 0.0;
 
             if sb % lr_drop == 0 {
