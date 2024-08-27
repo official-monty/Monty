@@ -117,4 +117,28 @@ impl Binpack {
 
         Ok(())
     }
+
+    pub fn deserialise_fast_into_buffer(reader: &mut impl std::io::BufRead, buffer: &mut Vec<u8>) -> std::io::Result<()> {
+        buffer.clear();
+
+        let mut startpos = [0; std::mem::size_of::<CompressedChessBoard>()];
+        reader.read_exact(&mut startpos)?;
+        buffer.extend_from_slice(&startpos);
+
+        let mut result = [0];
+        reader.read_exact(&mut result)?;
+        buffer.extend_from_slice(&result);
+
+        loop {
+            let mut buf = [0; 4];
+            reader.read_exact(&mut buf)?;
+            buffer.extend_from_slice(&buf);
+
+            if buf == [0; 4] {
+                break;
+            }
+        }
+
+        Ok(())
+    }
 }
