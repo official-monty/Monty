@@ -49,7 +49,7 @@ impl DataLoader {
                     println!();
                     shuffle_buffer.clear();
                 }
-            }  
+            }
         }
     }
 }
@@ -63,7 +63,7 @@ fn shuffle(data: &mut [PolicyData]) {
     }
 }
 
-fn parse_into_buffer(game: MontyFormat, buffer: &mut Vec<PolicyData>){
+fn parse_into_buffer(game: MontyFormat, buffer: &mut Vec<PolicyData>) {
     buffer.clear();
 
     let mut pos = game.startpos;
@@ -71,7 +71,6 @@ fn parse_into_buffer(game: MontyFormat, buffer: &mut Vec<PolicyData>){
 
     for data in game.moves {
         if (data.score - 0.5).abs() > 0.49 {
-            
         } else if let Some(dist) = data.visit_distribution.as_ref() {
             if dist.len() < 112 {
                 let board = Board::from_raw(

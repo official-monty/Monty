@@ -1,4 +1,7 @@
-use std::{fs::File, io::{BufReader, BufWriter, Write}};
+use std::{
+    fs::File,
+    io::{BufReader, BufWriter, Write},
+};
 
 use montyformat::MontyFormat;
 
@@ -7,7 +10,6 @@ fn main() -> std::io::Result<()> {
         "../binpacks/policygen4.binpack",
         "../binpacks/policygen4-dfrc.binpack",
         "../binpacks/policygen6.binpack",
-
     ];
     let output = "interleaved.binpack";
 
@@ -20,8 +22,7 @@ fn main() -> std::io::Result<()> {
     let mut writer = BufWriter::new(target);
 
     for path in &inputs {
-        let file =
-            File::open(path)?;
+        let file = File::open(path)?;
 
         let count = file.metadata()?.len();
 
@@ -48,7 +49,7 @@ fn main() -> std::io::Result<()> {
         }
 
         let (count, reader) = &mut streams[idx];
-        
+
         MontyFormat::deserialise_fast_into_buffer(reader, &mut buffer)?;
         writer.write_all(&buffer)?;
 
@@ -63,7 +64,10 @@ fn main() -> std::io::Result<()> {
         if remaining / INTERVAL < prev {
             prev = remaining / INTERVAL;
             let written = total - remaining;
-            print!("Written {written}/{total} Bytes ({:.2}%)\r", written as f64 / total as f64 * 100.0);
+            print!(
+                "Written {written}/{total} Bytes ({:.2}%)\r",
+                written as f64 / total as f64 * 100.0
+            );
             let _ = std::io::stdout().flush();
         }
     }
@@ -88,8 +92,8 @@ impl Default for RandU64 {
 impl RandU64 {
     fn rand(&mut self) -> u64 {
         self.0 ^= self.0 << 13;
-	    self.0 ^= self.0 >> 7;
-	    self.0 ^= self.0 << 17;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
         self.0
     }
 }

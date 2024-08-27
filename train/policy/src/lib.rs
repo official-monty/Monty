@@ -62,9 +62,7 @@ pub fn train(
             let hours_left = minutes_left / 60;
             minutes_left -= hours_left * 60;
 
-            println!(
-                "Estimated {hours_left}h {minutes_left}m {seconds_left}s Left in Training",
-            );
+            println!("Estimated {hours_left}h {minutes_left}m {seconds_left}s Left in Training",);
 
             running_error = 0.0;
 
