@@ -1,6 +1,9 @@
 use crate::{boxed_and_zeroed, Board};
 
-use super::{activation::SCReLU, layer::{Layer, TransposedLayer}};
+use super::{
+    activation::SCReLU,
+    layer::{Layer, TransposedLayer},
+};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
@@ -44,7 +47,8 @@ impl UnquantisedValueNetwork {
         let mut quantised: Box<ValueNetwork> = unsafe { boxed_and_zeroed() };
 
         self.l1.quantise_into_i16(&mut quantised.l1, QA, 0.99);
-        self.l2.quantise_transpose_into_i16(&mut quantised.l2, QB, 0.99);
+        self.l2
+            .quantise_transpose_into_i16(&mut quantised.l2, QB, 0.99);
 
         quantised.l3 = self.l3;
         quantised.l4 = self.l4;

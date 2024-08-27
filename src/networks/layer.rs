@@ -80,7 +80,12 @@ impl<const M: usize, const N: usize> Layer<f32, M, N> {
         res
     }
 
-    pub fn quantise_transpose_into_i16(&self, dest: &mut TransposedLayer<i16, M, N>, qa: i16, warn_limit: f32) {
+    pub fn quantise_transpose_into_i16(
+        &self,
+        dest: &mut TransposedLayer<i16, M, N>,
+        qa: i16,
+        warn_limit: f32,
+    ) {
         let mut untrans = [Accumulator([0; N]); M];
 
         for (acc_i, acc_j) in untrans.iter_mut().zip(self.weights.iter()) {
