@@ -37,9 +37,10 @@ impl DataLoader<ChessBoard> for BinpackLoader {
             let mut reader = BufReader::new(File::open(self.file_path[0].as_str()).unwrap());
 
             loop {
-                let err = Binpack::deserialise_map(&mut reader, |board, _mov, score, result| {        
+                let err = Binpack::deserialise_map(&mut reader, |board, _mov, score, result| {
                     if !(should_break || score == i16::MIN || score.abs() > 2000) {
-                        let position = ChessBoard::from_raw(board.bbs(), board.stm(), score, result).unwrap();
+                        let position =
+                            ChessBoard::from_raw(board.bbs(), board.stm(), score, result).unwrap();
                         shuffle_buffer.push(position);
                     }
 

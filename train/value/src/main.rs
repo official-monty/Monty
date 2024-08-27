@@ -2,8 +2,7 @@ mod input;
 mod loader;
 
 use bullet::{
-    lr, optimiser, outputs, wdl, Activation, LocalSettings, Loss, TrainerBuilder,
-    TrainingSchedule,
+    lr, optimiser, outputs, wdl, Activation, LocalSettings, Loss, TrainerBuilder, TrainingSchedule,
 };
 
 const HIDDEN_SIZE: usize = 2048;
