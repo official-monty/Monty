@@ -8,4 +8,4 @@ authors = ["Jamie Whiting"]
 datagen = { path = "../../datagen" }
 monty = { path = "../../" }
 goober = { git = 'https://github.com/jw1912/goober' }
-montyformat = { git = 'https://github.com/official-monty/montyformat.git', tag = "v0.1.0" }
+montyformat = { git = 'https://github.com/official-monty/montyformat.git', tag = "v0.2.0" }

@@ -243,8 +243,8 @@ version = "1.0.0"
 
 [[package]]
 name = "montyformat"
-version = "0.1.0"
-source = "git+https://github.com/official-monty/montyformat.git?tag=v0.1.0#905ed0236c67adc0fcd902af6e54fe69fe117d20"
+version = "0.2.0"
+source = "git+https://github.com/official-monty/montyformat.git?tag=v0.2.0#85983d36812445666879b11f01eb3173a88d61cd"
 
 [[package]]
 name = "nom"

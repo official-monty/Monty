@@ -3,15 +3,14 @@ use std::{
     io::{BufReader, BufWriter, Write},
 };
 
-use montyformat::MontyFormat;
+use datagen::Binpack;
 
 fn main() -> std::io::Result<()> {
     let inputs = [
-        "../binpacks/policygen4.binpack",
-        "../binpacks/policygen4-dfrc.binpack",
-        "../binpacks/policygen6.binpack",
+        "../binpacks/bestmove-q.binpack",
+        "../binpacks/root-q.binpack",
     ];
-    let output = "interleaved.binpack";
+    let output = "interleaved-value.binpack";
 
     println!("Writing to {:#?}", output);
     println!("Reading from:\n{:#?}", inputs);
@@ -50,7 +49,7 @@ fn main() -> std::io::Result<()> {
 
         let (count, reader) = &mut streams[idx];
 
-        MontyFormat::deserialise_fast_into_buffer(reader, &mut buffer)?;
+        Binpack::deserialise_fast_into_buffer(reader, &mut buffer)?;
         writer.write_all(&buffer)?;
 
         let size = buffer.len() as u64;

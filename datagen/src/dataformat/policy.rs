@@ -3,6 +3,7 @@ use super::CompressedChessBoard;
 use monty::{ChessState, Move};
 
 #[repr(C)]
+#[derive(Clone)]
 pub struct PolicyData {
     pub pos: CompressedChessBoard,
     pub moves: [(u16, u16); 112],

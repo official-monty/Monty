@@ -2,7 +2,7 @@ use datagen::{PolicyData, Rand};
 use goober::{activation, layer, FeedForwardNetwork, Matrix, OutputLayer, SparseVector, Vector};
 use monty::{Board, Move};
 
-use crate::TrainablePolicy;
+use std::io::Write;
 
 #[repr(C)]
 #[derive(Clone, Copy, FeedForwardNetwork)]
@@ -12,13 +12,6 @@ pub struct SubNet {
 }
 
 impl SubNet {
-    pub const fn zeroed() -> Self {
-        Self {
-            ft: layer::SparseConnected::zeroed(),
-            l2: layer::DenseConnected::zeroed(),
-        }
-    }
-
     pub fn from_fn<F: FnMut() -> f32>(mut f: F) -> Self {
         let matrix = Matrix::from_fn(|_, _| f());
         let vector = Vector::from_fn(|_| f());
@@ -41,30 +34,6 @@ pub struct PolicyNetwork {
 }
 
 impl PolicyNetwork {
-    pub const fn zeroed() -> Self {
-        Self {
-            subnets: [[SubNet::zeroed(); 2]; 448],
-            hce: layer::DenseConnected::zeroed(),
-        }
-    }
-
-    pub fn get(&self, pos: &Board, mov: &Move, feats: &SparseVector, threats: u64) -> f32 {
-        let flip = pos.flip_val();
-        let pc = pos.get_pc(1 << mov.src()) - 1;
-
-        let from_threat = usize::from(threats & (1 << mov.src()) > 0);
-        let from_subnet = &self.subnets[usize::from(mov.src() ^ flip)][from_threat];
-        let from_vec = from_subnet.out(feats);
-
-        let good_see = usize::from(pos.see(mov, -108));
-        let to_subnet = &self.subnets[64 * pc + usize::from(mov.to() ^ flip)][good_see];
-        let to_vec = to_subnet.out(feats);
-
-        let hce = self.hce.out(&Self::get_hce_feats(pos, mov))[0];
-
-        from_vec.dot(&to_vec) + hce
-    }
-
     pub fn get_hce_feats(_: &Board, mov: &Move) -> Vector<4> {
         let mut feats = Vector::zeroed();
 
@@ -74,12 +43,8 @@ impl PolicyNetwork {
 
         feats
     }
-}
 
-impl TrainablePolicy for PolicyNetwork {
-    type Data = PolicyData;
-
-    fn update(
+    pub fn update(
         policy: &mut Self,
         grad: &Self,
         adj: f32,
@@ -104,7 +69,7 @@ impl TrainablePolicy for PolicyNetwork {
             .adam(&grad.hce, &mut momentum.hce, &mut velocity.hce, adj, lr);
     }
 
-    fn update_single_grad(pos: &Self::Data, policy: &Self, grad: &mut Self, error: &mut f32) {
+    pub fn update_single_grad(pos: &PolicyData, policy: &Self, grad: &mut Self, error: &mut f32) {
         let board = Board::from(pos.pos);
 
         let mut feats = SparseVector::with_capacity(32);
@@ -186,7 +151,7 @@ impl TrainablePolicy for PolicyNetwork {
         }
     }
 
-    fn rand_init() -> Box<Self> {
+    pub fn rand_init() -> Box<Self> {
         let mut policy = Self::boxed_and_zeroed();
 
         let mut rng = Rand::with_seed();
@@ -199,7 +164,7 @@ impl TrainablePolicy for PolicyNetwork {
         policy
     }
 
-    fn add_without_explicit_lifetime(&mut self, rhs: &Self) {
+    pub fn add_without_explicit_lifetime(&mut self, rhs: &Self) {
         for (ipair, jpair) in self.subnets.iter_mut().zip(rhs.subnets.iter()) {
             for (i, j) in ipair.iter_mut().zip(jpair.iter()) {
                 *i += j;
@@ -207,5 +172,29 @@ impl TrainablePolicy for PolicyNetwork {
         }
 
         self.hce += &rhs.hce;
+    }
+
+    pub fn boxed_and_zeroed() -> Box<Self> {
+        unsafe {
+            let layout = std::alloc::Layout::new::<Self>();
+            let ptr = std::alloc::alloc_zeroed(layout);
+            if ptr.is_null() {
+                std::alloc::handle_alloc_error(layout);
+            }
+            Box::from_raw(ptr.cast())
+        }
+    }
+
+    pub fn write_to_bin(&self, path: &str) {
+        let size_of = std::mem::size_of::<Self>();
+
+        let mut file = std::fs::File::create(path).unwrap();
+
+        unsafe {
+            let ptr: *const Self = self;
+            let slice_ptr: *const u8 = std::mem::transmute(ptr);
+            let slice = std::slice::from_raw_parts(slice_ptr, size_of);
+            file.write_all(slice).unwrap();
+        }
     }
 }
