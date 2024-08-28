@@ -387,11 +387,16 @@ impl<'a> Searcher<'a> {
         let expl = cpuct * expl_scale;
 
         self.tree.get_best_child_by_key(ptr, |action| {
-            let q = if !action.ptr().is_null() && self.tree[action.ptr()].threads() > 0 {
-                0.0
-            } else {
-                SearchHelpers::get_action_value(action, fpu)
-            };
+            let mut q = SearchHelpers::get_action_value(action, fpu);
+
+            if !action.ptr().is_null() {
+                let threads = f64::from(self.tree[action.ptr()].threads());
+                if threads > 0.0 {
+                    let visits = f64::from(action.visits());
+                    let q2 = f64::from(q) * visits / (visits + threads);
+                    q = q2 as f32;
+                }
+            }
 
             let u = expl * action.policy() / (1 + action.visits()) as f32;
 

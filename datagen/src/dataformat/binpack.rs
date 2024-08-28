@@ -86,7 +86,7 @@ impl Binpack {
 
     pub fn deserialise_map<F>(reader: &mut impl std::io::BufRead, mut f: F) -> std::io::Result<()>
     where
-        F: FnMut(&mut Board, &Castling, Move, i16, f32),
+        F: FnMut(&Board, Move, i16, f32),
     {
         let mut startpos = [0; std::mem::size_of::<CompressedChessBoard>()];
         reader.read_exact(&mut startpos)?;
@@ -107,10 +107,39 @@ impl Binpack {
                 break;
             }
 
-            let mov = u16::from_le_bytes([buf[0], buf[1]]);
+            let mov = u16::from_le_bytes([buf[0], buf[1]]).into();
             let score = i16::from_le_bytes([buf[2], buf[3]]);
 
-            f(&mut board, &castling, mov.into(), score, result);
+            f(&board, mov, score, result);
+
+            board.make(mov, &castling)
+        }
+
+        Ok(())
+    }
+
+    pub fn deserialise_fast_into_buffer(
+        reader: &mut impl std::io::BufRead,
+        buffer: &mut Vec<u8>,
+    ) -> std::io::Result<()> {
+        buffer.clear();
+
+        let mut startpos = [0; std::mem::size_of::<CompressedChessBoard>()];
+        reader.read_exact(&mut startpos)?;
+        buffer.extend_from_slice(&startpos);
+
+        let mut result = [0];
+        reader.read_exact(&mut result)?;
+        buffer.extend_from_slice(&result);
+
+        loop {
+            let mut buf = [0; 4];
+            reader.read_exact(&mut buf)?;
+            buffer.extend_from_slice(&buf);
+
+            if buf == [0; 4] {
+                break;
+            }
         }
 
         Ok(())
