@@ -58,6 +58,10 @@ pub unsafe fn read_into_struct_unchecked<T>(path: &str) -> Box<T> {
 
     let size = std::mem::size_of::<T>();
 
+    let file_size = f.metadata().unwrap().len();
+
+    assert_eq!(file_size as usize, size);
+
     unsafe {
         let slice = std::slice::from_raw_parts_mut(x.as_mut() as *mut T as *mut u8, size);
         f.read_exact(slice).unwrap();

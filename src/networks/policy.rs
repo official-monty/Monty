@@ -3,7 +3,9 @@ use crate::{
     chess::{Board, Move},
 };
 
-use super::{accumulator::Accumulator, activation::ReLU, layer::Layer, QA};
+use super::{accumulator::Accumulator, activation::ReLU, layer::Layer};
+
+const QA: i16 = 512;
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
@@ -19,7 +21,7 @@ struct SubNet {
 impl SubNet {
     fn out(&self, feats: &[usize]) -> Accumulator<f32, 16> {
         let l2 = self.ft.forward_from_slice(feats);
-        self.l2.forward_from_i16::<ReLU>(&l2)
+        self.l2.forward_from_i16::<ReLU, QA>(&l2)
     }
 }
 
@@ -69,7 +71,7 @@ struct UnquantisedSubNet {
 impl UnquantisedSubNet {
     fn quantise(&self, qa: i16) -> SubNet {
         SubNet {
-            ft: self.ft.quantise(qa),
+            ft: self.ft.quantise_i16(qa, 1.98),
             l2: self.l2,
         }
     }
