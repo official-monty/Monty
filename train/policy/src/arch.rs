@@ -29,7 +29,7 @@ impl SubNet {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct PolicyNetwork {
-    pub subnets: [[SubNet; 2]; 448],
+    pub subnets: [[SubNet; 2]; 128],
     pub hce: layer::DenseConnected<activation::Identity, 4, 1>,
 }
 
@@ -85,10 +85,9 @@ impl PolicyNetwork {
 
         for &(mov, visits) in &pos.moves[..pos.num] {
             let mov = <Move as From<u16>>::from(mov);
-            let pc = board.get_pc(1 << mov.src()) - 1;
 
             let from = usize::from(mov.src() ^ flip);
-            let to = 64 * pc + usize::from(mov.to() ^ flip);
+            let to = usize::from(mov.to() ^ flip);
             let from_threat = usize::from(threats & (1 << mov.src()) > 0);
             let good_see = usize::from(board.see(&mov, -108));
 
@@ -113,9 +112,8 @@ impl PolicyNetwork {
         }
 
         for (from_out, to_out, hce_out, mov, visits, score, good_see) in policies {
-            let pc = board.get_pc(1 << mov.src()) - 1;
             let from = usize::from(mov.src() ^ flip);
-            let to = 64 * pc + usize::from(mov.to() ^ flip);
+            let to = usize::from(mov.to() ^ flip);
             let from_threat = usize::from(threats & (1 << mov.src()) > 0);
             let hce_feats = PolicyNetwork::get_hce_feats(&board, &mov);
 
