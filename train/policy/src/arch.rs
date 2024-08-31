@@ -7,8 +7,8 @@ use std::io::Write;
 #[repr(C)]
 #[derive(Clone, Copy, FeedForwardNetwork)]
 pub struct SubNet {
-    ft: layer::SparseConnected<activation::ReLU, 768, 16>,
-    l2: layer::DenseConnected<activation::ReLU, 16, 16>,
+    ft: layer::SparseConnected<activation::ReLU, 768, 64>,
+    l2: layer::DenseConnected<activation::ReLU, 64, 64>,
 }
 
 impl SubNet {
