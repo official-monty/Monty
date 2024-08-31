@@ -41,17 +41,11 @@ impl SearchHelpers {
 
     #[allow(unused_variables)]
     pub fn get_explore_scaling(params: &MctsParams, node_stats: &ActionStats, node: &Node) -> f32 {
-        #[cfg(not(feature = "datagen"))]
-        {
             let mut scale = Self::base_explore_scaling(params, node_stats);
 
             let gini = node.gini_impurity();
-            scale *= (0.679 - 1.634 * (gini + 0.001).ln()).min(2.1);
+            scale *= (0.679 - 1.634 * (1.635 - gini).ln()).max(0.3581);
             scale
-        }
-
-        #[cfg(feature = "datagen")]
-        Self::base_explore_scaling(params, node_stats)
     }
 
     /// First Play Urgency
