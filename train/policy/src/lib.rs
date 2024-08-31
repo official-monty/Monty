@@ -15,11 +15,13 @@ pub fn train(
     threads: usize,
     data_path: String,
     superbatches: usize,
-    lr_drop: usize,
+    lr_start: usize,
+    lr_end: usize,
+    final_lr_superbatch: usize,
 ) {
     let mut policy = PolicyNetwork::rand_init();
 
-    let mut lr = 0.001;
+    let mut lr = lr_start
     let mut momentum = PolicyNetwork::boxed_and_zeroed();
     let mut velocity = PolicyNetwork::boxed_and_zeroed();
 
@@ -66,10 +68,9 @@ pub fn train(
 
             running_error = 0.0;
 
-            if sb % lr_drop == 0 {
-                lr *= 0.1;
-                println!("Dropping LR to {lr}");
-            }
+            let decay_factor = (lr_end / lr_start).powf(1.0 / final_superbatch as f32);
+            lr = lr_start * decay_factor.powf(sb as f64);
+            println!("Dropping LR to {lr}");
 
             policy.write_to_bin(format!("checkpoints/policy-{sb}.bin").as_str());
 
