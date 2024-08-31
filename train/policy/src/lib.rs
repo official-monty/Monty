@@ -72,7 +72,9 @@ pub fn train(
             lr = lr_start * decay_factor.powf(sb as f64);
             println!("Dropping LR to {lr}");
 
-            policy.write_to_bin(format!("checkpoints/policy-{sb}.bin").as_str());
+            if sb > 0 && (sb - 1) % 10 == 0 {
+                policy.write_to_bin(format!("checkpoints/policy-{sb}.bin").as_str());
+            }
 
             sb == superbatches
         } else {
