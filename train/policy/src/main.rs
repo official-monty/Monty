@@ -8,7 +8,9 @@ fn main() {
         buffer_size_mb,
         threads,
         "/home/neural/policy_data/interleaved.binpack".to_string(),
-        60,
-        25,
+        1500,
+        0.001,
+        0.0000001,
+        1500,
     );
 }
