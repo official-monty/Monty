@@ -7,8 +7,8 @@ use std::io::Write;
 #[repr(C)]
 #[derive(Clone, Copy, FeedForwardNetwork)]
 pub struct SubNet {
-    ft: layer::SparseConnected<activation::ReLU, 768, 64>,
-    l2: layer::DenseConnected<activation::ReLU, 64, 64>,
+    ft: layer::SparseConnected<activation::ReLU, 768, 32>,
+    l2: layer::DenseConnected<activation::ReLU, 32, 32>,
 }
 
 impl SubNet {
@@ -87,7 +87,7 @@ impl PolicyNetwork {
             let mov = <Move as From<u16>>::from(mov);
 
             let from = usize::from(mov.src() ^ flip);
-            let to = usize::from(mov.to() ^ flip);
+            let to = usize::from(mov.to() ^ flip) + 64;
             let from_threat = usize::from(threats & (1 << mov.src()) > 0);
             let good_see = usize::from(board.see(&mov, -108));
 
@@ -113,7 +113,7 @@ impl PolicyNetwork {
 
         for (from_out, to_out, hce_out, mov, visits, score, good_see) in policies {
             let from = usize::from(mov.src() ^ flip);
-            let to = usize::from(mov.to() ^ flip);
+            let to = usize::from(mov.to() ^ flip) + 64;
             let from_threat = usize::from(threats & (1 << mov.src()) > 0);
             let hce_feats = PolicyNetwork::get_hce_feats(&board, &mov);
 
