@@ -15,13 +15,13 @@ pub fn train(
     threads: usize,
     data_path: String,
     superbatches: usize,
-    lr_start: usize,
-    lr_end: usize,
+    lr_start: f32,
+    lr_end: f32,
     final_lr_superbatch: usize,
 ) {
     let mut policy = PolicyNetwork::rand_init();
 
-    let mut lr = lr_start
+    let mut lr = lr_start;
     let mut momentum = PolicyNetwork::boxed_and_zeroed();
     let mut velocity = PolicyNetwork::boxed_and_zeroed();
 
@@ -68,8 +68,8 @@ pub fn train(
 
             running_error = 0.0;
 
-            let decay_factor = (lr_end / lr_start).powf(1.0 / final_superbatch as f32);
-            lr = lr_start * decay_factor.powf(sb as f64);
+            let decay_factor = (lr_end / lr_start).powf(1.0 / final_lr_superbatch as f32);
+            lr = lr_start * decay_factor.powf(sb as f32);
             println!("Dropping LR to {lr}");
 
             if sb > 0 && (sb - 1) % 10 == 0 {
