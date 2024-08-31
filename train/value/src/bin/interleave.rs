@@ -1,16 +1,26 @@
 use std::{
-    fs::File,
+    fs::{self, File},
     io::{BufReader, BufWriter, Write},
 };
 
 use datagen::Binpack;
 
 fn main() -> std::io::Result<()> {
-    let inputs = [
-        "../binpacks/bestmove-q.binpack",
-        "../binpacks/root-q.binpack",
-    ];
+    let folder_path = "/home/admin/monty_value_data/4096"; // Specify the folder to scan
     let output = "interleaved-value.binpack";
+
+    // Scan the folder and collect file paths with the specified extension
+    let inputs: Vec<String> = fs::read_dir(folder_path)?
+        .filter_map(|entry| {
+            let entry = entry.expect("Failed to read entry");
+            let path = entry.path();
+            if path.is_file() && path.extension().and_then(|ext| ext.to_str()) == Some("binpack") {
+                Some(path.to_string_lossy().into_owned())
+            } else {
+                None
+            }
+        })
+        .collect();
 
     println!("Writing to {:#?}", output);
     println!("Reading from:\n{:#?}", inputs);
