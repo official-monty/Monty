@@ -69,7 +69,12 @@ pub fn train(
             running_error = 0.0;
 
             let decay_factor = (lr_end / lr_start).powf(1.0 / final_lr_superbatch as f32);
-            lr = lr_start * decay_factor.powf(sb as f32);
+
+            if sb >= final_lr_superbatch {
+                lr = lr_end;
+            } else {
+                lr = lr_start * decay_factor.powf(sb as f32);
+            }
             println!("Dropping LR to {lr}");
 
             if sb % 10 == 0 {
