@@ -5,7 +5,7 @@ use bullet::{
     lr, optimiser, outputs, wdl, Activation, LocalSettings, Loss, TrainerBuilder, TrainingSchedule,
 };
 
-const HIDDEN_SIZE: usize = 2048;
+const HIDDEN_SIZE: usize = 4096;
 
 fn main() {
     let mut trainer = TrainerBuilder::default()
@@ -23,21 +23,21 @@ fn main() {
         .build();
 
     let schedule = TrainingSchedule {
-        net_id: "2048WDL1".to_string(),
+        net_id: "4096EXP".to_string(),
         eval_scale: 400.0,
         ft_regularisation: 0.0,
         batch_size: 16_384,
         batches_per_superbatch: 6104,
         start_superbatch: 1,
-        end_superbatch: 1200,
+        end_superbatch: 3000,
         wdl_scheduler: wdl::ConstantWDL { value: 1.0 },
-        lr_scheduler: lr::StepLR {
-            start: 0.001,
-            gamma: 0.1,
-            step: 300,
+        lr_scheduler: lr::ExponentialDecayLR {
+            initial_lr: 0.001,
+            final_lr: 0.0000001,
+            final_superbatch: 3000,
         },
         loss_function: Loss::SigmoidMSE,
-        save_rate: 10,
+        save_rate: 20,
         optimiser_settings: optimiser::AdamWParams {
             decay: 0.01,
             beta1: 0.9,
@@ -51,9 +51,13 @@ fn main() {
         threads: 8,
         test_set: None,
         output_directory: "checkpoints",
+        batch_queue_size: 7000,
     };
 
-    let data_loader = loader::BinpackLoader::new("../binpacks/bestmove-q.binpack", 2048);
+    let data_loader = loader::BinpackLoader::new(
+        "/home/admin/monty_value_data/Prepare/interleaved-value.binpack",
+        48000,
+    );
 
     trainer.run(&schedule, &settings, &data_loader);
 
