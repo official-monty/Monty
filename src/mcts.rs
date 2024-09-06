@@ -293,14 +293,18 @@ impl<'a> Searcher<'a> {
             );
         }
 
-        #[cfg(not(feature = "datagen"))]
         let best_action = self.tree.get_best_child(self.tree.root_node());
 
+        #[cfg(not(feature = "datagen"))]
+        let selected_action = best_action;        
+
         #[cfg(feature = "datagen")]
-        let best_action = self.tree.get_best_child_temp(self.tree.root_node(), temp);
+        let selected_action = self.tree.get_best_child_temp(self.tree.root_node(), temp);
 
         let best_child = self.tree.edge_copy(self.tree.root_node(), best_action);
-        (Move::from(best_child.mov()), best_child.q())
+        let selected_child = self.tree.edge_copy(self.tree.root_node(), selected_action);
+
+        (Move::from(selected_child.mov()), best_child.q())
     }
 
     fn perform_one_iteration(
