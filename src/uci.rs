@@ -121,7 +121,8 @@ impl Uci {
                         total += *p;
                     }
 
-                    moves.sort_by_key(|(_, p)| (p * 1000.0) as u32);
+                    // Sort the moves by probability in descending order.
+                    moves.sort_by(|(_, p1), (_, p2)| p2.partial_cmp(p1).unwrap());
 
                     for (s, p) in moves {
                         println!("{s} -> {:.2}%", p / total * 100.0);
