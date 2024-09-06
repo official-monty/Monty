@@ -19,7 +19,7 @@ make embed EXE=<output path> EVALFILE=<value net path> POLICYFILE=<policy net pa
 
 ## Development
 
-Development of Monty is facilitated by [montytest](https://montychess.org/tests).
+Development of Monty is facilitated by [montytest](https://tests.montychess.org/tests).
 If you want to contribute, it is recommended to look in:
 - [src/mcts/helpers.rs](src/mcts/helpers.rs) - location of functions that
 calculate many important search heuristics, e.g. CPUCT scaling

@@ -115,7 +115,10 @@ fn calculate_sha256(path: &Path) -> Result<String, std::io::Error> {
 
 #[cfg(feature = "embed")]
 fn download_network(network_name: &str, dest_path: &str) {
-    let urls = [format!("https://montychess.org/api/nn/{}", network_name)];
+    let urls = [format!(
+        "https://tests.montychess.org/api/nn/{}",
+        network_name
+    )];
 
     for url in &urls {
         let output = Command::new("curl")
