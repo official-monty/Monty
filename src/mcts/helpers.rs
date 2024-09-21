@@ -33,7 +33,7 @@ impl SearchHelpers {
     }
 
     /// Base Exploration Scaling
-    /// 
+    ///
     /// Larger value implies more exploration.
     fn base_explore_scaling(params: &MctsParams, node_stats: &ActionStats) -> f32 {
         (params.expl_tau() * (node_stats.visits().max(1) as f32).ln()).exp()

@@ -334,7 +334,8 @@ impl<'a> Searcher<'a> {
             let new_q = self.tree.update_edge_stats(ptr, action, u);
             self.tree.push_hash(hash, new_q);
 
-            self.tree.propogate_proven_mates(ptr, self.tree[child_ptr].state());
+            self.tree
+                .propogate_proven_mates(ptr, self.tree[child_ptr].state());
 
             u
         };
