@@ -79,6 +79,22 @@ impl Node {
         self.state() == GameState::Ongoing && !self.has_children()
     }
 
+    pub fn kld(&self, parent_visits: i32) -> Option<f32> {
+        let pv = f64::from(parent_visits);
+        let mut kld = 0.0;
+
+        for edge in self.actions().iter() {
+            if edge.visits() == 0 {
+                return None;
+            }
+
+            let p = f64::from(edge.visits()) / pv;
+            kld += p * (p / f64::from(edge.policy())).ln();
+        }
+
+        Some(kld as f32)
+    }
+
     pub fn gini_impurity(&self) -> f32 {
         f32::from_bits(self.gini_impurity.load(Ordering::Relaxed))
     }
