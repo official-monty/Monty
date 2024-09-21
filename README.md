@@ -14,8 +14,9 @@ when running the executable it will search for the networks in the current worki
 
 To compile and embed the networks in the exectuable, run
 ```
-make embed EXE=<output path> EVALFILE=<value net path> POLICYFILE=<policy net path>
+make embed EXE=<output path>
 ```
+the required networks should be downloaded automatically (and validated).
 
 ## Development
 
