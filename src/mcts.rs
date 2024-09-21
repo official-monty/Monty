@@ -171,7 +171,6 @@ impl<'a> Searcher<'a> {
         }
 
         if iters % 4096 == 0 {
-            // Time management
             if let Some(time) = limits.opt_time {
                 let (should_stop, score) = SearchHelpers::soft_time_cutoff(
                     self,
@@ -297,8 +296,6 @@ impl<'a> Searcher<'a> {
 
         let hash = pos.hash();
 
-        let mut child_state = GameState::Ongoing;
-
         let u = if self.tree[ptr].is_terminal() || node_stats.visits() == 0 {
             // probe hash table to use in place of network
             if self.tree[ptr].state() == GameState::Ongoing {
@@ -327,6 +324,7 @@ impl<'a> Searcher<'a> {
 
             self.tree[child_ptr].inc_threads();
 
+            // descend further
             let maybe_u = self.perform_one_iteration(pos, child_ptr, &edge.stats(), depth);
 
             self.tree[child_ptr].dec_threads();
@@ -336,12 +334,10 @@ impl<'a> Searcher<'a> {
             let new_q = self.tree.update_edge_stats(ptr, action, u);
             self.tree.push_hash(hash, new_q);
 
-            child_state = self.tree[child_ptr].state();
+            self.tree.propogate_proven_mates(ptr, self.tree[child_ptr].state());
 
             u
         };
-
-        self.tree.propogate_proven_mates(ptr, child_state);
 
         Some(1.0 - u)
     }
@@ -356,10 +352,6 @@ impl<'a> Searcher<'a> {
     }
 
     fn pick_action(&self, ptr: NodePtr, node_stats: &ActionStats) -> usize {
-        if !self.tree[ptr].has_children() {
-            panic!("trying to pick from no children!");
-        }
-
         let is_root = ptr == self.tree.root_node();
 
         let cpuct = SearchHelpers::get_cpuct(self.params, node_stats, is_root);
@@ -372,6 +364,7 @@ impl<'a> Searcher<'a> {
         self.tree.get_best_child_by_key(ptr, |action| {
             let mut q = SearchHelpers::get_action_value(action, fpu);
 
+            // virtual loss
             if !action.ptr().is_null() {
                 let threads = f64::from(self.tree[action.ptr()].threads());
                 if threads > 0.0 {
