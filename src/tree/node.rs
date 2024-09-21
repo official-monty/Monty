@@ -79,22 +79,6 @@ impl Node {
         self.state() == GameState::Ongoing && !self.has_children()
     }
 
-    pub fn kld(&self, parent_visits: i32) -> Option<f32> {
-        let pv = f64::from(parent_visits);
-        let mut kld = 0.0;
-
-        for edge in self.actions().iter() {
-            if edge.visits() == 0 {
-                return None;
-            }
-
-            let p = f64::from(edge.visits()) / pv;
-            kld += p * (p / f64::from(edge.policy())).ln();
-        }
-
-        Some(kld as f32)
-    }
-
     pub fn gini_impurity(&self) -> f32 {
         f32::from_bits(self.gini_impurity.load(Ordering::Relaxed))
     }
@@ -211,5 +195,29 @@ impl Node {
 
             action.set_policy(policy);
         }
+    }
+
+    pub fn kld_gain(new_visit_dist: &[Edge], old_visit_dist: &[Edge]) -> Option<f64> {
+        let new_parent_visits = new_visit_dist.iter().map(Edge::visits).sum::<i32>();
+        let old_parent_visits = old_visit_dist.iter().map(Edge::visits).sum::<i32>();
+
+        if old_parent_visits == 0 {
+            return None;
+        }
+
+        let mut kld_gain = 0.0;
+
+        for (new_edge, old_edge) in new_visit_dist.iter().zip(old_visit_dist.iter()) {
+            if old_edge.visits() == 0 {
+                return None;
+            }
+
+            let q = f64::from(new_edge.visits()) / f64::from(new_parent_visits);
+            let p = f64::from(old_edge.visits()) / f64::from(old_parent_visits);
+
+            kld_gain += p * (p / q).ln();
+        }
+
+        Some(kld_gain / f64::from(new_parent_visits - old_parent_visits))
     }
 }

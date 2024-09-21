@@ -6,7 +6,7 @@ pub use params::MctsParams;
 
 use crate::{
     chess::Move,
-    tree::{ActionStats, Edge, NodePtr, Tree},
+    tree::{ActionStats, Edge, Node, NodePtr, Tree},
     ChessState, GameState, PolicyNetwork, ValueNetwork,
 };
 
@@ -22,6 +22,7 @@ pub struct Limits {
     pub opt_time: Option<u128>,
     pub max_depth: usize,
     pub max_nodes: usize,
+    pub kld_min_gain: Option<f64>,
 }
 
 #[derive(Default)]
@@ -69,7 +70,7 @@ impl<'a> Searcher<'a> {
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
-        previous_kld: &mut Option<f32>,
+        previous_kld: &mut Vec<Edge>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) {
         if self.playout_until_full_internal(search_stats, true, || {
@@ -150,7 +151,7 @@ impl<'a> Searcher<'a> {
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
-        previous_kld: &mut Option<f32>,
+        previous_kld_state: &mut Vec<Edge>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) -> bool {
         let iters = search_stats.main_iters.load(Ordering::Relaxed);
@@ -159,11 +160,17 @@ impl<'a> Searcher<'a> {
             return true;
         }
 
-        let new_kld = self.tree[self.tree.root_node()].kld(self.tree.root_stats().visits());
-        if let (Some(new), Some(old)) = (new_kld, *previous_kld) {
-            if new - old < 0.000045 {
-                return true;
+        if let Some(min_gain) = limits.kld_min_gain {
+            let actions = self.tree[self.tree.root_node()].actions().clone();
+
+            if let Some(kld_gain) = Node::kld_gain(&actions, previous_kld_state) {
+                if kld_gain < min_gain {
+                    return true;
+                }
             }
+
+            *previous_kld_state = actions;
+
         }
 
         if iters % 128 == 0 {
@@ -266,7 +273,7 @@ impl<'a> Searcher<'a> {
         let mut best_move = Move::NULL;
         let mut best_move_changes = 0;
         let mut previous_score = f32::NEG_INFINITY;
-        let mut previous_kld = None;
+        let mut previous_kld = Vec::new();
 
         // search loop
         while !self.abort.load(Ordering::Relaxed) {

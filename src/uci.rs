@@ -157,6 +157,7 @@ impl Uci {
             opt_time: None,
             max_depth: depth,
             max_nodes: 1_000_000,
+            kld_min_gain: None,
         };
 
         let mut tree = Tree::new_mb(32, 1);
@@ -366,6 +367,7 @@ fn go(
         opt_time,
         max_depth,
         max_nodes,
+        kld_min_gain: None,
     };
 
     std::thread::scope(|s| {
