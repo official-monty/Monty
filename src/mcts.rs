@@ -69,6 +69,7 @@ impl<'a> Searcher<'a> {
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
+        previous_kld: &mut Option<f32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) {
         if self.playout_until_full_internal(search_stats, true, || {
@@ -79,6 +80,7 @@ impl<'a> Searcher<'a> {
                 best_move,
                 best_move_changes,
                 previous_score,
+                previous_kld,
                 #[cfg(not(feature = "uci-minimal"))]
                 uci_output,
             )
@@ -148,12 +150,20 @@ impl<'a> Searcher<'a> {
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
+        previous_kld: &mut Option<f32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) -> bool {
         let iters = search_stats.main_iters.load(Ordering::Relaxed);
 
         if search_stats.total_iters.load(Ordering::Relaxed) >= limits.max_nodes {
             return true;
+        }
+
+        let new_kld = self.tree[self.tree.root_node()].kld(self.tree.root_stats().visits());
+        if let (Some(new), Some(old)) = (new_kld, *previous_kld) {
+            if new - old < 0.000045 {
+                return true;
+            }
         }
 
         if iters % 128 == 0 {
@@ -256,6 +266,7 @@ impl<'a> Searcher<'a> {
         let mut best_move = Move::NULL;
         let mut best_move_changes = 0;
         let mut previous_score = f32::NEG_INFINITY;
+        let mut previous_kld = None;
 
         // search loop
         while !self.abort.load(Ordering::Relaxed) {
@@ -268,6 +279,7 @@ impl<'a> Searcher<'a> {
                         &mut best_move,
                         &mut best_move_changes,
                         &mut previous_score,
+                        &mut previous_kld,
                         #[cfg(not(feature = "uci-minimal"))]
                         uci_output,
                     );
