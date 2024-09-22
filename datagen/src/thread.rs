@@ -118,13 +118,14 @@ impl<'a> DatagenThread<'a> {
             let searcher =
                 Searcher::new(position.clone(), &tree, &self.params, policy, value, &abort);
 
-            let (bm, score) = searcher.search(1, limits, false, &mut 0, true, temp);
+            let (bm, _) = searcher.search(1, limits, false, &mut 0, true, temp);
 
             temp *= 0.9;
             if temp <= 0.2 {
                 temp = 0.0;
             }
 
+            let score = 1.0 - tree.root_stats().q();
             game.push(position.stm(), bm, score);
 
             let mut root_count = 0;
