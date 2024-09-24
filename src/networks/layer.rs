@@ -2,6 +2,7 @@ use crate::Board;
 
 use super::{accumulator::Accumulator, activation::Activation};
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Layer<T: Copy, const M: usize, const N: usize> {
     weights: [Accumulator<T, N>; M],
@@ -102,6 +103,7 @@ impl<const M: usize, const N: usize> Layer<f32, M, N> {
     }
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct TransposedLayer<T: Copy, const M: usize, const N: usize> {
     weights: [Accumulator<T, M>; N],
