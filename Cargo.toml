@@ -20,5 +20,8 @@ tunable = []
 members = ["datagen", "train/policy", "train/value"]
 resolver = "2"
 
+[dependencies]
+memmap2 = "0.9.5"
+
 [build-dependencies]
 sha2 = "0.10.8"
