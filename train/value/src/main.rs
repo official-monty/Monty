@@ -55,12 +55,12 @@ fn main() {
         threads: 8,
         test_set: None,
         output_directory: "checkpoints",
-        batch_queue_size: 4,
+        batch_queue_size: 256,
     };
 
     let data_loader = loader::BinpackLoader::new(
         "../binpacks/bestmove-q.binpack",
-        256,
+        2048,
     );
 
     trainer.run(&schedule, &settings, &data_loader);

@@ -74,7 +74,7 @@ name = "datagen"
 version = "0.1.0"
 dependencies = [
  "monty",
- "montyformat",
+ "montyformat 0.2.0",
 ]
 
 [[package]]
@@ -171,6 +171,11 @@ version = "0.2.0"
 source = "git+https://github.com/official-monty/montyformat.git?tag=v0.2.0#85983d36812445666879b11f01eb3173a88d61cd"
 
 [[package]]
+name = "montyformat"
+version = "0.3.0"
+source = "git+https://github.com/official-monty/montyformat.git?tag=v0.3.0#0789de7fb025d799b4cb57b840714fd4d3c6fcfb"
+
+[[package]]
 name = "num-traits"
 version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -187,7 +192,7 @@ dependencies = [
  "datagen",
  "goober",
  "monty",
- "montyformat",
+ "montyformat 0.2.0",
 ]
 
 [[package]]
@@ -301,7 +306,7 @@ dependencies = [
  "bullet_lib",
  "datagen",
  "monty",
- "montyformat",
+ "montyformat 0.3.0",
 ]
 
 [[package]]

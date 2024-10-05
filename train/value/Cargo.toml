@@ -8,4 +8,4 @@ authors = ["Jamie Whiting"]
 bullet = { package = "bullet_lib", git = 'https://github.com/jw1912/bullet' }
 datagen = { path = "../../datagen" }
 monty = { path = "../../" }
-montyformat = { git = 'https://github.com/official-monty/montyformat.git', tag = "v0.2.0" }
+montyformat = { git = 'https://github.com/official-monty/montyformat.git', tag = "v0.3.0" }
