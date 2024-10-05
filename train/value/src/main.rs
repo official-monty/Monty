@@ -5,7 +5,7 @@ use bullet::{
     lr, optimiser, outputs, wdl, Activation, LocalSettings, Loss, TrainerBuilder, TrainingSchedule, TrainingSteps,
 };
 
-const HIDDEN_SIZE: usize = 128;
+const HIDDEN_SIZE: usize = 4096;
 
 fn main() {
     let mut trainer = TrainerBuilder::default()
@@ -60,7 +60,7 @@ fn main() {
 
     let data_loader = loader::BinpackLoader::new(
         "../binpacks/bestmove-q.binpack",
-        2048,
+        48000,
     );
 
     trainer.run(&schedule, &settings, &data_loader);
