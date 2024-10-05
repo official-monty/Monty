@@ -42,7 +42,7 @@ impl DataLoader {
                     }
 
                     parse_into_buffer(game, &mut reusable_buffer);
-    
+
                     if shuffle_buffer.len() + reusable_buffer.len() < shuffle_buffer.capacity() {
                         shuffle_buffer.extend_from_slice(&reusable_buffer);
                     } else {
@@ -50,7 +50,7 @@ impl DataLoader {
                         shuffle_buffer.extend_from_slice(&reusable_buffer[..diff]);
 
                         shuffle(&mut shuffle_buffer);
-    
+
                         if buffer_msg_receiver.try_recv().unwrap_or(false) {
                             break 'dataloading;
                         }

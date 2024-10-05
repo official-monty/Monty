@@ -60,7 +60,7 @@ impl DataLoader<ChessBoard> for BinpackLoader {
                         }
 
                         shuffle(&mut shuffle_buffer);
-                        
+
                         if buffer_msg_receiver.try_recv().unwrap_or(false) {
                             break 'dataloading;
                         } else {
@@ -89,7 +89,8 @@ impl DataLoader<ChessBoard> for BinpackLoader {
                     } else {
                         for (pos, result, score) in batch {
                             prealloc.push(
-                                ChessBoard::from_raw(pos.bbs(), pos.stm(), *score, *result).unwrap()
+                                ChessBoard::from_raw(pos.bbs(), pos.stm(), *score, *result)
+                                    .unwrap(),
                             );
                         }
 

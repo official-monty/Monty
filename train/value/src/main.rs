@@ -2,7 +2,8 @@ mod input;
 mod loader;
 
 use bullet::{
-    lr, optimiser, outputs, wdl, Activation, LocalSettings, Loss, TrainerBuilder, TrainingSchedule, TrainingSteps,
+    lr, optimiser, outputs, wdl, Activation, LocalSettings, Loss, TrainerBuilder, TrainingSchedule,
+    TrainingSteps,
 };
 
 const HIDDEN_SIZE: usize = 4096;
@@ -58,10 +59,7 @@ fn main() {
         batch_queue_size: 256,
     };
 
-    let data_loader = loader::BinpackLoader::new(
-        "../binpacks/bestmove-q.binpack",
-        48000,
-    );
+    let data_loader = loader::BinpackLoader::new("../binpacks/bestmove-q.binpack", 48000);
 
     trainer.run(&schedule, &settings, &data_loader);
 
