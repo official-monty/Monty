@@ -5,6 +5,7 @@ edition = "2021"
 authors = ["Jamie Whiting"]
 
 [dependencies]
-bullet = { package = "bullet_lib", git = 'https://github.com/jw1912/bullet', features = ["cuda"] }
+bullet = { package = "bullet_lib", git = 'https://github.com/jw1912/bullet' }
 datagen = { path = "../../datagen" }
 monty = { path = "../../" }
+montyformat = { git = 'https://github.com/official-monty/montyformat.git', tag = "v0.2.0" }

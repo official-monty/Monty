@@ -1,4 +1,4 @@
-use std::{fs::File, io::BufReader};
+use std::{fs::File, io::BufReader, sync::mpsc};
 
 use bullet::{format::ChessBoard, loader::DataLoader};
 use datagen::{Binpack, Rand};
@@ -33,33 +33,59 @@ impl DataLoader<ChessBoard> for BinpackLoader {
 
         let mut should_break = false;
 
-        'dataloading: loop {
-            let mut reader = BufReader::new(File::open(self.file_path[0].as_str()).unwrap());
+        let (batch_sender, batch_reciever) = mpsc::sync_channel::<Vec<ChessBoard>>(1);
+        let (batch_msg_sender, batch_msg_receiver) = mpsc::sync_channel::<bool>(0);
 
-            loop {
-                let err = Binpack::deserialise_map(&mut reader, |board, _mov, score, result| {
-                    if !(should_break || score == i16::MIN || score.abs() > 2000) {
-                        let position =
-                            ChessBoard::from_raw(board.bbs(), board.stm(), score, result).unwrap();
-                        shuffle_buffer.push(position);
-                    }
+        let file_path = self.file_path[0].clone();
 
-                    if shuffle_buffer.len() == shuffle_buffer.capacity() {
-                        shuffle(&mut shuffle_buffer);
+        std::thread::spawn(move || {
+            'dataloading: loop {
+                let mut reader = BufReader::new(File::open(file_path.as_str()).unwrap());
 
-                        for batch in shuffle_buffer.chunks(batch_size) {
-                            should_break |= f(batch);
+                loop {
+                    if batch_msg_receiver.try_recv().unwrap_or(false) {
+                        should_break = true;
+                    }                    
+
+                    let err = Binpack::deserialise_map(&mut reader, |board, _mov, score, result| {
+                        if !(should_break || score == i16::MIN || score.abs() > 2000) {
+                            let position =
+                                ChessBoard::from_raw(board.bbs(), board.stm(), score, result).unwrap();
+                            shuffle_buffer.push(position);
                         }
 
-                        shuffle_buffer.clear();
+                        if shuffle_buffer.len() % 1000000 == 0 {
+                            println!("{}", shuffle_buffer.len());
+                        }
+
+                        if shuffle_buffer.len() == shuffle_buffer.capacity() {
+                            if batch_msg_receiver.try_recv().unwrap_or(false) {
+                                should_break = true;
+                            } else if !should_break {
+                                shuffle(&mut shuffle_buffer);
+                                batch_sender.send(shuffle_buffer.clone()).unwrap();
+                                shuffle_buffer.clear();
+                            }
+                        }
+                    });
+
+                    if should_break {
+                        break 'dataloading;
                     }
-                });
+
+                    if err.is_err() {
+                        break;
+                    }
+                }
+            }
+        });
+
+        while let Ok(inputs) = batch_reciever.recv() {
+            for batch in inputs.chunks(batch_size) {
+                let should_break = f(batch);
 
                 if should_break {
-                    break 'dataloading;
-                }
-
-                if err.is_err() {
+                    batch_msg_sender.send(true).unwrap();
                     break;
                 }
             }
