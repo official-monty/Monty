@@ -1,4 +1,4 @@
-use std::{fs::File, io::BufReader};
+use std::{fs::File, io::BufReader, sync::mpsc};
 
 use datagen::{CompressedChessBoard, PolicyData, Rand};
 use monty::Board;
@@ -20,34 +20,57 @@ impl DataLoader {
     }
 
     pub fn map_batches<F: FnMut(&[PolicyData]) -> bool>(&self, mut f: F) {
-        let mut reusable_buffer = Vec::new();
-
         let mut shuffle_buffer = Vec::new();
         shuffle_buffer.reserve_exact(self.buffer_size);
 
-        'dataloading: loop {
-            let mut reader = BufReader::new(File::open(self.file_path.as_str()).unwrap());
+        let (buffer_sender, buffer_receiver) = mpsc::sync_channel::<Vec<PolicyData>>(0);
+        let (buffer_msg_sender, buffer_msg_receiver) = mpsc::sync_channel::<bool>(0);
 
-            while let Ok(game) = MontyFormat::deserialise_from(&mut reader) {
-                parse_into_buffer(game, &mut reusable_buffer);
+        let file_path = self.file_path.clone();
+        let buffer_size = self.buffer_size;
+        let batch_size = self.batch_size;
 
-                if shuffle_buffer.len() + reusable_buffer.len() < shuffle_buffer.capacity() {
-                    shuffle_buffer.extend_from_slice(&reusable_buffer);
-                } else {
-                    println!("#[Shuffling]");
-                    shuffle(&mut shuffle_buffer);
+        std::thread::spawn(move || {
+            let mut reusable_buffer = Vec::new();
 
-                    println!("#[Running Batches]");
-                    for batch in shuffle_buffer.chunks(self.batch_size) {
-                        let should_break = f(batch);
+            'dataloading: loop {
+                let mut reader = BufReader::new(File::open(file_path.as_str()).unwrap());
 
-                        if should_break {
-                            break 'dataloading;
-                        }
+                while let Ok(game) = MontyFormat::deserialise_from(&mut reader) {
+                    if buffer_msg_receiver.try_recv().unwrap_or(false) {
+                        break 'dataloading;
                     }
 
-                    println!();
-                    shuffle_buffer.clear();
+                    parse_into_buffer(game, &mut reusable_buffer);
+    
+                    if shuffle_buffer.len() + reusable_buffer.len() < shuffle_buffer.capacity() {
+                        shuffle_buffer.extend_from_slice(&reusable_buffer);
+                    } else {
+                        let diff = shuffle_buffer.capacity() - shuffle_buffer.len();
+                        shuffle_buffer.extend_from_slice(&reusable_buffer[..diff]);
+
+                        shuffle(&mut shuffle_buffer);
+    
+                        if buffer_msg_receiver.try_recv().unwrap_or(false) {
+                            break 'dataloading;
+                        }
+
+                        buffer_sender.send(shuffle_buffer).unwrap();
+
+                        shuffle_buffer = Vec::new();
+                        shuffle_buffer.reserve_exact(buffer_size);
+                    }
+                }
+            }
+        });
+
+        'dataloading: while let Ok(inputs) = buffer_receiver.recv() {
+            for batch in inputs.chunks(batch_size) {
+                let should_break = f(batch);
+
+                if should_break {
+                    buffer_msg_sender.send(true).unwrap();
+                    break 'dataloading;
                 }
             }
         }

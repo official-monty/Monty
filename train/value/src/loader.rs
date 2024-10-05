@@ -102,13 +102,13 @@ impl DataLoader<ChessBoard> for BinpackLoader {
             }
         });
 
-        while let Ok(inputs) = batch_reciever.recv() {
+        'dataloading: while let Ok(inputs) = batch_reciever.recv() {
             for batch in inputs.chunks(batch_size) {
                 let should_break = f(batch);
 
                 if should_break {
                     batch_msg_sender.send(true).unwrap();
-                    break;
+                    break 'dataloading;
                 }
             }
         }
