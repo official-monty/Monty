@@ -2,7 +2,7 @@ use bullet::{
     format::{chess::BoardIter, ChessBoard},
     inputs,
 };
-use monty::Board;
+use montyformat::chess::Position;
 
 #[derive(Clone, Copy, Default)]
 pub struct ThreatInputs;
@@ -39,7 +39,7 @@ impl inputs::InputType for ThreatInputs {
             bb[usize::from(2 + (pc & 7))] ^= bit;
         }
 
-        let board = Board::from_raw(bb, false, 0, 0, 0, 1);
+        let board = Position::from_raw(bb, false, 0, 0, 0, 1);
 
         let threats = board.threats_by(1);
         let defences = board.threats_by(0);
