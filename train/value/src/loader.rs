@@ -32,7 +32,7 @@ impl DataLoader<ChessBoard> for BinpackLoader {
         let mut shuffle_buffer = Vec::new();
         shuffle_buffer.reserve_exact(self.buffer_size);
 
-        let (buffer_sender, buffer_receiver) = mpsc::sync_channel::<Vec<(Position, f32, i16)>>(1);
+        let (buffer_sender, buffer_receiver) = mpsc::sync_channel::<Vec<(Position, f32, i16)>>(0);
         let (buffer_msg_sender, buffer_msg_receiver) = mpsc::sync_channel::<bool>(0);
 
         let file_path = self.file_path[0].clone();
