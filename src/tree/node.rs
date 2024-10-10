@@ -94,11 +94,12 @@ impl Node {
         self.set_gini_impurity(0.0);
     }
 
-    pub fn expand<const ROOT: bool>(
+    pub fn expand(
         &self,
         pos: &ChessState,
         params: &MctsParams,
         policy: &PolicyNetwork,
+        depth: usize,
     ) {
         let mut actions = self.actions_mut();
 
@@ -121,16 +122,19 @@ impl Node {
             max = max.max(policy);
         });
 
+        let pst = match depth {
+            0 => unreachable!(),
+            1 => params.root_pst(),
+            2 => params.depth_2_pst(),
+            3.. => 1.0,
+        };
+
         let mut total = 0.0;
 
         for action in actions.iter_mut() {
             let mut policy = f32::from_bits(action.ptr().inner());
 
-            policy = if ROOT {
-                ((policy - max) / params.root_pst()).exp()
-            } else {
-                (policy - max).exp()
-            };
+            policy = ((policy - max) / pst).exp();
 
             action.set_ptr(NodePtr::from_raw(f32::to_bits(policy)));
 
@@ -150,7 +154,13 @@ impl Node {
         self.set_gini_impurity(gini_impurity);
     }
 
-    pub fn relabel_policy(&self, pos: &ChessState, params: &MctsParams, policy: &PolicyNetwork) {
+    pub fn relabel_policy(
+        &self,
+        pos: &ChessState,
+        params: &MctsParams,
+        policy: &PolicyNetwork,
+        depth: u8,
+    ) {
         let feats = pos.get_policy_feats();
         let mut max = f32::NEG_INFINITY;
 
@@ -163,10 +173,17 @@ impl Node {
             max = max.max(policy);
         }
 
+        let pst = match depth {
+            0 => unreachable!(),
+            1 => params.root_pst(),
+            2 => params.depth_2_pst(),
+            3.. => unreachable!(),
+        };
+
         let mut total = 0.0;
 
         for policy in &mut policies {
-            *policy = ((*policy - max) / params.root_pst()).exp();
+            *policy = ((*policy - max) / pst).exp();
             total += *policy;
         }
 
