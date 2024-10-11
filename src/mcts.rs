@@ -234,9 +234,19 @@ impl<'a> Searcher<'a> {
 
         // relabel root policies with root PST value
         if self.tree[node].has_children() {
-            self.tree[node].relabel_policy(&self.root_position, self.params, self.policy);
+            self.tree[node].relabel_policy(&self.root_position, self.params, self.policy, 1);
+
+            for action in &*self.tree[node].actions() {
+                if action.ptr().is_null() || !self.tree[action.ptr()].has_children() {
+                    continue;
+                }
+
+                let mut position = self.root_position.clone();
+                position.make_move(Move::from(action.mov()));
+                self.tree[action.ptr()].relabel_policy(&position, self.params, self.policy, 2);
+            }
         } else {
-            self.tree[node].expand::<true>(&self.root_position, self.params, self.policy);
+            self.tree[node].expand(&self.root_position, self.params, self.policy, 1);
         }
 
         let search_stats = SearchStats::default();
@@ -310,7 +320,7 @@ impl<'a> Searcher<'a> {
         } else {
             // expand node on the second visit
             if self.tree[ptr].is_not_expanded() {
-                self.tree[ptr].expand::<false>(pos, self.params, self.policy);
+                self.tree[ptr].expand(pos, self.params, self.policy, *depth);
             }
 
             // select action to take via PUCT
