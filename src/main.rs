@@ -35,26 +35,31 @@ mod net {
 
 #[cfg(not(feature = "embed"))]
 mod nonet {
-    use monty::{read_into_struct_unchecked, ChessState, MctsParams, Uci};
+    use monty::{read_into_struct_unchecked, ChessState, MappedWeights, MctsParams, Uci};
 
     pub fn run() {
         let mut args = std::env::args();
         let arg1 = args.nth(1);
 
-        let policy = unsafe { read_into_struct_unchecked(monty::PolicyFileDefaultName) };
+        let policy_mapped: MappedWeights<monty::PolicyNetwork> =
+            unsafe { read_into_struct_unchecked(monty::PolicyFileDefaultName) };
 
-        let value = unsafe { read_into_struct_unchecked(monty::ValueFileDefaultName) };
+        let value_mapped: MappedWeights<monty::ValueNetwork> =
+            unsafe { read_into_struct_unchecked(monty::ValueFileDefaultName) };
+
+        let policy = policy_mapped.data;
+        let value = value_mapped.data;
 
         if let Some("bench") = arg1.as_deref() {
             Uci::bench(
                 ChessState::BENCH_DEPTH,
-                &policy,
-                &value,
+                policy,
+                value,
                 &MctsParams::default(),
             );
             return;
         }
 
-        Uci::run(&policy, &value);
+        Uci::run(policy, value);
     }
 }
