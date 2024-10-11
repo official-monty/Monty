@@ -6,7 +6,7 @@ pub use params::MctsParams;
 
 use crate::{
     chess::Move,
-    tree::{ActionStats, Edge, NodePtr, Tree},
+    tree::{Node, NodePtr, Tree},
     ChessState, GameState, PolicyNetwork, ValueNetwork,
 };
 
@@ -234,9 +234,9 @@ impl<'a> Searcher<'a> {
 
         // relabel root policies with root PST value
         if self.tree[node].has_children() {
-            self.tree[node].relabel_policy(&self.root_position, self.params, self.policy, 1);
+            self.tree.relabel_policy(node, &self.root_position, self.params, self.policy, 1);
 
-            for action in &*self.tree[node].actions() {
+            for action in self.tree.actions() {
                 if action.ptr().is_null() || !self.tree[action.ptr()].has_children() {
                     continue;
                 }
@@ -299,14 +299,14 @@ impl<'a> Searcher<'a> {
         &self,
         pos: &mut ChessState,
         ptr: NodePtr,
-        node_stats: &ActionStats,
         depth: &mut usize,
     ) -> Option<f32> {
         *depth += 1;
 
         let hash = pos.hash();
+        let node = &self.tree[ptr];
 
-        let u = if self.tree[ptr].is_terminal() || node_stats.visits() == 0 {
+        let u = if self.tree[ptr].is_terminal() || node.visits() == 0 {
             // probe hash table to use in place of network
             if self.tree[ptr].state() == GameState::Ongoing {
                 if let Some(entry) = self.tree.probe_hash(hash) {
@@ -320,11 +320,11 @@ impl<'a> Searcher<'a> {
         } else {
             // expand node on the second visit
             if self.tree[ptr].is_not_expanded() {
-                self.tree[ptr].expand(pos, self.params, self.policy, *depth);
+                self.tree.expand_node(ptr, pos, self.params, self.policy, *depth);
             }
 
             // select action to take via PUCT
-            let action = self.pick_action(ptr, node_stats);
+            let action = self.pick_action(ptr, node);
 
             let edge = self.tree.edge_copy(ptr, action);
 
@@ -362,13 +362,13 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    fn pick_action(&self, ptr: NodePtr, node_stats: &ActionStats) -> usize {
+    fn pick_action(&self, ptr: NodePtr, node: &Node) -> usize {
         let is_root = ptr == self.tree.root_node();
 
-        let cpuct = SearchHelpers::get_cpuct(self.params, node_stats, is_root);
-        let fpu = SearchHelpers::get_fpu(node_stats);
+        let cpuct = SearchHelpers::get_cpuct(self.params, node, is_root);
+        let fpu = SearchHelpers::get_fpu(node);
         let expl_scale =
-            SearchHelpers::get_explore_scaling(self.params, node_stats, &self.tree[ptr]);
+            SearchHelpers::get_explore_scaling(self.params, node);
 
         let expl = cpuct * expl_scale;
 

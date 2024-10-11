@@ -1,16 +1,10 @@
-mod edge;
 mod half;
 mod hash;
 mod node;
-mod ptr;
-mod stats;
 
-pub use edge::Edge;
 use half::TreeHalf;
 use hash::{HashEntry, HashTable};
-pub use node::Node;
-pub use ptr::NodePtr;
-pub use stats::ActionStats;
+pub use node::{Node, NodePtr};
 
 use std::{
     sync::atomic::{AtomicBool, Ordering},
@@ -19,14 +13,13 @@ use std::{
 
 use crate::{
     chess::{ChessState, Move},
-    GameState,
+    GameState, MctsParams, PolicyNetwork,
 };
 
 pub struct Tree {
     tree: [TreeHalf; 2],
     half: AtomicBool,
     hash: HashTable,
-    root_stats: ActionStats,
 }
 
 impl std::ops::Index<NodePtr> for Tree {
@@ -51,7 +44,6 @@ impl Tree {
             ],
             half: AtomicBool::new(false),
             hash: HashTable::new(hash_cap / 4, threads),
-            root_stats: ActionStats::default(),
         }
     }
 
@@ -63,9 +55,17 @@ impl Tree {
         self.tree[self.half()].is_full()
     }
 
-    pub fn copy_across(&self, from: NodePtr, to: NodePtr) {
+    pub fn children_of(&self, ptr: NodePtr) -> &[Node] {
+        let node = &self[ptr];
+        let ptr = node.actions().inner() as usize;
+        let len = node.num_actions();
+
+        &self.tree[usize::from(self.half())].nodes[ptr..ptr + len]
+    }
+
+    pub fn copy_across(&self, from: NodePtr, to: NodePtr) -> Option<()> {
         if from == to {
-            return;
+            return Some(());
         }
 
         let f = &mut *self[from].actions_mut();
@@ -74,13 +74,20 @@ impl Tree {
         self[to].set_state(self[from].state());
         self[to].set_gini_impurity(self[from].gini_impurity());
 
-        if f.is_empty() {
-            return;
+        let num = self[from].num_actions();
+
+        if num == 0 {
+            return Some(());
         }
 
-        assert!(t.is_empty());
+        assert_eq!(self[to].num_actions(), 0);
 
-        std::mem::swap(f, t);
+        *t = *f;
+        *f = NodePtr::NULL;
+
+        self[to].set_num_actions(num);
+
+        Some(())
     }
 
     pub fn flip(&self, copy_across: bool, threads: usize) {
@@ -91,21 +98,10 @@ impl Tree {
         self.tree[old ^ 1].clear();
 
         if copy_across {
-            let new_root_ptr = self.tree[self.half()].push_new(GameState::Ongoing);
+            let new_root_ptr = self.tree[self.half()].reserve_nodes(1);
             self[new_root_ptr].clear();
 
             self.copy_across(old_root_ptr, new_root_ptr);
-        }
-    }
-
-    #[must_use]
-    pub fn push_new(&self, state: GameState) -> Option<NodePtr> {
-        let new_ptr = self.tree[self.half()].push_new(state);
-
-        if new_ptr.is_null() {
-            None
-        } else {
-            Some(new_ptr)
         }
     }
 
@@ -159,15 +155,7 @@ impl Tree {
         NodePtr::new(self.half.load(Ordering::Relaxed), 0)
     }
 
-    pub fn root_stats(&self) -> &ActionStats {
-        &self.root_stats
-    }
-
-    pub fn edge_copy(&self, ptr: NodePtr, action: usize) -> Edge {
-        self[ptr].actions()[action].clone()
-    }
-
-    pub fn update_edge_stats(&self, ptr: NodePtr, action: usize, result: f32) -> f32 {
+    pub fn update_stats(&self, ptr: NodePtr, action: usize, result: f32) -> f32 {
         let actions = &self[ptr].actions();
         let edge = &actions[action];
         edge.update(result);
@@ -185,7 +173,6 @@ impl Tree {
     fn clear_halves(&self) {
         self.tree[0].clear();
         self.tree[1].clear();
-        self.root_stats.clear();
     }
 
     pub fn clear(&mut self, threads: usize) {
@@ -195,6 +182,111 @@ impl Tree {
 
     pub fn is_empty(&self) -> bool {
         self.tree[0].is_empty() && self.tree[1].is_empty()
+    }
+
+    pub fn expand_node(
+        &self,
+        node_ptr: NodePtr,
+        pos: &ChessState,
+        params: &MctsParams,
+        policy: &PolicyNetwork,
+        depth: usize,
+    ) -> Option<()> {
+        let node = &self[node_ptr];
+
+        let mut actions = node.actions_mut();
+        let num_actions = node.num_actions();
+
+        if num_actions != 0 {
+            return Some(());
+        }
+
+        let feats = pos.get_policy_feats();
+        let mut max = f32::NEG_INFINITY;
+
+        pos.map_legal_moves(|mov| {
+            let policy = pos.get_policy(mov, &feats, policy);
+
+            // trick for calculating policy before quantising
+            actions.push(Edge::new(
+                NodePtr::from_raw(f32::to_bits(policy)),
+                mov.into(),
+                0,
+            ));
+            max = max.max(policy);
+        });
+
+        let pst = match depth {
+            0 => unreachable!(),
+            1 => params.root_pst(),
+            2 => params.depth_2_pst(),
+            3.. => 1.0,
+        };
+
+        let mut total = 0.0;
+
+        for action in actions.iter_mut() {
+            let mut policy = f32::from_bits(action.ptr().inner());
+
+            policy = ((policy - max) / pst).exp();
+
+            action.set_ptr(NodePtr::from_raw(f32::to_bits(policy)));
+
+            total += policy;
+        }
+
+        let mut sum_of_squares = 0.0;
+
+        for action in actions.iter_mut() {
+            let policy = f32::from_bits(action.ptr().inner()) / total;
+            action.set_ptr(NodePtr::NULL);
+            action.set_policy(policy);
+            sum_of_squares += policy * policy;
+        }
+
+        let gini_impurity = (1.0 - sum_of_squares).clamp(0.0, 1.0);
+        node.set_gini_impurity(gini_impurity);
+
+        Some(())
+    }
+
+    pub fn relabel_policy(
+        &self,
+        node_ptr: NodePtr,
+        pos: &ChessState,
+        params: &MctsParams,
+        policy: &PolicyNetwork,
+        depth: u8,
+    ) {
+        let feats = pos.get_policy_feats();
+        let mut max = f32::NEG_INFINITY;
+
+        let mut policies = Vec::new();
+
+        for node in self.actions_for(&self[node_ptr]).iter() {
+            let mov = Move::from(node.mov());
+            let policy = pos.get_policy(mov, &feats, policy);
+            policies.push(policy);
+            max = max.max(policy);
+        }
+
+        let pst = match depth {
+            0 => unreachable!(),
+            1 => params.root_pst(),
+            2 => params.depth_2_pst(),
+            3.. => unreachable!(),
+        };
+
+        let mut total = 0.0;
+
+        for policy in &mut policies {
+            *policy = ((*policy - max) / pst).exp();
+            total += *policy;
+        }
+
+        for (i, action) in self.actions_mut().iter_mut().enumerate() {
+            action.set_policy(policies[i] / total);
+        }
     }
 
     pub fn propogate_proven_mates(&self, ptr: NodePtr, child_state: GameState) {
@@ -277,41 +369,38 @@ impl Tree {
         start: NodePtr,
         this_board: &ChessState,
         board: &ChessState,
-        stats: ActionStats,
         depth: u8,
-    ) -> (NodePtr, ActionStats) {
+    ) -> NodePtr {
         if this_board.is_same(board) {
-            return (start, stats);
+            return start;
         }
 
         if start.is_null() || depth == 0 {
-            return (NodePtr::NULL, ActionStats::default());
+            return NodePtr::NULL;
         }
 
-        let node = &self[start];
 
-        for action in node.actions().iter() {
-            let child_idx = action.ptr();
+        for child in self.children_of(start) {
             let mut child_board = this_board.clone();
 
-            child_board.make_move(Move::from(action.mov()));
+            child_board.make_move(Move::from(child.mov()));
 
             let found =
-                self.recurse_find(child_idx, &child_board, board, action.stats(), depth - 1);
+                self.recurse_find(child_idx, &child_board, board, depth - 1);
 
             if !found.0.is_null() {
                 return found;
             }
         }
 
-        (NodePtr::NULL, ActionStats::default())
+        NodePtr::NULL
     }
 
-    pub fn get_best_child_by_key<F: FnMut(&Edge) -> f32>(&self, ptr: NodePtr, mut key: F) -> usize {
+    pub fn get_best_child_by_key<F: FnMut(&Node) -> f32>(&self, ptr: NodePtr, mut key: F) -> usize {
         let mut best_child = usize::MAX;
         let mut best_score = f32::NEG_INFINITY;
 
-        for (i, action) in self[ptr].actions().iter().enumerate() {
+        for (i, child) in self.actions_for(ptr).iter().enumerate() {
             let score = key(action);
 
             if score > best_score {
@@ -338,74 +427,5 @@ impl Tree {
                 child.q()
             }
         })
-    }
-
-    pub fn display(&self, idx: NodePtr, depth: usize) {
-        let mut bars = vec![true; depth + 1];
-        self.display_recurse(&Edge::new(idx, 0, 0), depth + 1, 0, &mut bars);
-    }
-
-    fn display_recurse(&self, edge: &Edge, depth: usize, ply: usize, bars: &mut [bool]) {
-        let node = &self[edge.ptr()];
-
-        if depth == 0 {
-            return;
-        }
-
-        let mut q = edge.q();
-        if ply % 2 == 0 {
-            q = 1.0 - q;
-        }
-
-        if ply > 0 {
-            for &bar in bars.iter().take(ply - 1) {
-                if bar {
-                    print!("\u{2502}   ");
-                } else {
-                    print!("    ");
-                }
-            }
-
-            if bars[ply - 1] {
-                print!("\u{251C}\u{2500}> ");
-            } else {
-                print!("\u{2514}\u{2500}> ");
-            }
-
-            let mov = Move::from(edge.mov()).to_string();
-
-            println!(
-                "{mov} Q({:.2}%) N({}) P({:.2}%) S({})",
-                q * 100.0,
-                edge.visits(),
-                edge.policy() * 100.0,
-                node.state(),
-            );
-        } else {
-            println!(
-                "root Q({:.2}%) N({})",
-                self.root_stats.q() * 100.0,
-                self.root_stats.visits(),
-            );
-        }
-
-        let mut active = Vec::new();
-        for action in node.actions().iter() {
-            if !action.ptr().is_null() {
-                active.push(action.clone());
-            }
-        }
-
-        let end = active.len() - 1;
-
-        for (i, action) in active.iter().enumerate() {
-            if i == end {
-                bars[ply] = false;
-            }
-            if action.visits() > 0 {
-                self.display_recurse(action, depth - 1, ply + 1, bars);
-            }
-            bars[ply] = true;
-        }
     }
 }

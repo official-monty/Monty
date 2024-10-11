@@ -128,10 +128,6 @@ impl Uci {
                         println!("{s} -> {:.2}%", p / total * 100.0);
                     }
                 }
-                "tree" => {
-                    let depth = commands.get(1).unwrap_or(&"5").parse().unwrap_or(5);
-                    tree.display(tree.root_node(), depth);
-                }
                 "d" => pos.display(policy),
                 "params" => params.list_spsa(),
                 "uci" => preamble(),
