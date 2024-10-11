@@ -11,13 +11,13 @@ else
 endif
 
 default:
-	cargo rustc --release --bin monty -- -C target-cpu=native --emit link=$(NAME)
+	cargo rustc --release --bin monty --features=embed -- -C target-cpu=native --emit link=$(NAME)
 
 montytest:
 	cargo rustc --release --bin monty --features=uci-minimal,tunable -- -C target-cpu=native --emit link=$(NAME)
 
-embed:
-	cargo rustc --release --bin monty --features=embed -- -C target-cpu=native --emit link=$(NAME)
+noembed:
+	cargo rustc --release --bin monty -- -C target-cpu=native --emit link=$(NAME)
 
 gen:
 	cargo rustc --release --package datagen --bin datagen -- -C target-cpu=native --emit link=$(NAME)

@@ -14,7 +14,7 @@ pub use networks::{
 pub use tree::Tree;
 pub use uci::Uci;
 
-pub struct MappedStruct<'a, T> {
+pub struct MappedWeights<'a, T> {
     pub mmap: Mmap,  // The memory-mapped file
     pub data: &'a T, // A reference to the data in the mmap
 }
@@ -56,7 +56,7 @@ pub unsafe fn boxed_and_zeroed<T>() -> Box<T> {
 
 /// # Safety
 /// Only to be used internally.
-pub unsafe fn read_into_struct_unchecked<'a, T>(path: &str) -> MappedStruct<'a, T> {
+pub unsafe fn read_into_struct_unchecked<'a, T>(path: &str) -> MappedWeights<'a, T> {
     let f = std::fs::File::open(path).unwrap();
     let mmap = Mmap::map(&f).unwrap();
 
@@ -74,8 +74,8 @@ pub unsafe fn read_into_struct_unchecked<'a, T>(path: &str) -> MappedStruct<'a, 
         panic!("Memory is not properly aligned for the type");
     }
 
-    MappedStruct {
-        mmap, // This ensures the memory is valid as long as MappedStruct exists
+    MappedWeights {
+        mmap, // This ensures the memory is valid as long as MappedWeights exists
         data: &*ptr,
     }
 }

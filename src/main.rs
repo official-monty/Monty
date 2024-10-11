@@ -35,16 +35,16 @@ mod net {
 
 #[cfg(not(feature = "embed"))]
 mod nonet {
-    use monty::{read_into_struct_unchecked, ChessState, MappedStruct, MctsParams, Uci};
+    use monty::{read_into_struct_unchecked, ChessState, MappedWeights, MctsParams, Uci};
 
     pub fn run() {
         let mut args = std::env::args();
         let arg1 = args.nth(1);
 
-        let policy_mapped: MappedStruct<monty::PolicyNetwork> =
+        let policy_mapped: MappedWeights<monty::PolicyNetwork> =
             unsafe { read_into_struct_unchecked(monty::PolicyFileDefaultName) };
 
-        let value_mapped: MappedStruct<monty::ValueNetwork> =
+        let value_mapped: MappedWeights<monty::ValueNetwork> =
             unsafe { read_into_struct_unchecked(monty::ValueFileDefaultName) };
 
         let policy = policy_mapped.data;
