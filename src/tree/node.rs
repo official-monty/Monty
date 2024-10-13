@@ -4,10 +4,10 @@ use std::sync::{
 };
 
 use crate::{
-    chess::Move,
-    tree::{Edge, NodePtr},
-    ChessState, GameState, MctsParams, PolicyNetwork,
+    chess::Move, mcts::SearchHelpers, tree::{Edge, NodePtr}, ChessState, GameState, MctsParams, PolicyNetwork
 };
+
+use super::ActionStats;
 
 #[derive(Debug)]
 pub struct Node {
@@ -99,6 +99,7 @@ impl Node {
         pos: &ChessState,
         params: &MctsParams,
         policy: &PolicyNetwork,
+        parent_stats: &ActionStats,
         depth: usize,
     ) {
         let mut actions = self.actions_mut();
@@ -126,7 +127,7 @@ impl Node {
             0 => unreachable!(),
             1 => params.root_pst(),
             2 => params.depth_2_pst(),
-            3.. => 1.0,
+            3.. => SearchHelpers::get_pst(parent_stats, params),
         };
 
         let mut total = 0.0;

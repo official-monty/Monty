@@ -246,7 +246,7 @@ impl<'a> Searcher<'a> {
                 self.tree[action.ptr()].relabel_policy(&position, self.params, self.policy, 2);
             }
         } else {
-            self.tree[node].expand(&self.root_position, self.params, self.policy, 1);
+            self.tree[node].expand(&self.root_position, self.params, self.policy, self.tree.root_stats(), 1);
         }
 
         let search_stats = SearchStats::default();
@@ -320,7 +320,7 @@ impl<'a> Searcher<'a> {
         } else {
             // expand node on the second visit
             if self.tree[ptr].is_not_expanded() {
-                self.tree[ptr].expand(pos, self.params, self.policy, *depth);
+                self.tree[ptr].expand(pos, self.params, self.policy, node_stats, *depth);
             }
 
             // select action to take via PUCT
