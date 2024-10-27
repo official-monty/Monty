@@ -194,6 +194,7 @@ impl Node {
         self.visits.store(0, Ordering::Relaxed);
         self.q.store(0, Ordering::Relaxed);
         self.sq_q.store(0, Ordering::Relaxed);
+        self.threads.store(0, Ordering::Relaxed);
     }
 
     pub fn update(&self, result: f32) -> f32 {

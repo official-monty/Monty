@@ -235,6 +235,7 @@ impl<'a> Searcher<'a> {
 
             assert_eq!(node, ptr);
 
+            self.tree[ptr].clear();
             self.tree.expand_node(ptr, &self.root_position, self.params, self.policy, 1);
 
             let root_eval = self.root_position.get_value_wdl(self.value, self.params);

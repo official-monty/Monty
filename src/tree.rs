@@ -204,9 +204,7 @@ impl Tree {
             let ptr = new_ptr + action;
             let policy = policy / total;
         
-            let child = &self[ptr];
-            child.set_new(mov, policy);
-
+            self[ptr].set_new(mov, policy);
             sum_of_squares += policy * policy;
         }
 
