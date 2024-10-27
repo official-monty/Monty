@@ -74,6 +74,12 @@ impl Node {
         }
     }
 
+    pub fn set_new(&self, mov: Move, policy: f32) {
+        self.clear();
+        self.mov.store(u16::from(mov), Ordering::Relaxed);
+        self.set_policy(policy);
+    }
+
     pub fn is_terminal(&self) -> bool {
         self.state() != GameState::Ongoing
     }
@@ -132,6 +138,14 @@ impl Node {
 
     pub fn set_state(&self, state: GameState) {
         self.state.store(u16::from(state), Ordering::Relaxed);
+    }
+
+    pub fn policy(&self) -> f32 {
+        f32::from(self.policy.load(Ordering::Relaxed)) / f32::from(u16::MAX)
+    }
+
+    pub fn set_policy(&self, policy: f32) {
+        self.policy.store((policy * f32::from(u16::MAX)) as u16, Ordering::Relaxed);
     }
 
     pub fn has_children(&self) -> bool {

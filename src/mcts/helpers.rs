@@ -45,7 +45,7 @@ impl SearchHelpers {
     pub fn get_explore_scaling(params: &MctsParams, node: &Node) -> f32 {
         #[cfg(not(feature = "datagen"))]
         {
-            let mut scale = Self::base_explore_scaling(params, node_stats);
+            let mut scale = Self::base_explore_scaling(params, node);
 
             let gini = node.gini_impurity();
             scale *= (0.679 - 1.634 * (gini + 0.001).ln()).min(2.1);
@@ -159,7 +159,8 @@ impl SearchHelpers {
         .clamp(searcher.params.tm_bmi2(), searcher.params.tm_bmi3());
 
         // Use less time if our best move has a large percentage of visits, and vice versa
-        let nodes_effort = searcher.get_best_action().visits() as f32 / nodes as f32;
+        let (best_child_ptr, _, _) = searcher.get_best_action(searcher.tree.root_node());
+        let nodes_effort = searcher.tree[best_child_ptr].visits() as f32 / nodes as f32;
         let best_move_visits = (searcher.params.tm_bmv1()
             - ((nodes_effort + searcher.params.tm_bmv2()) * searcher.params.tm_bmv3()).ln_1p()
                 * searcher.params.tm_bmv4())

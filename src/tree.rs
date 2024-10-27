@@ -12,7 +12,7 @@ use std::{
 };
 
 use crate::{
-    chess::{ChessState, Move},
+    chess::ChessState,
     GameState, MctsParams, PolicyNetwork,
 };
 
@@ -55,12 +55,8 @@ impl Tree {
         self.tree[self.half()].is_full()
     }
 
-    pub fn children_of(&self, ptr: NodePtr) -> &[Node] {
-        let node = &self[ptr];
-        let ptr = node.actions().inner() as usize;
-        let len = node.num_actions();
-
-        &self.tree[usize::from(self.half())].nodes[ptr..ptr + len]
+    pub fn push_new_node(&self) -> Option<NodePtr> {
+        self.tree[self.half()].reserve_nodes(1)
     }
 
     fn copy_node_across(&self, from: NodePtr, to: NodePtr) -> Option<()> {
@@ -179,27 +175,24 @@ impl Tree {
     ) -> Option<()> {
         let node = &self[node_ptr];
 
-        let mut actions = node.actions_mut();
-        let num_actions = node.num_actions();
+        let mut actions_ptr = node.actions_mut();
 
-        if num_actions != 0 {
+        if node.num_actions() != 0 {
             return Some(());
         }
 
         let feats = pos.get_policy_feats();
         let mut max = f32::NEG_INFINITY;
 
+        let mut actions = Vec::new();
+
         pos.map_legal_moves(|mov| {
             let policy = pos.get_policy(mov, &feats, policy);
-
-            // trick for calculating policy before quantising
-            actions.push(Edge::new(
-                NodePtr::from_raw(f32::to_bits(policy)),
-                mov.into(),
-                0,
-            ));
+            actions.push((mov, policy));
             max = max.max(policy);
         });
+
+        let new_ptr = self.tree[self.half()].reserve_nodes(actions.len())?;
 
         let pst = match depth {
             0 => unreachable!(),
@@ -210,27 +203,28 @@ impl Tree {
 
         let mut total = 0.0;
 
-        for action in actions.iter_mut() {
-            let mut policy = f32::from_bits(action.ptr().inner());
-
-            policy = ((policy - max) / pst).exp();
-
-            action.set_ptr(NodePtr::from_raw(f32::to_bits(policy)));
-
-            total += policy;
+        for (_, policy) in actions.iter_mut() {
+            *policy = ((*policy - max) / pst).exp();
+            total += *policy;
         }
 
         let mut sum_of_squares = 0.0;
 
-        for action in actions.iter_mut() {
-            let policy = f32::from_bits(action.ptr().inner()) / total;
-            action.set_ptr(NodePtr::NULL);
-            action.set_policy(policy);
+        for (action, &(mov, policy)) in actions.iter().enumerate() {
+            let ptr = new_ptr + action;
+            let policy = policy / total;
+        
+            let child = &self[ptr];
+            child.set_new(mov, policy);
+
             sum_of_squares += policy * policy;
         }
 
         let gini_impurity = (1.0 - sum_of_squares).clamp(0.0, 1.0);
         node.set_gini_impurity(gini_impurity);
+
+        *actions_ptr = new_ptr;
+        node.set_num_actions(actions.len());
 
         Some(())
     }
@@ -248,9 +242,13 @@ impl Tree {
 
         let mut policies = Vec::new();
 
-        for node in self.actions_for(&self[node_ptr]).iter() {
-            let mov = Move::from(node.mov());
+        let actions = self[node_ptr].actions_mut();
+        let num_actions = self[node_ptr].num_actions();
+
+        for action in 0..num_actions {
+            let mov = self[*actions + action].parent_move();
             let policy = pos.get_policy(mov, &feats, policy);
+
             policies.push(policy);
             max = max.max(policy);
         }
@@ -269,8 +267,8 @@ impl Tree {
             total += *policy;
         }
 
-        for (i, action) in self.actions_mut().iter_mut().enumerate() {
-            action.set_policy(policies[i] / total);
+        for (action, &policy) in policies.iter().enumerate() {
+            self[*actions + action].set_policy(policy / total);
         }
     }
 
@@ -282,13 +280,16 @@ impl Tree {
             // if the child node resulted in a win, then check if there are
             // any non-won children, and if not, guaranteed loss for this node
             GameState::Won(n) => {
+                assert_ne!(self[ptr].num_actions(), 0);             
+
                 let mut proven_loss = true;
                 let mut max_win_len = n;
-                for action in self[ptr].actions().iter() {
-                    if action.ptr().is_null() {
-                        proven_loss = false;
-                        break;
-                    } else if let GameState::Won(n) = self[action.ptr()].state() {
+                let first_child_ptr = *self[ptr].actions();
+
+                for action in 0..self[ptr].num_actions() {
+                    let ptr = first_child_ptr + action;
+
+                    if let GameState::Won(n) = self[ptr].state() {
                         max_win_len = n.max(max_win_len);
                     } else {
                         proven_loss = false;
@@ -305,11 +306,10 @@ impl Tree {
         }
     }
 
-    pub fn try_use_subtree(&mut self, root: &ChessState, prev_board: &Option<ChessState>) {
+    pub fn try_use_subtree(&self, root: &ChessState, prev_board: &Option<ChessState>) {
         let t = Instant::now();
 
         if self.is_empty() {
-            self.push_new(GameState::Ongoing).unwrap();
             return;
         }
 
@@ -320,16 +320,14 @@ impl Tree {
         if let Some(board) = prev_board {
             println!("info string searching for subtree");
 
-            let (root, stats) =
-                self.recurse_find(self.root_node(), board, root, self.root_stats.clone(), 2);
+            let root = self.recurse_find(self.root_node(), board, root, 2);
 
             if !root.is_null() && self[root].has_children() {
                 found = true;
 
                 if root != self.root_node() {
                     self[self.root_node()].clear();
-                    self.copy_across(root, self.root_node());
-                    self.root_stats = stats;
+                    self.copy_node_across(root, self.root_node());
                     println!("info string found subtree");
                 } else {
                     println!("info string using current tree");
@@ -340,7 +338,6 @@ impl Tree {
         if !found {
             println!("info string no subtree found");
             self.clear_halves();
-            self.push_new(GameState::Ongoing).unwrap();
         }
 
         println!(
@@ -364,16 +361,24 @@ impl Tree {
             return NodePtr::NULL;
         }
 
+        let first_child_ptr = { *self[start].actions() };
 
-        for child in self.children_of(start) {
+        if first_child_ptr.is_null() {
+            return NodePtr::NULL;
+        }
+
+        for action in 0..self[start].num_actions() {
             let mut child_board = this_board.clone();
 
-            child_board.make_move(Move::from(child.mov()));
+            let child_ptr = first_child_ptr + action;
+            let child = &self[child_ptr];
+
+            child_board.make_move(child.parent_move());
 
             let found =
-                self.recurse_find(child_idx, &child_board, board, depth - 1);
+                self.recurse_find(child_ptr, &child_board, board, depth - 1);
 
-            if !found.0.is_null() {
+            if !found.is_null() {
                 return found;
             }
         }
@@ -385,12 +390,14 @@ impl Tree {
         let mut best_child = usize::MAX;
         let mut best_score = f32::NEG_INFINITY;
 
-        for (i, child) in self.actions_for(ptr).iter().enumerate() {
-            let score = key(action);
+        let first_child_ptr = { *self[ptr].actions() };
+
+        for action in 0..self[ptr].num_actions() {
+            let score = key(&self[first_child_ptr + action]);
 
             if score > best_score {
                 best_score = score;
-                best_child = i;
+                best_child = action;
             }
         }
 
@@ -401,15 +408,13 @@ impl Tree {
         self.get_best_child_by_key(ptr, |child| {
             if child.visits() == 0 {
                 f32::NEG_INFINITY
-            } else if !child.ptr().is_null() {
-                match self[child.ptr()].state() {
+            } else {
+                match child.state() {
                     GameState::Lost(n) => 1.0 + f32::from(n),
                     GameState::Won(n) => f32::from(n) - 256.0,
                     GameState::Draw => 0.5,
                     GameState::Ongoing => child.q(),
                 }
-            } else {
-                child.q()
             }
         })
     }
