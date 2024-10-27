@@ -1,7 +1,10 @@
-use std::{ops::Add, sync::{
-    atomic::{AtomicI32, AtomicU16, AtomicU32, AtomicU8, Ordering},
-    RwLock, RwLockReadGuard, RwLockWriteGuard,
-}};
+use std::{
+    ops::Add,
+    sync::{
+        atomic::{AtomicI32, AtomicU16, AtomicU32, AtomicU8, Ordering},
+        RwLock, RwLockReadGuard, RwLockWriteGuard,
+    },
+};
 
 use crate::{GameState, Move};
 
@@ -145,7 +148,8 @@ impl Node {
     }
 
     pub fn set_policy(&self, policy: f32) {
-        self.policy.store((policy * f32::from(u16::MAX)) as u16, Ordering::Relaxed);
+        self.policy
+            .store((policy * f32::from(u16::MAX)) as u16, Ordering::Relaxed);
     }
 
     pub fn has_children(&self) -> bool {
@@ -181,7 +185,8 @@ impl Node {
         self.mov.store(other.mov.load(Relaxed), Relaxed);
         self.policy.store(other.policy.load(Relaxed), Relaxed);
         self.state.store(other.state.load(Relaxed), Relaxed);
-        self.gini_impurity.store(other.gini_impurity.load(Relaxed), Relaxed);
+        self.gini_impurity
+            .store(other.gini_impurity.load(Relaxed), Relaxed);
         self.visits.store(other.visits.load(Relaxed), Relaxed);
         self.q.store(other.q.load(Relaxed), Relaxed);
         self.sq_q.store(other.sq_q.load(Relaxed), Relaxed);

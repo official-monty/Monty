@@ -11,10 +11,7 @@ use std::{
     time::Instant,
 };
 
-use crate::{
-    chess::ChessState,
-    GameState, MctsParams, PolicyNetwork,
-};
+use crate::{chess::ChessState, GameState, MctsParams, PolicyNetwork};
 
 pub struct Tree {
     tree: [TreeHalf; 2],
@@ -169,7 +166,7 @@ impl Tree {
         // be called twice, and this acts as a safeguard in
         // that case
         if !node.is_not_expanded() {
-            return Some(())
+            return Some(());
         }
 
         let feats = pos.get_policy_feats();
@@ -203,7 +200,7 @@ impl Tree {
         for (action, &(mov, policy)) in actions.iter().enumerate() {
             let ptr = new_ptr + action;
             let policy = policy / total;
-        
+
             self[ptr].set_new(mov, policy);
             sum_of_squares += policy * policy;
         }
@@ -268,7 +265,7 @@ impl Tree {
             // if the child node resulted in a win, then check if there are
             // any non-won children, and if not, guaranteed loss for this node
             GameState::Won(n) => {
-                assert_ne!(self[ptr].num_actions(), 0);             
+                assert_ne!(self[ptr].num_actions(), 0);
 
                 let mut proven_loss = true;
                 let mut max_win_len = n;
@@ -363,8 +360,7 @@ impl Tree {
 
             child_board.make_move(child.parent_move());
 
-            let found =
-                self.recurse_find(child_ptr, &child_board, board, depth - 1);
+            let found = self.recurse_find(child_ptr, &child_board, board, depth - 1);
 
             if !found.is_null() {
                 return found;

@@ -104,11 +104,10 @@ impl<'a> Searcher<'a> {
             let mut pos = self.root_position.clone();
             let mut this_depth = 0;
 
-            if self.perform_one_iteration(
-                &mut pos,
-                self.tree.root_node(),
-                &mut this_depth,
-            ).is_none() {
+            if self
+                .perform_one_iteration(&mut pos, self.tree.root_node(), &mut this_depth)
+                .is_none()
+            {
                 return false;
             }
 
@@ -236,14 +235,16 @@ impl<'a> Searcher<'a> {
             assert_eq!(node, ptr);
 
             self.tree[ptr].clear();
-            self.tree.expand_node(ptr, &self.root_position, self.params, self.policy, 1);
+            self.tree
+                .expand_node(ptr, &self.root_position, self.params, self.policy, 1);
 
             let root_eval = self.root_position.get_value_wdl(self.value, self.params);
             self.tree[ptr].update(1.0 - root_eval);
         }
         // relabel preexisting root policies with root PST value
         else if self.tree[node].has_children() {
-            self.tree.relabel_policy(node, &self.root_position, self.params, self.policy, 1);
+            self.tree
+                .relabel_policy(node, &self.root_position, self.params, self.policy, 1);
 
             let first_child_ptr = { *self.tree[node].actions() };
 
@@ -256,7 +257,8 @@ impl<'a> Searcher<'a> {
 
                 let mut position = self.root_position.clone();
                 position.make_move(self.tree[ptr].parent_move());
-                self.tree.relabel_policy(ptr, &position, self.params, self.policy, 2);
+                self.tree
+                    .relabel_policy(ptr, &position, self.params, self.policy, 2);
             }
         }
 
@@ -335,7 +337,8 @@ impl<'a> Searcher<'a> {
         } else {
             // expand node on the second visit
             if node.is_not_expanded() {
-                self.tree.expand_node(ptr, pos, self.params, self.policy, *depth)?;
+                self.tree
+                    .expand_node(ptr, pos, self.params, self.policy, *depth)?;
             }
 
             // this node has now been accessed so we need to move its
@@ -402,8 +405,7 @@ impl<'a> Searcher<'a> {
 
         let cpuct = SearchHelpers::get_cpuct(self.params, node, is_root);
         let fpu = SearchHelpers::get_fpu(node);
-        let expl_scale =
-            SearchHelpers::get_explore_scaling(self.params, node);
+        let expl_scale = SearchHelpers::get_explore_scaling(self.params, node);
 
         let expl = cpuct * expl_scale;
 
@@ -501,7 +503,11 @@ impl<'a> Searcher<'a> {
             let child = &self.tree[first_child_ptr + action];
             let mov = self.root_position.conv_mov_to_str(child.parent_move());
             let q = child.q() * 100.0;
-            println!("{mov} -> {q:.2}% V({}) S({})", child.visits(), child.state());
+            println!(
+                "{mov} -> {q:.2}% V({}) S({})",
+                child.visits(),
+                child.state()
+            );
         }
     }
 }
