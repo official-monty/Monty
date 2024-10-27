@@ -319,6 +319,7 @@ impl<'a> Searcher<'a> {
 
         let mut u = if node.is_terminal() || node.visits() == 0 {
             if node.visits() == 0 {
+                let _unused = node.actions_mut();
                 node.set_state(pos.game_state());
             }
 
@@ -345,8 +346,8 @@ impl<'a> Searcher<'a> {
             // select action to take via PUCT
             let action = self.pick_action(ptr, node);
 
-            let first_child_ptr = node.actions();
-            let child_ptr = *first_child_ptr + action;
+            let first_child_ptr = { *node.actions() };
+            let child_ptr = first_child_ptr + action;
 
             let mov = self.tree[child_ptr].parent_move();
 

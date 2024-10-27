@@ -168,7 +168,7 @@ impl Tree {
         // when running with >1 threads, this function may
         // be called twice, and this acts as a safeguard in
         // that case
-        if !actions_ptr.is_null() {
+        if !node.is_not_expanded() {
             return Some(())
         }
 
