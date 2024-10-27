@@ -1,9 +1,9 @@
-use std::sync::{
+use std::{ops::Add, sync::{
     atomic::{AtomicI32, AtomicU16, AtomicU32, AtomicU8, Ordering},
     RwLock, RwLockReadGuard, RwLockWriteGuard,
-};
+}};
 
-use crate::GameState;
+use crate::{GameState, Move};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct NodePtr(u32);
@@ -33,6 +33,14 @@ impl NodePtr {
 
     pub fn from_raw(inner: u32) -> Self {
         Self(inner)
+    }
+}
+
+impl Add<usize> for NodePtr {
+    type Output = NodePtr;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        Self(self.0 + rhs as u32)
     }
 }
 
@@ -148,6 +156,10 @@ impl Node {
         self.num_actions.store(0, Ordering::Relaxed);
     }
 
+    pub fn parent_move(&self) -> Move {
+        Move::from(self.mov.load(Ordering::Relaxed))
+    }
+
     pub fn clear(&self) {
         self.clear_actions();
         self.set_state(GameState::Ongoing);
@@ -157,7 +169,7 @@ impl Node {
         self.sq_q.store(0, Ordering::Relaxed);
     }
 
-    pub fn update(&self, result: f32) {
+    pub fn update(&self, result: f32) -> f32 {
         let r = f64::from(result);
         let v = f64::from(self.visits.fetch_add(1, Ordering::Relaxed));
 
@@ -168,5 +180,7 @@ impl Node {
             .store((q * f64::from(u32::MAX)) as u32, Ordering::Relaxed);
         self.sq_q
             .store((sq_q * f64::from(u32::MAX)) as u32, Ordering::Relaxed);
+
+        q as f32
     }
 }

@@ -107,10 +107,9 @@ impl<'a> Searcher<'a> {
             if let Some(u) = self.perform_one_iteration(
                 &mut pos,
                 self.tree.root_node(),
-                self.tree.root_stats(),
                 &mut this_depth,
             ) {
-                self.tree.root_stats().update(u);
+                self.tree[self.tree.root_node()].update(u);
             } else {
                 return false;
             }
@@ -246,7 +245,7 @@ impl<'a> Searcher<'a> {
                 self.tree[action.ptr()].relabel_policy(&position, self.params, self.policy, 2);
             }
         } else {
-            self.tree[node].expand(&self.root_position, self.params, self.policy, 1);
+            self.tree.expand_node(node, &self.root_position, self.params, self.policy, 1);
         }
 
         let search_stats = SearchStats::default();
@@ -326,22 +325,22 @@ impl<'a> Searcher<'a> {
             // select action to take via PUCT
             let action = self.pick_action(ptr, node);
 
-            let edge = self.tree.edge_copy(ptr, action);
+            let child_ptr = self.tree.fetch_node(pos, ptr, action)?;
 
-            pos.make_move(Move::from(edge.mov()));
+            let mov = self.tree[child_ptr].parent_move();
 
-            let child_ptr = self.tree.fetch_node(pos, ptr, edge.ptr(), action)?;
+            pos.make_move(mov);
 
             self.tree[child_ptr].inc_threads();
 
             // descend further
-            let maybe_u = self.perform_one_iteration(pos, child_ptr, &edge.stats(), depth);
+            let maybe_u = self.perform_one_iteration(pos, child_ptr, depth);
 
             self.tree[child_ptr].dec_threads();
 
             let u = maybe_u?;
 
-            let new_q = self.tree.update_edge_stats(ptr, action, u);
+            let new_q = self.tree[child_ptr].update(u);
             self.tree.push_hash(hash, new_q);
 
             self.tree

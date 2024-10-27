@@ -49,14 +49,14 @@ impl TreeHalf {
         res
     }
 
-    pub fn reserve_nodes(&self, num: usize) -> NodePtr {
+    pub fn reserve_nodes(&self, num: usize) -> Option<NodePtr> {
         let idx = self.used.fetch_add(num, Ordering::Relaxed);
 
         if idx + num > self.nodes.len() {
-            return NodePtr::NULL;
+            return None;
         }
 
-        NodePtr::new(self.half, idx as u32)
+        Some(NodePtr::new(self.half, idx as u32))
     }
 
     pub fn clear(&self) {

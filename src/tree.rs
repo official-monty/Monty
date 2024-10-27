@@ -63,7 +63,7 @@ impl Tree {
         &self.tree[usize::from(self.half())].nodes[ptr..ptr + len]
     }
 
-    pub fn copy_across(&self, from: NodePtr, to: NodePtr) -> Option<()> {
+    fn copy_node_across(&self, from: NodePtr, to: NodePtr) -> Option<()> {
         if from == to {
             return Some(());
         }
@@ -90,6 +90,14 @@ impl Tree {
         Some(())
     }
 
+    pub fn copy_across(&self, from: NodePtr, num: usize, to: NodePtr) -> Option<()> {
+        for i in 0..num {
+            self.copy_node_across(from + i, to + i)?;
+        }
+
+        Some(())
+    }
+
     pub fn flip(&self, copy_across: bool, threads: usize) {
         let old_root_ptr = self.root_node();
 
@@ -98,68 +106,45 @@ impl Tree {
         self.tree[old ^ 1].clear();
 
         if copy_across {
-            let new_root_ptr = self.tree[self.half()].reserve_nodes(1);
+            let new_root_ptr = self.tree[self.half()].reserve_nodes(1).unwrap();
             self[new_root_ptr].clear();
 
-            self.copy_across(old_root_ptr, new_root_ptr);
+            self.copy_node_across(old_root_ptr, new_root_ptr);
         }
     }
 
     #[must_use]
     pub fn fetch_node(
         &self,
-        pos: &ChessState,
         parent_ptr: NodePtr,
-        ptr: NodePtr,
         action: usize,
     ) -> Option<NodePtr> {
-        if ptr.is_null() {
-            let actions = self[parent_ptr].actions_mut();
+        let first_child_ptr = { *self[parent_ptr].actions() };
 
-            let most_recent_ptr = actions[action].ptr();
-            if !most_recent_ptr.is_null() {
-                return Some(most_recent_ptr);
-            }
+        assert!(!first_child_ptr.is_null(), "First child pointer is null, but parent should be expanded!");
 
-            assert_eq!(ptr, most_recent_ptr);
+        if first_child_ptr.half() != self.half.load(Ordering::Relaxed) {
+            let most_recent_ptr = self[parent_ptr].actions_mut();
 
-            let state = pos.game_state();
-            let new_ptr = self.push_new(state)?;
-
-            actions[action].set_ptr(new_ptr);
-
-            Some(new_ptr)
-        } else if ptr.half() != self.half.load(Ordering::Relaxed) {
-            let actions = self[parent_ptr].actions_mut();
-
-            let most_recent_ptr = actions[action].ptr();
             if most_recent_ptr.half() == self.half.load(Ordering::Relaxed) {
-                return Some(most_recent_ptr);
+                return Some(*most_recent_ptr + action);
             }
 
-            assert_eq!(ptr, most_recent_ptr);
+            assert_eq!(first_child_ptr, *most_recent_ptr);
 
-            let new_ptr = self.push_new(GameState::Ongoing)?;
+            let num_children = self[parent_ptr].num_actions();
+            let new_ptr = self.tree[self.half()].reserve_nodes(num_children)?;
 
-            self.copy_across(ptr, new_ptr);
+            self.copy_across(first_child_ptr, num_children, new_ptr);
 
-            actions[action].set_ptr(new_ptr);
-
-            Some(new_ptr)
+            Some(new_ptr + action)
         } else {
-            Some(ptr)
+            Some(first_child_ptr + action)
         }
     }
 
     pub fn root_node(&self) -> NodePtr {
         NodePtr::new(self.half.load(Ordering::Relaxed), 0)
-    }
-
-    pub fn update_stats(&self, ptr: NodePtr, action: usize, result: f32) -> f32 {
-        let actions = &self[ptr].actions();
-        let edge = &actions[action];
-        edge.update(result);
-        edge.q()
     }
 
     pub fn probe_hash(&self, hash: u64) -> Option<HashEntry> {
