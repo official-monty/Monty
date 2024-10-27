@@ -68,18 +68,14 @@ impl Tree {
         let f = &mut *self[from].actions_mut();
         let t = &mut *self[to].actions_mut();
 
+        // no other thread is able to modify `from`
+        // whilst the above write locks are held,
+        // so this will never result in copying garbage
+        // (for a thread that calls this function whilst
+        // another thread is already doing the same work)
         self[to].copy_from(&self[from]);
-
-        //if self[from].is_not_expanded() {
-        //    return Some(());
-        //}
-
-        *t = *f;
-        *f = NodePtr::NULL;
-
         self[to].set_num_actions(self[from].num_actions());
-        self[from].set_num_actions(0);
-        self[from].set_state(GameState::Ongoing);
+        *t = *f;
 
         Some(())
     }
@@ -108,12 +104,8 @@ impl Tree {
     }
 
     #[must_use]
-    pub fn fetch_children(&self, parent_ptr: NodePtr, t: bool) -> Option<()> {
+    pub fn fetch_children(&self, parent_ptr: NodePtr) -> Option<()> {
         let first_child_ptr = { *self[parent_ptr].actions() };
-
-        assert_eq!(self[parent_ptr].state(), GameState::Ongoing, "Node is terminal!");
-        assert_ne!(self[parent_ptr].num_actions(), 0, "{}, {t}", parent_ptr.idx());
-        assert!(!first_child_ptr.is_null(), "First child pointer is null, but parent should be expanded!");
 
         if first_child_ptr.half() != self.half.load(Ordering::Relaxed) {
             let mut most_recent_ptr = self[parent_ptr].actions_mut();
@@ -173,12 +165,15 @@ impl Tree {
 
         let mut actions_ptr = node.actions_mut();
 
-        assert!(actions_ptr.is_null(), "Child pointer must be null!");
-        assert_eq!(node.num_actions(), 0, "Cannot expand an already expanded node!");
+        // when running with >1 threads, this function may
+        // be called twice, and this acts as a safeguard in
+        // that case
+        if !actions_ptr.is_null() {
+            return Some(())
+        }
 
         let feats = pos.get_policy_feats();
         let mut max = f32::NEG_INFINITY;
-
         let mut actions = Vec::new();
 
         pos.map_legal_moves(|mov| {
@@ -187,11 +182,7 @@ impl Tree {
             max = max.max(policy);
         });
 
-        assert_ne!(actions.len(), 0, "Attempting to expand a terminal node!");
-
         let new_ptr = self.tree[self.half()].reserve_nodes(actions.len())?;
-
-        assert!(!new_ptr.is_null(), "The returned pointer was null!");
 
         let pst = match depth {
             0 => unreachable!(),
@@ -224,11 +215,6 @@ impl Tree {
 
         *actions_ptr = new_ptr;
         node.set_num_actions(actions.len());
-
-        drop(actions_ptr);
-
-        assert_ne!(node.num_actions(), 0);
-        assert!(!self[node_ptr].actions().is_null());
 
         Some(())
     }

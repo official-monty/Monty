@@ -333,18 +333,13 @@ impl<'a> Searcher<'a> {
             }
         } else {
             // expand node on the second visit
-            let t = if node.is_not_expanded() {
+            if node.is_not_expanded() {
                 self.tree.expand_node(ptr, pos, self.params, self.policy, *depth)?;
-                true
-            } else {
-                false
-            };
-
-            assert!(!node.is_not_expanded());
+            }
 
             // this node has now been accessed so we need to move its
             // children across if they are in the other tree half
-            self.tree.fetch_children(ptr, t)?;
+            self.tree.fetch_children(ptr)?;
 
             // select action to take via PUCT
             let action = self.pick_action(ptr, node);
@@ -480,7 +475,7 @@ impl<'a> Searcher<'a> {
 
     fn get_best_action(&self, node: NodePtr) -> (NodePtr, Move, f32) {
         let idx = self.tree.get_best_child(node);
-        let ptr = node + idx;
+        let ptr = *self.tree[node].actions() + idx;
         let child = &self.tree[ptr];
         (ptr, child.parent_move(), child.q())
     }
@@ -495,7 +490,7 @@ impl<'a> Searcher<'a> {
             let child = &self.tree[first_child_ptr + action];
             let mov = self.root_position.conv_mov_to_str(child.parent_move());
             let q = child.q() * 100.0;
-            println!("{mov} -> {q:.2}%");
+            println!("{mov} -> {q:.2}% V({}) S({})", child.visits(), child.state());
         }
     }
 }
