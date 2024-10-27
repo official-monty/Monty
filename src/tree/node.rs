@@ -174,6 +174,19 @@ impl Node {
         Move::from(self.mov.load(Ordering::Relaxed))
     }
 
+    pub fn copy_from(&self, other: &Self) {
+        use std::sync::atomic::Ordering::Relaxed;
+
+        self.threads.store(other.threads.load(Relaxed), Relaxed);
+        self.mov.store(other.mov.load(Relaxed), Relaxed);
+        self.policy.store(other.policy.load(Relaxed), Relaxed);
+        self.state.store(other.state.load(Relaxed), Relaxed);
+        self.gini_impurity.store(other.gini_impurity.load(Relaxed), Relaxed);
+        self.visits.store(other.visits.load(Relaxed), Relaxed);
+        self.q.store(other.q.load(Relaxed), Relaxed);
+        self.sq_q.store(other.sq_q.load(Relaxed), Relaxed);
+    }
+
     pub fn clear(&self) {
         self.clear_actions();
         self.set_state(GameState::Ongoing);

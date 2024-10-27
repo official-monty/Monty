@@ -33,7 +33,8 @@ impl std::ops::Index<NodePtr> for Tree {
 impl Tree {
     pub fn new_mb(mb: usize, threads: usize) -> Self {
         let bytes = mb * 1024 * 1024;
-        Self::new(bytes / (48 + 20 * 20), bytes / 48 / 16, threads)
+
+        Self::new(bytes / 48, bytes / 48 / 16, threads)
     }
 
     fn new(tree_cap: usize, hash_cap: usize, threads: usize) -> Self {
@@ -67,21 +68,18 @@ impl Tree {
         let f = &mut *self[from].actions_mut();
         let t = &mut *self[to].actions_mut();
 
-        self[to].set_state(self[from].state());
-        self[to].set_gini_impurity(self[from].gini_impurity());
+        self[to].copy_from(&self[from]);
 
-        let num = self[from].num_actions();
-
-        if num == 0 {
-            return Some(());
-        }
-
-        assert_eq!(self[to].num_actions(), 0);
+        //if self[from].is_not_expanded() {
+        //    return Some(());
+        //}
 
         *t = *f;
         *f = NodePtr::NULL;
 
-        self[to].set_num_actions(num);
+        self[to].set_num_actions(self[from].num_actions());
+        self[from].set_num_actions(0);
+        self[from].set_state(GameState::Ongoing);
 
         Some(())
     }
@@ -110,20 +108,18 @@ impl Tree {
     }
 
     #[must_use]
-    pub fn fetch_node(
-        &self,
-        parent_ptr: NodePtr,
-        action: usize,
-    ) -> Option<NodePtr> {
+    pub fn fetch_children(&self, parent_ptr: NodePtr, t: bool) -> Option<()> {
         let first_child_ptr = { *self[parent_ptr].actions() };
 
+        assert_eq!(self[parent_ptr].state(), GameState::Ongoing, "Node is terminal!");
+        assert_ne!(self[parent_ptr].num_actions(), 0, "{}, {t}", parent_ptr.idx());
         assert!(!first_child_ptr.is_null(), "First child pointer is null, but parent should be expanded!");
 
         if first_child_ptr.half() != self.half.load(Ordering::Relaxed) {
-            let most_recent_ptr = self[parent_ptr].actions_mut();
+            let mut most_recent_ptr = self[parent_ptr].actions_mut();
 
             if most_recent_ptr.half() == self.half.load(Ordering::Relaxed) {
-                return Some(*most_recent_ptr + action);
+                return Some(());
             }
 
             assert_eq!(first_child_ptr, *most_recent_ptr);
@@ -133,10 +129,10 @@ impl Tree {
 
             self.copy_across(first_child_ptr, num_children, new_ptr);
 
-            Some(new_ptr + action)
-        } else {
-            Some(first_child_ptr + action)
+            *most_recent_ptr = new_ptr;
         }
+
+        Some(())
     }
 
     pub fn root_node(&self) -> NodePtr {
@@ -177,9 +173,8 @@ impl Tree {
 
         let mut actions_ptr = node.actions_mut();
 
-        if node.num_actions() != 0 {
-            return Some(());
-        }
+        assert!(actions_ptr.is_null(), "Child pointer must be null!");
+        assert_eq!(node.num_actions(), 0, "Cannot expand an already expanded node!");
 
         let feats = pos.get_policy_feats();
         let mut max = f32::NEG_INFINITY;
@@ -192,7 +187,11 @@ impl Tree {
             max = max.max(policy);
         });
 
+        assert_ne!(actions.len(), 0, "Attempting to expand a terminal node!");
+
         let new_ptr = self.tree[self.half()].reserve_nodes(actions.len())?;
+
+        assert!(!new_ptr.is_null(), "The returned pointer was null!");
 
         let pst = match depth {
             0 => unreachable!(),
@@ -225,6 +224,11 @@ impl Tree {
 
         *actions_ptr = new_ptr;
         node.set_num_actions(actions.len());
+
+        drop(actions_ptr);
+
+        assert_ne!(node.num_actions(), 0);
+        assert!(!self[node_ptr].actions().is_null());
 
         Some(())
     }

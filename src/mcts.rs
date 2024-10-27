@@ -316,12 +316,13 @@ impl<'a> Searcher<'a> {
         let hash = pos.hash();
         let node = &self.tree[ptr];
 
-        let mut u = if node.visits() == 0 {
-            let state = pos.game_state();
-            node.set_state(state);
+        let mut u = if node.is_terminal() || node.visits() == 0 {
+            if node.visits() == 0 {
+                node.set_state(pos.game_state());
+            }
 
             // probe hash table to use in place of network
-            if state == GameState::Ongoing {
+            if node.state() == GameState::Ongoing {
                 if let Some(entry) = self.tree.probe_hash(hash) {
                     entry.q()
                 } else {
@@ -332,14 +333,24 @@ impl<'a> Searcher<'a> {
             }
         } else {
             // expand node on the second visit
-            if node.is_not_expanded() {
-                self.tree.expand_node(ptr, pos, self.params, self.policy, *depth);
-            }
+            let t = if node.is_not_expanded() {
+                self.tree.expand_node(ptr, pos, self.params, self.policy, *depth)?;
+                true
+            } else {
+                false
+            };
+
+            assert!(!node.is_not_expanded());
+
+            // this node has now been accessed so we need to move its
+            // children across if they are in the other tree half
+            self.tree.fetch_children(ptr, t)?;
 
             // select action to take via PUCT
             let action = self.pick_action(ptr, node);
 
-            let child_ptr = self.tree.fetch_node(ptr, action)?;
+            let first_child_ptr = node.actions();
+            let child_ptr = *first_child_ptr + action;
 
             let mov = self.tree[child_ptr].parent_move();
 
