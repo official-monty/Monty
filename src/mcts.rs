@@ -373,7 +373,7 @@ impl<'a> Searcher<'a> {
         u = 1.0 - u;
 
         let new_q = node.update(u);
-        self.tree.push_hash(hash, new_q);
+        self.tree.push_hash(hash, 1.0 - new_q);
 
         Some(u)
     }
