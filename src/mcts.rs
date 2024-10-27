@@ -319,7 +319,6 @@ impl<'a> Searcher<'a> {
 
         let mut u = if node.is_terminal() || node.visits() == 0 {
             if node.visits() == 0 {
-                let _unused = node.actions_mut();
                 node.set_state(pos.game_state());
             }
 
@@ -355,8 +354,18 @@ impl<'a> Searcher<'a> {
 
             self.tree[child_ptr].inc_threads();
 
+            // acquire lock to avoid issues with desynced setting of
+            // game state between threads when threads > 1
+            let lock = if self.tree[child_ptr].visits() == 0 {
+                Some(node.actions_mut())
+            } else {
+                None
+            };
+
             // descend further
             let maybe_u = self.perform_one_iteration(pos, child_ptr, depth);
+
+            drop(lock);
 
             self.tree[child_ptr].dec_threads();
 
