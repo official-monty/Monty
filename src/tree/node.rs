@@ -4,7 +4,10 @@ use std::sync::{
 };
 
 use crate::{
-    chess::Move, mcts::SearchHelpers, tree::{Edge, NodePtr}, ChessState, GameState, MctsParams, PolicyNetwork
+    chess::Move,
+    mcts::SearchHelpers,
+    tree::{Edge, NodePtr},
+    ChessState, GameState, MctsParams, PolicyNetwork,
 };
 
 use super::ActionStats;
