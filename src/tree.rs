@@ -11,7 +11,7 @@ use std::{
     time::Instant,
 };
 
-use crate::{chess::ChessState, GameState, MctsParams, PolicyNetwork};
+use crate::{chess::ChessState, mcts::SearchHelpers, GameState, MctsParams, PolicyNetwork};
 
 pub struct Tree {
     tree: [TreeHalf; 2],
@@ -185,7 +185,7 @@ impl Tree {
             0 => unreachable!(),
             1 => params.root_pst(),
             2 => params.depth_2_pst(),
-            3.. => 1.0,
+            3.. => SearchHelpers::get_pst(self[node_ptr].q(), params),
         };
 
         let mut total = 0.0;
