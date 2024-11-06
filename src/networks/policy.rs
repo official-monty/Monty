@@ -1,42 +1,46 @@
-use crate::chess::{Attacks, Board, Move};
+use crate::{boxed_and_zeroed, chess::{Attacks, Board, Move}};
 
-use super::{accumulator::Accumulator, layer::Layer};
+use super::{accumulator::Accumulator, layer::{Layer, TransposedLayer}};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
-pub const PolicyFileDefaultName: &str = "nn-7b30080083d5.network";
+pub const PolicyFileDefaultName: &str = "nn-16a49978e62f.network";
 
+const QA: i16 = 256;
+const QB: i16 = 512;
+const FACTOR: i16 = 32;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct PolicyNetwork {
-    l1: Layer<f32, { 768 * 4 }, 128>,
-    l2: Layer<f32, 128, { 1880 * 2 }>,
+    l1: Layer<i16, { 768 * 4 }, 128>,
+    l2: TransposedLayer<i16, 128, { 1880 * 2 }>,
 }
 
 impl PolicyNetwork {
-    pub fn hl(&self, pos: &Board) -> Accumulator<f32, 128> {
+    pub fn hl(&self, pos: &Board) -> Accumulator<i16, 128> {
         let mut res = self.l1.biases;
 
         pos.map_policy_features(|feat| res.add(&self.l1.weights[feat]));
 
         for elem in &mut res.0 {
-            *elem = elem.clamp(0.0, 1.0).powi(2);
+            *elem = (i32::from(*elem).clamp(0, i32::from(QA)).pow(2) / i32::from(QA / FACTOR)) as i16;
         }
 
         res
     }
 
-    pub fn get(&self, pos: &Board, mov: &Move, hl: &Accumulator<f32, 128>) -> f32 {
+    pub fn get(&self, pos: &Board, mov: &Move, hl: &Accumulator<i16, 128>) -> f32 {
         let idx = map_move_to_index(pos, *mov);      
+        let weights = &self.l2.weights[idx];
 
-        let mut res = self.l2.biases.0[idx];
+        let mut res = 0;
 
-        for (i, row) in self.l2.weights.iter().enumerate() {
-            res += row.0[idx] * hl.0[i];
+        for (&w, &v) in weights.0.iter().zip(hl.0.iter()) {
+            res += i32::from(w) * i32::from(v);
         }
 
-        res
+        (res as f32 / f32::from(QA * FACTOR) + f32::from(self.l2.biases.0[idx])) / f32::from(QB)
     }
 }
 
@@ -80,3 +84,21 @@ const OFFSETS: [usize; 65] = {
 
     offsets
 };
+
+#[repr(C)]
+pub struct UnquantisedPolicyNetwork {
+    l1: Layer<f32, { 768 * 4 }, 128>,
+    l2: Layer<f32, 128, { 1880 * 2 }>,
+}
+
+impl UnquantisedPolicyNetwork {
+    pub fn quantise(&self) -> Box<PolicyNetwork> {
+        let mut quantised: Box<PolicyNetwork> = unsafe { boxed_and_zeroed() };
+
+        self.l1.quantise_into_i16(&mut quantised.l1, QA, 1.98);
+        self.l2
+            .quantise_transpose_into_i16(&mut quantised.l2, QB, 1.98);
+
+        quantised
+    }
+}

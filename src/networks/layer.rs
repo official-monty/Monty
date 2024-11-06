@@ -71,8 +71,8 @@ impl<const M: usize, const N: usize> Layer<f32, M, N> {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct TransposedLayer<T: Copy, const M: usize, const N: usize> {
-    weights: [Accumulator<T, M>; N],
-    biases: Accumulator<T, N>,
+    pub weights: [Accumulator<T, M>; N],
+    pub biases: Accumulator<T, N>,
 }
 
 impl<const M: usize, const N: usize> TransposedLayer<i16, M, N> {

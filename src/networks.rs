@@ -5,5 +5,5 @@ mod policy;
 mod value;
 
 pub use accumulator::Accumulator;
-pub use policy::{PolicyFileDefaultName, PolicyNetwork};
+pub use policy::{PolicyFileDefaultName, PolicyNetwork, UnquantisedPolicyNetwork};
 pub use value::{UnquantisedValueNetwork, ValueFileDefaultName, ValueNetwork};
