@@ -9,19 +9,17 @@ const QA: i16 = 512;
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
-pub const PolicyFileDefaultName: &str = "nn-1b01b6e89ea1.network";
+pub const PolicyFileDefaultName: &str = "nn-1ae77eae7e49.network";
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct SubNet {
-    ft: Layer<i16, 768, 32>,
-    l2: Layer<f32, 32, 32>,
+    ft: Layer<i16, 768, 16>,
 }
 
 impl SubNet {
-    fn out(&self, feats: &[usize]) -> Accumulator<f32, 32> {
-        let l2 = self.ft.forward_from_slice(feats);
-        self.l2.forward_from_i16::<ReLU, QA>(&l2)
+    fn out(&self, feats: &[usize]) -> Accumulator<i16, 16> {
+        self.ft.forward_from_slice(feats)
     }
 }
 
@@ -46,7 +44,7 @@ impl PolicyNetwork {
 
         let hce = self.hce.forward::<ReLU>(&Self::get_hce_feats(pos, mov)).0[0];
 
-        from_vec.dot::<ReLU>(&to_vec) + hce
+        from_vec.dot::<ReLU, QA>(&to_vec) + hce
     }
 
     pub fn get_hce_feats(_: &Board, mov: &Move) -> Accumulator<f32, 4> {
@@ -63,15 +61,13 @@ impl PolicyNetwork {
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct UnquantisedSubNet {
-    ft: Layer<f32, 768, 32>,
-    l2: Layer<f32, 32, 32>,
+    ft: Layer<f32, 768, 16>,
 }
 
 impl UnquantisedSubNet {
     fn quantise(&self, qa: i16) -> SubNet {
         SubNet {
-            ft: self.ft.quantise_i16(qa, 1.98),
-            l2: self.l2,
+            ft: self.ft.quantise_i16(qa, 1.98)
         }
     }
 }

@@ -48,20 +48,6 @@ impl<const M: usize, const N: usize> Layer<f32, M, N> {
         fwd
     }
 
-    pub fn forward_from_i16<T: Activation, const QA: i16>(
-        &self,
-        inputs: &Accumulator<i16, M>,
-    ) -> Accumulator<f32, N> {
-        let mut fwd = self.biases;
-
-        for (i, d) in inputs.0.iter().zip(self.weights.iter()) {
-            let act = T::activate(f32::from(*i) / f32::from(QA));
-            fwd.madd(act, d);
-        }
-
-        fwd
-    }
-
     pub fn quantise_into_i16(&self, dest: &mut Layer<i16, M, N>, qa: i16, warn_limit: f32) {
         for (acc_i, acc_j) in dest.weights.iter_mut().zip(self.weights.iter()) {
             *acc_i = acc_j.quantise_i16(qa, warn_limit);

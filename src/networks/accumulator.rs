@@ -57,6 +57,20 @@ impl<const N: usize> Accumulator<i16, N> {
     }
 }
 
+impl<const N: usize> Accumulator<i16, N> {
+    pub fn dot<T: Activation, const QA: i16>(&self, other: &Self) -> f32 {
+        let mut res = 0.0;
+
+        for (i, j) in self.0.iter().zip(other.0.iter()) {
+            let i = f32::from(*i);
+            let j = f32::from(*j);
+            res += T::activate(i) * T::activate(j);
+        }
+
+        res / f32::from(QA) / f32::from(QA)
+    }
+}
+
 impl<const N: usize> Accumulator<f32, N> {
     pub fn dot<T: Activation>(&self, other: &Self) -> f32 {
         let mut res = 0.0;
