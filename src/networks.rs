@@ -4,5 +4,6 @@ mod layer;
 mod policy;
 mod value;
 
-pub use policy::{PolicyFileDefaultName, PolicyNetwork, UnquantisedPolicyNetwork};
+pub use accumulator::Accumulator;
+pub use policy::{PolicyFileDefaultName, PolicyNetwork};
 pub use value::{UnquantisedValueNetwork, ValueFileDefaultName, ValueNetwork};

@@ -91,6 +91,16 @@ impl Attacks {
     pub const fn black_pawn_setwise(pawns: u64) -> u64 {
         ((pawns & !File::A) >> 9) | ((pawns & !File::H) >> 7)
     }
+
+    pub const ALL_DESTINATIONS: [u64; 64] = init!(|sq, 64| {
+        let rank = sq / 8;
+        let file = sq % 8;
+    
+        let rooks = (0xFF << (rank * 8)) ^ (File::A << file);
+        let bishops = DIAGS[file + rank].swap_bytes() ^ DIAGS[7 + file - rank];
+    
+        rooks | bishops | KNIGHT[sq] | KING[sq]
+    });
 }
 
 struct File;

@@ -169,7 +169,7 @@ impl Tree {
             return Some(());
         }
 
-        let feats = pos.get_policy_feats();
+        let feats = pos.get_policy_feats(policy);
         let mut max = f32::NEG_INFINITY;
         let mut actions = Vec::new();
 
@@ -222,7 +222,7 @@ impl Tree {
         policy: &PolicyNetwork,
         depth: u8,
     ) {
-        let feats = pos.get_policy_feats();
+        let feats = pos.get_policy_feats(policy);
         let mut max = f32::NEG_INFINITY;
 
         let mut policies = Vec::new();
