@@ -140,14 +140,14 @@ impl ChessState {
         self.stm()
     }
 
-    pub fn get_policy_feats(&self, policy: &PolicyNetwork) -> Accumulator<i16, 128> {
+    pub fn get_policy_feats(&self, policy: &PolicyNetwork) -> Accumulator<i16, 2048> {
         policy.hl(&self.board)
     }
 
     pub fn get_policy(
         &self,
         mov: Move,
-        hl: &Accumulator<i16, 128>,
+        hl: &Accumulator<i16, 2048>,
         policy: &PolicyNetwork,
     ) -> f32 {
         policy.get(&self.board, &mov, hl)

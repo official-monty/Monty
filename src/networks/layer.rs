@@ -52,7 +52,7 @@ impl<const M: usize, const N: usize> Layer<f32, M, N> {
         qa: i16,
         warn_limit: f32,
     ) {
-        let mut untrans = [Accumulator([0; N]); M];
+        let mut untrans = vec![Accumulator([0; N]); M];
 
         for (acc_i, acc_j) in untrans.iter_mut().zip(self.weights.iter()) {
             *acc_i = acc_j.quantise_i16(qa, warn_limit);

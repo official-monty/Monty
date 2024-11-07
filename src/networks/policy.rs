@@ -4,21 +4,23 @@ use super::{accumulator::Accumulator, layer::{Layer, TransposedLayer}};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
-pub const PolicyFileDefaultName: &str = "nn-16a49978e62f.network";
+pub const PolicyFileDefaultName: &str = "nn-2f9491f0e187.network";
 
 const QA: i16 = 256;
 const QB: i16 = 512;
 const FACTOR: i16 = 32;
 
+const L1: usize = 2048;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct PolicyNetwork {
-    l1: Layer<i16, { 768 * 4 }, 128>,
-    l2: TransposedLayer<i16, 128, { 1880 * 2 }>,
+    l1: Layer<i16, { 768 * 4 }, L1>,
+    l2: TransposedLayer<i16, L1, { 1880 * 2 }>,
 }
 
 impl PolicyNetwork {
-    pub fn hl(&self, pos: &Board) -> Accumulator<i16, 128> {
+    pub fn hl(&self, pos: &Board) -> Accumulator<i16, L1> {
         let mut res = self.l1.biases;
 
         pos.map_policy_features(|feat| res.add(&self.l1.weights[feat]));
@@ -30,7 +32,7 @@ impl PolicyNetwork {
         res
     }
 
-    pub fn get(&self, pos: &Board, mov: &Move, hl: &Accumulator<i16, 128>) -> f32 {
+    pub fn get(&self, pos: &Board, mov: &Move, hl: &Accumulator<i16, L1>) -> f32 {
         let idx = map_move_to_index(pos, *mov);      
         let weights = &self.l2.weights[idx];
 
@@ -87,8 +89,8 @@ const OFFSETS: [usize; 65] = {
 
 #[repr(C)]
 pub struct UnquantisedPolicyNetwork {
-    l1: Layer<f32, { 768 * 4 }, 128>,
-    l2: Layer<f32, 128, { 1880 * 2 }>,
+    l1: Layer<f32, { 768 * 4 }, L1>,
+    l2: Layer<f32, L1, { 1880 * 2 }>,
 }
 
 impl UnquantisedPolicyNetwork {
