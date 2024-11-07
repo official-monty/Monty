@@ -4,9 +4,9 @@ mod consts;
 mod frc;
 mod moves;
 
-use crate::{MctsParams, PolicyNetwork, ValueNetwork};
+use crate::{networks::Accumulator, MctsParams, PolicyNetwork, ValueNetwork};
 
-pub use self::{board::Board, frc::Castling, moves::Move};
+pub use self::{attacks::Attacks, board::Board, frc::Castling, moves::Move};
 
 const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -140,19 +140,17 @@ impl ChessState {
         self.stm()
     }
 
-    pub fn get_policy_feats(&self) -> (Vec<usize>, u64) {
-        let mut feats = Vec::with_capacity(32);
-        self.board.map_policy_features(|feat| feats.push(feat));
-        (feats, self.board.threats())
+    pub fn get_policy_feats(&self, policy: &PolicyNetwork) -> Accumulator<i16, 2048> {
+        policy.hl(&self.board)
     }
 
     pub fn get_policy(
         &self,
         mov: Move,
-        (feats, threats): &(Vec<usize>, u64),
+        hl: &Accumulator<i16, 2048>,
         policy: &PolicyNetwork,
     ) -> f32 {
-        policy.get(&self.board, &mov, feats, *threats)
+        policy.get(&self.board, &mov, hl)
     }
 
     #[cfg(not(feature = "datagen"))]
@@ -189,7 +187,7 @@ impl ChessState {
     }
 
     pub fn display(&self, policy: &PolicyNetwork) {
-        let feats = self.get_policy_feats();
+        let feats = self.get_policy_feats(policy);
         let mut moves = Vec::new();
         let mut max = f32::NEG_INFINITY;
         self.map_legal_moves(|mov| {

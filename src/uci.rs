@@ -99,7 +99,7 @@ impl Uci {
                     println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl(value, &params));
                 }
                 "policy" => {
-                    let f = pos.get_policy_feats();
+                    let f = pos.get_policy_feats(policy);
                     let mut max = f32::NEG_INFINITY;
                     let mut moves = Vec::new();
 
