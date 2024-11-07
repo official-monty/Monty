@@ -1,6 +1,12 @@
-use crate::{boxed_and_zeroed, chess::{Attacks, Board, Move}};
+use crate::{
+    boxed_and_zeroed,
+    chess::{Attacks, Board, Move},
+};
 
-use super::{accumulator::Accumulator, layer::{Layer, TransposedLayer}};
+use super::{
+    accumulator::Accumulator,
+    layer::{Layer, TransposedLayer},
+};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
@@ -26,14 +32,15 @@ impl PolicyNetwork {
         pos.map_policy_features(|feat| res.add(&self.l1.weights[feat]));
 
         for elem in &mut res.0 {
-            *elem = (i32::from(*elem).clamp(0, i32::from(QA)).pow(2) / i32::from(QA / FACTOR)) as i16;
+            *elem =
+                (i32::from(*elem).clamp(0, i32::from(QA)).pow(2) / i32::from(QA / FACTOR)) as i16;
         }
 
         res
     }
 
     pub fn get(&self, pos: &Board, mov: &Move, hl: &Accumulator<i16, L1>) -> f32 {
-        let idx = map_move_to_index(pos, *mov);      
+        let idx = map_move_to_index(pos, *mov);
         let weights = &self.l2.weights[idx];
 
         let mut res = 0;
@@ -61,9 +68,9 @@ fn map_move_to_index(pos: &Board, mov: Move) -> usize {
         let flip = if pos.stm() == 1 { 56 } else { 0 };
         let from = usize::from(mov.src() ^ flip);
         let dest = usize::from(mov.to() ^ flip);
-    
+
         let below = Attacks::ALL_DESTINATIONS[from] & ((1 << dest) - 1);
-    
+
         OFFSETS[from] + below.count_ones() as usize
     };
 
