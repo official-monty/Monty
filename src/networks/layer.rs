@@ -1,5 +1,3 @@
-use crate::Board;
-
 use super::{accumulator::Accumulator, activation::Activation};
 
 #[repr(C)]
@@ -7,23 +5,6 @@ use super::{accumulator::Accumulator, activation::Activation};
 pub struct Layer<T: Copy, const M: usize, const N: usize> {
     pub weights: [Accumulator<T, N>; M],
     pub biases: Accumulator<T, N>,
-}
-
-impl<const M: usize, const N: usize> Layer<i16, M, N> {
-    pub fn forward(&self, board: &Board) -> Accumulator<i16, N> {
-        let mut count = 0;
-        let mut feats = [0; 32];
-        board.map_value_features(|feat| {
-            feats[count] = feat;
-            count += 1;
-        });
-
-        let mut out = self.biases;
-
-        out.add_multi(&feats[..count], &self.weights);
-
-        out
-    }
 }
 
 impl<const M: usize, const N: usize> Layer<f32, M, N> {

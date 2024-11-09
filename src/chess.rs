@@ -159,10 +159,15 @@ impl ChessState {
     }
 
     pub fn get_value(&self, value: &ValueNetwork, _params: &MctsParams) -> i32 {
+        const K: f32 = 400.0;
+        let (win, draw, _) = value.eval(&self.board);
+
+        let score = win + draw / 2.0;
+        let cp = (-K * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln()) as i32;
+        
         #[cfg(not(feature = "datagen"))]
         {
             use consts::Piece;
-            let raw_eval = value.eval(&self.board);
 
             let mut mat = self.piece_count(Piece::KNIGHT) * _params.knight_value()
                 + self.piece_count(Piece::BISHOP) * _params.bishop_value()
@@ -171,11 +176,11 @@ impl ChessState {
 
             mat = _params.material_offset() + mat / _params.material_div1();
 
-            raw_eval * mat / _params.material_div2()
+            cp * mat / _params.material_div2()
         }
 
         #[cfg(feature = "datagen")]
-        value.eval(&self.board)
+        cp
     }
 
     pub fn get_value_wdl(&self, value: &ValueNetwork, params: &MctsParams) -> f32 {
