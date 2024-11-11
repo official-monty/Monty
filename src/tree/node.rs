@@ -217,31 +217,9 @@ impl Node {
         q as f32
     }
 
-    #[cfg(feature = "datagen")]
-    pub fn add_dirichlet_noise(&self, alpha: f32, prop: f32) {
-        use rand::prelude::*;
-        use rand_distr::Dirichlet;
-
-        let actions = &mut *self.actions_mut();
-
-        if actions.len() <= 1 {
-            return;
-        }
-
-        let mut rng = rand::thread_rng();
-        let dist = Dirichlet::new(&vec![alpha; actions.len()]).unwrap();
-        let samples = dist.sample(&mut rng);
-
-        for (action, &noise) in actions.iter_mut().zip(samples.iter()) {
-            let policy = (1.0 - prop) * action.policy() + prop * noise;
-
-            action.set_policy(policy);
-        }
-    }
-
-    pub fn kld_gain(new_visit_dist: &[Edge], old_visit_dist: &[Edge]) -> Option<f64> {
-        let new_parent_visits = new_visit_dist.iter().map(Edge::visits).sum::<i32>();
-        let old_parent_visits = old_visit_dist.iter().map(Edge::visits).sum::<i32>();
+    pub fn kld_gain(new_visit_dist: &[i32], old_visit_dist: &[i32]) -> Option<f64> {
+        let new_parent_visits = new_visit_dist.iter().sum::<i32>();
+        let old_parent_visits = old_visit_dist.iter().sum::<i32>();
 
         if old_parent_visits == 0 {
             return None;
@@ -249,13 +227,13 @@ impl Node {
 
         let mut kld_gain = 0.0;
 
-        for (new_edge, old_edge) in new_visit_dist.iter().zip(old_visit_dist.iter()) {
-            if old_edge.visits() == 0 {
+        for (&new_visits, &old_visits) in new_visit_dist.iter().zip(old_visit_dist.iter()) {
+            if old_visits == 0 {
                 return None;
             }
 
-            let q = f64::from(new_edge.visits()) / f64::from(new_parent_visits);
-            let p = f64::from(old_edge.visits()) / f64::from(old_parent_visits);
+            let q = f64::from(new_visits) / f64::from(new_parent_visits);
+            let p = f64::from(old_visits) / f64::from(old_parent_visits);
 
             kld_gain += p * (p / q).ln();
         }

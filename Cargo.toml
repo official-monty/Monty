@@ -13,6 +13,7 @@ codegen-units = 1
 [dependencies]
 rand = { version = "0.8.5", optional = true }
 rand_distr = { version = "0.4.3", optional = true }
+memmap2 = "0.9.5"
 
 [features]
 embed = []
@@ -23,9 +24,6 @@ tunable = []
 [workspace]
 members = ["datagen", "train/policy", "train/value"]
 resolver = "2"
-
-[dependencies]
-memmap2 = "0.9.5"
 
 [build-dependencies]
 sha2 = "0.10.8"

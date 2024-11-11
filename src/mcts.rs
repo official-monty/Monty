@@ -70,7 +70,7 @@ impl<'a> Searcher<'a> {
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
-        previous_kld: &mut Vec<Edge>,
+        previous_kld: &mut Vec<i32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) {
         if self.playout_until_full_internal(search_stats, true, || {
@@ -147,7 +147,7 @@ impl<'a> Searcher<'a> {
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
-        previous_kld_state: &mut Vec<Edge>,
+        previous_kld_state: &mut Vec<i32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) -> bool {
         let iters = search_stats.main_iters.load(Ordering::Relaxed);
@@ -157,15 +157,21 @@ impl<'a> Searcher<'a> {
         }
 
         if let Some(min_gain) = limits.kld_min_gain {
-            let actions = self.tree[self.tree.root_node()].actions().clone();
+            let node = &self.tree[self.tree.root_node()];
+            let child_ptr = node.actions();
 
-            if let Some(kld_gain) = Node::kld_gain(&actions, previous_kld_state) {
+            let mut visit_dist = vec![0; node.num_actions()];
+            for (action, visits) in visit_dist.iter_mut().enumerate() {
+                *visits = self.tree[*child_ptr + action].visits();
+            }
+
+            if let Some(kld_gain) = Node::kld_gain(&visit_dist, previous_kld_state) {
                 if kld_gain < min_gain {
                     return true;
                 }
             }
 
-            *previous_kld_state = actions;
+            *previous_kld_state = visit_dist;
 
         }
 
@@ -286,7 +292,7 @@ impl<'a> Searcher<'a> {
         // add dirichlet noise in datagen
         #[cfg(feature = "datagen")]
         if use_dirichlet_noise {
-            self.tree[node].add_dirichlet_noise(0.03, 0.05);
+            self.tree.add_dirichlet_noise_to_node(node, 0.03, 0.05);
         }
 
         let search_stats = SearchStats::default();
@@ -334,13 +340,13 @@ impl<'a> Searcher<'a> {
             );
         }
 
-        let (_, mov, q) = self.get_best_action(self.tree.root_node());
+        let (_, _mov, q) = self.get_best_action(self.tree.root_node());
 
         #[cfg(not(feature = "datagen"))]
-        let selected_mov = mov;        
+        let selected_mov = _mov;        
 
         #[cfg(feature = "datagen")]
-        let selected_mov = self.tree.get_best_mov_temp(self.tree.root_node(), temp);
+        let selected_mov = self.tree.get_best_child_temp(self.tree.root_node(), temp);
 
         (selected_mov, q)
     }

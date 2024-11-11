@@ -171,9 +171,9 @@ dependencies = [
 name = "monty"
 version = "1.0.0"
 dependencies = [
+ "memmap2",
  "rand",
  "rand_distr",
- "memmap2",
  "sha2",
 ]
 

@@ -13,6 +13,9 @@ use std::{
 
 use crate::{chess::ChessState, mcts::SearchHelpers, GameState, MctsParams, PolicyNetwork};
 
+#[cfg(feature = "datagen")]
+use crate::Move;
+
 pub struct Tree {
     tree: [TreeHalf; 2],
     half: AtomicBool,
@@ -404,26 +407,28 @@ impl Tree {
     }
 
     #[cfg(feature = "datagen")]
-    pub fn get_best_child_temp(&self, ptr: NodePtr, temp: f32) -> usize {
+    pub fn get_best_child_temp(&self, ptr: NodePtr, temp: f32) -> Move {
         use rand::prelude::*;
         use rand_distr::Uniform;
 
+        let node = &self[ptr];
+        let child_ptr = node.actions();
+
         if temp == 0.0 {
-            return self.get_best_child(ptr);
+            return self[*child_ptr + self.get_best_child(ptr)].parent_move();
         }
 
         let mut rng = rand::thread_rng();
         let dist = Uniform::new(0.0, 1.0);
         let rand = dist.sample(&mut rng);
 
-        let node = &self[ptr];
-
         let mut total = 0.0;
-        let mut distribution = vec![0.0; node.actions().len()];
+        let mut distribution = vec![0.0; node.num_actions()];
         let t = 1.0 / f64::from(temp);
 
-        for (i, action) in node.actions().iter().enumerate() {
-            distribution[i] = f64::from(action.visits()).powf(t);
+        for i in 0..node.num_actions() {
+            let child = &self[*child_ptr + i];
+            distribution[i] = f64::from(child.visits()).powf(t);
             total += distribution[i];
         }
 
@@ -433,10 +438,34 @@ impl Tree {
             cumulative += weight;
 
             if cumulative / total > rand {
-                return i;
+                return self[*child_ptr + i].parent_move();
             }
         }
 
-        node.actions().len() - 1
+        self[*child_ptr + (node.num_actions() - 1)].parent_move()
+    }
+
+    #[cfg(feature = "datagen")]
+    pub fn add_dirichlet_noise_to_node(&self, ptr: NodePtr, alpha: f32, prop: f32) {
+        use rand::prelude::*;
+        use rand_distr::Dirichlet;
+
+        let node = &self[ptr];
+
+        let actions = &mut *node.actions_mut();
+
+        if node.num_actions() <= 1 {
+            return;
+        }
+
+        let mut rng = rand::thread_rng();
+        let dist = Dirichlet::new(&vec![alpha; node.num_actions()]).unwrap();
+        let samples = dist.sample(&mut rng);
+
+        for (action, &noise) in samples.iter().enumerate() {
+            let child = &self[*actions + action];
+            let policy = (1.0 - prop) * child.policy() + prop * noise;
+            child.set_policy(policy);
+        }
     }
 }
