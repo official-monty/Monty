@@ -6,12 +6,18 @@ mod uci;
 
 pub use chess::{Board, Castling, ChessState, GameState, Move};
 pub use mcts::{Limits, MctsParams, Searcher};
+use memmap2::Mmap;
 pub use networks::{
     PolicyFileDefaultName, PolicyNetwork, UnquantisedPolicyNetwork, UnquantisedValueNetwork,
     ValueFileDefaultName, ValueNetwork,
 };
 pub use tree::Tree;
 pub use uci::Uci;
+
+pub struct MappedWeights<'a, T> {
+    pub mmap: Mmap,  // The memory-mapped file
+    pub data: &'a T, // A reference to the data in the mmap
+}
 
 // Macro for calculating tables (until const fn pointers are stable).
 #[macro_export]
@@ -50,22 +56,26 @@ pub unsafe fn boxed_and_zeroed<T>() -> Box<T> {
 
 /// # Safety
 /// Only to be used internally.
-pub unsafe fn read_into_struct_unchecked<T>(path: &str) -> Box<T> {
-    use std::io::Read;
-
-    let mut f = std::fs::File::open(path).unwrap();
-    let mut x: Box<T> = boxed_and_zeroed();
+pub unsafe fn read_into_struct_unchecked<'a, T>(path: &str) -> MappedWeights<'a, T> {
+    let f = std::fs::File::open(path).unwrap();
+    let mmap = Mmap::map(&f).unwrap();
 
     let size = std::mem::size_of::<T>();
+    let file_size = mmap.len();
+    assert_eq!(
+        file_size, size,
+        "File size does not match the size of the structure"
+    );
 
-    let file_size = f.metadata().unwrap().len();
+    let ptr = mmap.as_ptr() as *const T;
 
-    assert_eq!(file_size as usize, size);
-
-    unsafe {
-        let slice = std::slice::from_raw_parts_mut(x.as_mut() as *mut T as *mut u8, size);
-        f.read_exact(slice).unwrap();
+    // Check if the pointer is properly aligned
+    if (ptr as usize) % std::mem::align_of::<T>() != 0 {
+        panic!("Memory is not properly aligned for the type");
     }
 
-    x
+    MappedWeights {
+        mmap, // This ensures the memory is valid as long as MappedWeights exists
+        data: &*ptr,
+    }
 }

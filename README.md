@@ -6,16 +6,11 @@
 </div>
 
 ## Compiling
-To compile without embedding the networks, run
+To compile, run
 ```
-make EXE=<output path>
+make
 ```
-when running the executable it will search for the networks in the current working directory.
-
-To compile and embed the networks in the exectuable, run
-```
-make embed EXE=<output path> EVALFILE=<value net path> POLICYFILE=<policy net path>
-```
+The required networks will be downloaded automatically (and validated).
 
 ## Development
 

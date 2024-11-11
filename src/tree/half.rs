@@ -4,7 +4,7 @@ use super::{Node, NodePtr};
 use crate::GameState;
 
 pub struct TreeHalf {
-    nodes: Vec<Node>,
+    pub(super) nodes: Vec<Node>,
     used: AtomicUsize,
     half: bool,
 }
@@ -49,16 +49,14 @@ impl TreeHalf {
         res
     }
 
-    pub fn push_new(&self, state: GameState) -> NodePtr {
-        let idx = self.used.fetch_add(1, Ordering::Relaxed);
+    pub fn reserve_nodes(&self, num: usize) -> Option<NodePtr> {
+        let idx = self.used.fetch_add(num, Ordering::Relaxed);
 
-        if idx >= self.nodes.len() {
-            return NodePtr::NULL;
+        if idx + num > self.nodes.len() {
+            return None;
         }
 
-        self.nodes[idx].set_new(state);
-
-        NodePtr::new(self.half, idx as u32)
+        Some(NodePtr::new(self.half, idx as u32))
     }
 
     pub fn clear(&self) {
@@ -75,10 +73,10 @@ impl TreeHalf {
 
     fn clear_ptrs_single_threaded(half: bool, nodes: &[Node]) {
         for node in nodes {
-            for action in &mut *node.actions_mut() {
-                if action.ptr().half() != half {
-                    action.set_ptr(NodePtr::NULL);
-                }
+            let actions_half = { node.actions().half() };
+
+            if actions_half != half {
+                node.clear_actions();
             }
         }
     }

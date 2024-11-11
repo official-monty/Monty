@@ -1,12 +1,12 @@
 use std::io::Write;
 
-use monty::{read_into_struct_unchecked, UnquantisedValueNetwork, ValueNetwork};
+use monty::{read_into_struct_unchecked, MappedWeights, UnquantisedValueNetwork, ValueNetwork};
 
 fn main() {
-    let unquantised: Box<UnquantisedValueNetwork> =
+    let unquantised: MappedWeights<UnquantisedValueNetwork> =
         unsafe { read_into_struct_unchecked("params.bin") };
 
-    let quantised = unquantised.quantise();
+    let quantised = unquantised.data.quantise();
 
     let mut file = std::fs::File::create("quantised.network").unwrap();
 
