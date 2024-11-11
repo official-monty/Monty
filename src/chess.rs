@@ -164,7 +164,7 @@ impl ChessState {
 
         let score = win + draw / 2.0;
         let cp = (-K * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln()) as i32;
-        
+
         #[cfg(not(feature = "datagen"))]
         {
             use consts::Piece;
