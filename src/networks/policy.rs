@@ -13,7 +13,7 @@ use super::{
 pub const PolicyFileDefaultName: &str = "nn-5e45d73042ed.network";
 
 const QA: i16 = 256;
-const QB: i16 = 512;
+const QB: i8 = 64;
 const FACTOR: i16 = 32;
 
 const L1: usize = 4096;
@@ -22,7 +22,7 @@ const L1: usize = 4096;
 #[derive(Clone, Copy)]
 pub struct PolicyNetwork {
     l1: Layer<i16, { 768 * 4 }, L1>,
-    l2: TransposedLayer<i16, L1, { 1880 * 2 }>,
+    l2: TransposedLayer<i8, L1, { 1880 * 2 }>,
 }
 
 impl PolicyNetwork {
@@ -106,7 +106,7 @@ impl UnquantisedPolicyNetwork {
 
         self.l1.quantise_into_i16(&mut quantised.l1, QA, 1.98);
         self.l2
-            .quantise_transpose_into_i16(&mut quantised.l2, QB, 1.98);
+            .quantise_transpose_into_i8(&mut quantised.l2, QB, 1.98);
 
         quantised
     }
