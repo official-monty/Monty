@@ -40,7 +40,6 @@ impl<'a> DatagenThread<'a> {
 
     pub fn run(
         &mut self,
-        node_limit: usize,
         output_policy: bool,
         policy: &PolicyNetwork,
         value: &ValueNetwork,
@@ -50,13 +49,12 @@ impl<'a> DatagenThread<'a> {
                 break;
             }
 
-            self.run_game(node_limit, policy, value, output_policy);
+            self.run_game(policy, value, output_policy);
         }
     }
 
     fn run_game(
         &mut self,
-        node_limit: usize,
         policy: &PolicyNetwork,
         value: &ValueNetwork,
         output_policy: bool,
@@ -76,8 +74,8 @@ impl<'a> DatagenThread<'a> {
         }
 
         let limits = Limits {
-            max_depth: 12,
-            max_nodes: node_limit,
+            max_depth: 64,
+            max_nodes: 100000,
             max_time: None,
             opt_time: None,
             kld_min_gain: Some(0.000005)
@@ -108,6 +106,9 @@ impl<'a> DatagenThread<'a> {
 
         let mut policy_game = MontyFormat::new(montyformat_position, montyformat_castling);
 
+        let mut total_iters = 0usize;
+        let mut searches = 0;
+
         // play out game
         loop {
             if self.stop.load(Ordering::Relaxed) {
@@ -119,7 +120,10 @@ impl<'a> DatagenThread<'a> {
             let searcher =
                 Searcher::new(position.clone(), &tree, &self.params, policy, value, &abort);
 
-            let (bm, score) = searcher.search(1, limits, false, &mut 0, true, temp);
+            let (bm, score, iters) = searcher.search(1, limits, false, &mut 0, true, temp);
+
+            searches += 1;
+            total_iters += iters;
 
             temp *= 0.9;
             if temp <= 0.2 {
@@ -191,7 +195,7 @@ impl<'a> DatagenThread<'a> {
         let mut dest = self.dest.lock().unwrap();
 
         if output_policy {
-            dest.push_policy(&policy_game, self.stop);
+            dest.push_policy(&policy_game, self.stop, searches, total_iters);
         } else {
             dest.push(&game, self.stop);
         }

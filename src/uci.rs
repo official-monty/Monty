@@ -370,7 +370,7 @@ fn go(
         s.spawn(|| {
             let searcher = Searcher::new(pos.clone(), tree, params, policy, value, &abort);
 
-            let (mov, _) = searcher.search(
+            let (mov, _, _) = searcher.search(
                 threads,
                 limits,
                 true,

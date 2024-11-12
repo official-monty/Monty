@@ -249,7 +249,7 @@ impl<'a> Searcher<'a> {
         use_dirichlet_noise: bool,
         #[cfg(feature = "datagen")]
         temp: f32,
-    ) -> (Move, f32) {
+    ) -> (Move, f32, usize) {
         let timer = Instant::now();
 
         let node = self.tree.root_node();
@@ -348,7 +348,7 @@ impl<'a> Searcher<'a> {
         #[cfg(feature = "datagen")]
         let selected_mov = self.tree.get_best_child_temp(self.tree.root_node(), temp);
 
-        (selected_mov, q)
+        (selected_mov, q, search_stats.total_iters.load(Ordering::Relaxed))
     }
 
     fn perform_one_iteration(
