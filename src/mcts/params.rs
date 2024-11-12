@@ -132,8 +132,6 @@ macro_rules! make_mcts_params {
 make_mcts_params! {
     root_pst: f32 = 3.64, 1.0, 10.0, 0.4, 0.002;
     depth_2_pst: f32 = 1.2, 1.0, 10.0, 0.4, 0.002;
-    winning_pst_threshold: f32 = 0.7, 0.0, 1.0, 0.05, 0.002;
-    winning_pst_max: f32 = 1.5, 0.1, 10.0, 0.4, 0.002;
     root_cpuct: f32 = 1.0, 0.1, 5.0, 0.065, 0.002;
     cpuct: f32 = 0.157, 0.1, 5.0, 0.065, 0.002;
     cpuct_var_weight: f32 = 0.851, 0.0, 2.0, 0.085, 0.002;

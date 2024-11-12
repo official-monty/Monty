@@ -56,13 +56,6 @@ impl SearchHelpers {
         Self::base_explore_scaling(params, node)
     }
 
-    /// Common depth PST
-    pub fn get_pst(q: f32, params: &MctsParams) -> f32 {
-        let scalar = q - q.min(params.winning_pst_threshold());
-        let t = scalar / (1.0 - params.winning_pst_threshold());
-        1.0 + (params.winning_pst_max() - 1.0) * t
-    }
-
     /// First Play Urgency
     ///
     /// #### Note
