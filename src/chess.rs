@@ -78,7 +78,7 @@ impl Default for ChessState {
 
 impl ChessState {
     pub const STARTPOS: &'static str = STARTPOS;
-    pub const BENCH_DEPTH: usize = 6;
+    pub const BENCH_DEPTH: usize = 5;
 
     pub fn bbs(&self) -> [u64; 8] {
         self.board.bbs()
