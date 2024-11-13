@@ -22,6 +22,11 @@ calculate many important search heuristics, e.g. CPUCT scaling
 
 Functional patches are required to pass on montytest, with an STC followed by an LTC test.
 
+Monty's networks are trained using [montytrain](https://github.com/official-monty/montytrain),
+which itself is built on top of [bullet](https://github.com/jw1912/bullet).
+
+Monty produces data in the formats found in [montyformat](https://github.com/official-monty/montyformat).
+
 ## ELO History
 
 <div align="center">
