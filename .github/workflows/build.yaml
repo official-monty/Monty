@@ -1,0 +1,38 @@
+name: Build Binary
+
+on:
+  push:
+    branches:
+      - '**'  # Triggers on all branches
+  pull_request:
+    branches:
+      - '**'  # Triggers on all branches
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Install build dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt-get update && sudo apt-get install build-essential -y
+
+    - name: Install Make on Windows
+      if: matrix.os == 'windows-latest'
+      run: choco install make
+
+    - name: Run Make
+      run: make
