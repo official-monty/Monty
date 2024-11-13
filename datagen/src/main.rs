@@ -1,5 +1,5 @@
 use datagen::{parse_args, run_datagen};
-use monty::{read_into_struct_unchecked, ChessState, MappedWeights, MctsParams, Uci};
+use monty::{read_into_struct_unchecked, uci, ChessState, MappedWeights, MctsParams};
 
 fn main() {
     let mut args = std::env::args();
@@ -19,6 +19,6 @@ fn main() {
     if let Some(opts) = parse_args(args) {
         run_datagen(params, opts, policy, value);
     } else {
-        Uci::bench(ChessState::BENCH_DEPTH, policy, value, &params);
+        uci::bench(ChessState::BENCH_DEPTH, policy, value, &params);
     }
 }

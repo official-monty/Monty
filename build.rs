@@ -17,8 +17,8 @@ fn main() {
     let policy_file_name = extract_network_name("src/networks/policy.rs", "PolicyFileDefaultName");
 
     // Define fixed paths where the networks will be stored
-    let value_path = "resources/value.network";
-    let policy_path = "resources/policy.network";
+    let value_path = "value.network";
+    let policy_path = "policy.network";
 
     // Validate and download the network files if needed
     validate_and_download_network(&value_file_name, &value_path);

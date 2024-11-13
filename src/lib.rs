@@ -2,7 +2,7 @@ mod chess;
 mod mcts;
 mod networks;
 mod tree;
-mod uci;
+pub mod uci;
 
 pub use chess::{Board, Castling, ChessState, GameState, Move};
 pub use mcts::{Limits, MctsParams, Searcher};
@@ -12,14 +12,12 @@ pub use networks::{
     ValueFileDefaultName, ValueNetwork,
 };
 pub use tree::Tree;
-pub use uci::Uci;
 
 pub struct MappedWeights<'a, T> {
     pub mmap: Mmap,  // The memory-mapped file
     pub data: &'a T, // A reference to the data in the mmap
 }
 
-// Macro for calculating tables (until const fn pointers are stable).
 #[macro_export]
 macro_rules! init {
     (|$sq:ident, $size:literal | $($rest:tt)+) => {{
