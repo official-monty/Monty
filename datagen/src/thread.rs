@@ -1,17 +1,13 @@
-use crate::{to_slice_with_lifetime, Binpack, Destination, Rand};
+use crate::{Binpack, Destination, Rand};
 
 use monty::{
     ChessState, GameState, Limits, MctsParams, PolicyNetwork, Searcher, Tree, ValueNetwork,
 };
 use montyformat::{MontyFormat, SearchData};
 
-use std::{
-    fs::File,
-    io::{BufWriter, Write},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
 };
 
 pub struct DatagenThread<'a> {
@@ -203,16 +199,4 @@ impl<'a> DatagenThread<'a> {
             dest.push(&game, self.stop);
         }
     }
-}
-
-pub fn write<T>(input: &[T], output: &mut BufWriter<File>) {
-    if input.is_empty() {
-        return;
-    }
-
-    let data_slice = to_slice_with_lifetime(input);
-
-    output
-        .write_all(data_slice)
-        .expect("Nothing can go wrong in unsafe code!");
 }
