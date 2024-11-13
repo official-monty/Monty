@@ -58,7 +58,11 @@ jobs:
         DATE=$(date +'%Y%m%d')
         SHORT_SHA=$(git rev-parse --short=8 HEAD)
         OS_NAME=$(echo "${{ matrix.os }}" | cut -d'-' -f1)
-        export BINARY_NAME="Monty-${OS_NAME}-dev-${DATE}-${SHORT_SHA}"
+        if [[ "$OS_NAME" == "windows" ]]; then
+          BINARY_NAME="Monty-${OS_NAME}-dev-${DATE}-${SHORT_SHA}.exe"
+        else
+          BINARY_NAME="Monty-${OS_NAME}-dev-${DATE}-${SHORT_SHA}"
+        fi
         echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
         echo "Binary Name: $BINARY_NAME"
     
