@@ -11,7 +11,7 @@ on:
 jobs:
   create_prerelease:
     runs-on: ubuntu-latest
-    #if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
+    if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -118,7 +118,7 @@ jobs:
         
     - name: Upload Binary to Release
       shell: bash
-      #if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
+      if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
       run: |
         if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
           binary_path="./monty.exe"
