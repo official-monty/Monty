@@ -19,13 +19,21 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Install tac on macOS
+      if: matrix.os == 'macos-latest'
+      run: brew install coreutils
 
     - name: Extract the Bench Reference
       id: benchref
       shell: bash
       run: |
+        tac_cmd="tac"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+          tac_cmd="gtac"  # Use 'gtac' on macOS, provided by coreutils
+        fi
         for hash in $(git rev-list -100 HEAD); do
-          benchref=$(git show -s $hash | tac | grep -m 1 -o -x '[[:space:]]*\b[Bb]ench[ :]\+[1-9][0-9]\{5,7\}\b[[:space:]]*' | sed 's/[^0-9]//g') && break || true
+          benchref=$(git show -s $hash | $tac_cmd | grep -m 1 -o -x '[[:space:]]*\b[Bb]ench[ :]\+[1-9][0-9]\{5,7\}\b[[:space:]]*' | sed 's/[^0-9]//g') && break || true
         done
         [[ -n "$benchref" ]] && echo "benchref=$benchref" >> $GITHUB_ENV && echo "Reference bench: $benchref" || echo "No bench found"
 
@@ -54,6 +62,7 @@ jobs:
         echo "Current bench output: $bench_output"
         
     - name: Compare Bench Output
+      shell: bash
       run: |
         if [[ "$bench_output" -ne "$benchref" ]]; then
           echo "::warning::Benchmark output for ${{ matrix.os }} ($bench_output) differs from reference ($benchref)"
