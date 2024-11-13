@@ -1,9 +1,7 @@
-mod dataformat;
 mod rng;
 mod thread;
 
-use dataformat::Binpack;
-use montyformat::MontyFormat;
+use montyformat::{MontyFormat, MontyValueFormat};
 use rng::Rand;
 use thread::DatagenThread;
 
@@ -64,12 +62,12 @@ pub struct Destination {
 }
 
 impl Destination {
-    pub fn push(&mut self, game: &Binpack, stop: &AtomicBool) {
+    pub fn push(&mut self, game: &MontyValueFormat, stop: &AtomicBool) {
         if stop.load(Ordering::Relaxed) {
             return;
         }
 
-        let result = usize::from(game.result());
+        let result = (2.0 * game.result) as usize;
         self.results[result] += 1;
         self.games += 1;
         game.serialise_into(&mut self.writer).unwrap();

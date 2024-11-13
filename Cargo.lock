@@ -89,8 +89,8 @@ dependencies = [
 
 [[package]]
 name = "montyformat"
-version = "0.2.0"
-source = "git+https://github.com/official-monty/montyformat.git?tag=v0.2.0#85983d36812445666879b11f01eb3173a88d61cd"
+version = "0.3.0"
+source = "git+https://github.com/official-monty/montyformat.git?tag=v0.3.0#0789de7fb025d799b4cb57b840714fd4d3c6fcfb"
 
 [[package]]
 name = "sha2"
