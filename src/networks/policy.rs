@@ -12,8 +12,8 @@ use super::{
 #[allow(non_upper_case_globals)]
 pub const PolicyFileDefaultName: &str = "nn-52eb9a243ae0.network";
 
-const QA: i16 = 256;
-const QB: i8 = 64;
+const QA: i16 = 128;
+const QB: i16 = 128;
 const FACTOR: i16 = 32;
 
 const L1: usize = 4096;
@@ -21,15 +21,23 @@ const L1: usize = 4096;
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct PolicyNetwork {
-    l1: Layer<i16, { 768 * 4 }, L1>,
+    l1: Layer<i8, { 768 * 4 }, L1>,
     l2: TransposedLayer<i8, L1, { 1880 * 2 }>,
 }
 
 impl PolicyNetwork {
     pub fn hl(&self, pos: &Board) -> Accumulator<i16, L1> {
-        let mut res = self.l1.biases;
+        let mut res = Accumulator([0; L1]);
 
-        pos.map_policy_features(|feat| res.add(&self.l1.weights[feat]));
+        for (r, &b) in res.0.iter_mut().zip(self.l1.biases.0.iter()) {
+            *r = i16::from(b);
+        }
+
+        pos.map_policy_features(|feat| {
+            for (r, &w) in res.0.iter_mut().zip(self.l1.weights[feat].0.iter()) {
+                *r += i16::from(w);
+            }
+        });
 
         for elem in &mut res.0 {
             *elem =
@@ -104,9 +112,9 @@ impl UnquantisedPolicyNetwork {
     pub fn quantise(&self) -> Box<PolicyNetwork> {
         let mut quantised: Box<PolicyNetwork> = unsafe { boxed_and_zeroed() };
 
-        self.l1.quantise_into_i16(&mut quantised.l1, QA, 1.98);
+        self.l1.quantise_into_i8(&mut quantised.l1, QA, 0.99);
         self.l2
-            .quantise_transpose_into_i8(&mut quantised.l2, QB, 1.98);
+            .quantise_transpose_into_i8(&mut quantised.l2, QB, 0.99);
 
         quantised
     }
