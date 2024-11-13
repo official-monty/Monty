@@ -16,6 +16,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set Prerelease Name
+        id: prerelease_info
+        run: |
+          DATE=$(date +'%Y%m%d')
+          SHORT_SHA=$(git rev-parse --short=8 HEAD)
+          PRERELEASE_NAME="Monty-dev-${DATE}-${SHORT_SHA}"
+          echo "PRERELEASE_NAME=$PRERELEASE_NAME" >> $GITHUB_ENV
+          echo "Prerelease Name: $PRERELEASE_NAME"
+
       - name: Delete Existing Release
         shell: bash
         run: |
@@ -27,7 +36,7 @@ jobs:
       - name: Create Prerelease
         shell: bash
         run: |
-          gh release create prerelease-latest -t "Latest Prerelease Build" -p || true
+          gh release create prerelease-latest -t "${{ env.PRERELEASE_NAME }}" -p || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build_and_upload:
@@ -42,6 +51,16 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Set Up Environment
+      shell: bash
+      run: |
+        DATE=$(date +'%Y%m%d')
+        SHORT_SHA=$(git rev-parse --short=8 HEAD)
+        OS_NAME=$(echo "${{ matrix.os }}" | cut -d'-' -f1)
+        export BINARY_NAME="Monty-${OS_NAME}-dev-${DATE}-${SHORT_SHA}"
+        echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+        echo "Binary Name: $BINARY_NAME"
     
     - name: Install tac on macOS
       if: matrix.os == 'macos-latest'
@@ -103,8 +122,8 @@ jobs:
           binary_path="./monty"
         fi
         asset_name="monty-${{ matrix.os }}"
-        cp "$binary_path" "$asset_name"
-        gh release upload prerelease-latest "$asset_name" --clobber
+        cp "$binary_path" "$BINARY_NAME"
+        gh release upload prerelease-latest "$BINARY_NAME" --clobber
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
