@@ -3,10 +3,10 @@ name: Build Binary
 on:
   push:
     branches:
-      - '**'  # Triggers on all branches
+      - '**'
   pull_request:
     branches:
-      - '**'  # Triggers on all branches
+      - '**'
 
 jobs:
   build:
@@ -19,6 +19,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Extract the Bench Reference
+      id: benchref
+      shell: bash
+      run: |
+        for hash in $(git rev-list -100 HEAD); do
+          benchref=$(git show -s $hash | tac | grep -m 1 -o -x '[[:space:]]*\b[Bb]ench[ :]\+[1-9][0-9]\{5,7\}\b[[:space:]]*' | sed 's/[^0-9]//g') && break || true
+        done
+        [[ -n "$benchref" ]] && echo "benchref=$benchref" >> $GITHUB_ENV && echo "Reference bench: $benchref" || echo "No bench found"
 
     - name: Set up Rust
       uses: dtolnay/rust-toolchain@stable
@@ -34,6 +43,21 @@ jobs:
     - name: Run Make
       run: make
 
-    - name: Get Bench
-      run: ./monty bench
+    - name: Get Bench Output
+      id: bench_output
+      shell: bash
+      run: |
+        full_output=$(./monty bench)
+        echo "$full_output"
+        bench_output=$(echo "$full_output" | grep -o -E '[0-9]+' | head -n 1)
+        echo "bench_output=$bench_output" >> $GITHUB_ENV
+        echo "Current bench output: $bench_output"
+        
+    - name: Compare Bench Output
+      run: |
+        if [[ "$bench_output" -ne "$benchref" ]]; then
+          echo "::warning::Benchmark output for ${{ matrix.os }} ($bench_output) differs from reference ($benchref)"
+        else
+          echo "Benchmark output matches reference."
+        fi
 
