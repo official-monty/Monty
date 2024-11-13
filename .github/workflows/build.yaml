@@ -36,3 +36,7 @@ jobs:
 
     - name: Run Make
       run: make
+
+    - name: Get Bench
+      run: ./monty bench
+
