@@ -9,9 +9,32 @@ on:
       - '**'
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
+  create_prerelease:
+    runs-on: ubuntu-latest
+    #if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
+      - name: Delete Existing Release
+        shell: bash
+        run: |
+          gh release delete prerelease-latest -y || true
+          gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/prerelease-latest" || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Prerelease
+        shell: bash
+        run: |
+          gh release create prerelease-latest -t "Latest Prerelease Build" -p || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  build_and_upload:
+    needs: create_prerelease
+    
+    runs-on: ${{ matrix.os }}
+    
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -69,4 +92,19 @@ jobs:
         else
           echo "Benchmark output matches reference."
         fi
+        
+    - name: Upload Binary to Release
+      shell: bash
+      #if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
+      run: |
+        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          binary_path="./monty.exe"
+        else
+          binary_path="./monty"
+        fi
+        asset_name="monty-${{ matrix.os }}"
+        cp "$binary_path" "$asset_name"
+        gh release upload prerelease-latest "$asset_name" --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
