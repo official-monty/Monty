@@ -5,7 +5,10 @@ use montyformat::{MontyFormat, MontyValueFormat};
 use rng::Rand;
 use thread::DatagenThread;
 
-use monty::{read_into_struct_unchecked, uci, ChessState, MappedWeights, MctsParams, PolicyNetwork, ValueNetwork};
+use monty::{
+    read_into_struct_unchecked, uci, ChessState, MappedWeights, MctsParams, PolicyNetwork,
+    ValueNetwork,
+};
 
 use std::{
     env::Args,
