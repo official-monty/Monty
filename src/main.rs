@@ -8,19 +8,19 @@ fn main() {
 
 #[cfg(feature = "embed")]
 mod net {
-    use monty::{ChessState, MctsParams, PolicyNetwork, Uci, ValueNetwork};
+    use monty::{uci, ChessState, MctsParams, PolicyNetwork, ValueNetwork};
 
     static VALUE: ValueNetwork =
-        unsafe { std::mem::transmute(*include_bytes!("../resources/value.network")) };
+        unsafe { std::mem::transmute(*include_bytes!("../value.network")) };
     static POLICY: PolicyNetwork =
-        unsafe { std::mem::transmute(*include_bytes!("../resources/policy.network")) };
+        unsafe { std::mem::transmute(*include_bytes!("../policy.network")) };
 
     pub fn run() {
         let mut args = std::env::args();
         let arg1 = args.nth(1);
 
         if let Some("bench") = arg1.as_deref() {
-            Uci::bench(
+            uci::bench(
                 ChessState::BENCH_DEPTH,
                 &POLICY,
                 &VALUE,
@@ -29,13 +29,13 @@ mod net {
             return;
         }
 
-        Uci::run(&POLICY, &VALUE);
+        uci::run(&POLICY, &VALUE);
     }
 }
 
 #[cfg(not(feature = "embed"))]
 mod nonet {
-    use monty::{read_into_struct_unchecked, ChessState, MappedWeights, MctsParams, Uci};
+    use monty::{read_into_struct_unchecked, uci, ChessState, MappedWeights, MctsParams};
 
     pub fn run() {
         let mut args = std::env::args();
@@ -51,7 +51,7 @@ mod nonet {
         let value = value_mapped.data;
 
         if let Some("bench") = arg1.as_deref() {
-            Uci::bench(
+            uci::bench(
                 ChessState::BENCH_DEPTH,
                 policy,
                 value,
@@ -60,6 +60,6 @@ mod nonet {
             return;
         }
 
-        Uci::run(policy, value);
+        uci::run(policy, value);
     }
 }

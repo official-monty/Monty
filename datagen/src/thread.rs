@@ -1,17 +1,13 @@
-use crate::{to_slice_with_lifetime, Binpack, Destination, Rand};
+use crate::{Destination, Rand};
 
 use monty::{
     ChessState, GameState, Limits, MctsParams, PolicyNetwork, Searcher, Tree, ValueNetwork,
 };
-use montyformat::{MontyFormat, SearchData};
+use montyformat::{MontyFormat, MontyValueFormat, SearchData};
 
-use std::{
-    fs::File,
-    io::{BufWriter, Write},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
 };
 
 pub struct DatagenThread<'a> {
@@ -100,8 +96,6 @@ impl<'a> DatagenThread<'a> {
 
         let mut tree = Tree::new_mb(8, 1);
 
-        let mut game = Binpack::new(position.clone());
-
         let pos = position.board();
 
         let montyformat_position = montyformat::chess::Position::from_raw(
@@ -118,6 +112,13 @@ impl<'a> DatagenThread<'a> {
             position.castling().rook_files(),
         );
 
+        let mut value_game = MontyValueFormat {
+            startpos: montyformat_position,
+            castling: montyformat_castling,
+            result: 0.5,
+            moves: Vec::new(),
+        };
+
         let mut policy_game = MontyFormat::new(montyformat_position, montyformat_castling);
 
         // play out game
@@ -133,7 +134,9 @@ impl<'a> DatagenThread<'a> {
 
             let (bm, score) = searcher.search(1, limits, false, &mut 0);
 
-            game.push(position.stm(), bm, score);
+            let best_move = montyformat::chess::Move::from(u16::from(bm));
+
+            value_game.push(position.stm(), best_move, score);
 
             let mut root_count = 0;
             position.map_legal_moves(|_| root_count += 1);
@@ -156,7 +159,6 @@ impl<'a> DatagenThread<'a> {
                 Some(dist)
             };
 
-            let best_move = montyformat::chess::Move::from(u16::from(bm));
             let search_data = SearchData::new(best_move, score, dist);
 
             policy_game.push(search_data);
@@ -188,7 +190,7 @@ impl<'a> DatagenThread<'a> {
             tree.clear(1);
         }
 
-        game.set_result(result);
+        value_game.result = result;
         policy_game.result = result;
 
         if self.stop.load(Ordering::Relaxed) {
@@ -200,19 +202,7 @@ impl<'a> DatagenThread<'a> {
         if output_policy {
             dest.push_policy(&policy_game, self.stop);
         } else {
-            dest.push(&game, self.stop);
+            dest.push(&value_game, self.stop);
         }
     }
-}
-
-pub fn write<T>(input: &[T], output: &mut BufWriter<File>) {
-    if input.is_empty() {
-        return;
-    }
-
-    let data_slice = to_slice_with_lifetime(input);
-
-    output
-        .write_all(data_slice)
-        .expect("Nothing can go wrong in unsafe code!");
 }

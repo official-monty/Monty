@@ -17,7 +17,7 @@ uci-minimal = []
 tunable = []
 
 [workspace]
-members = ["datagen", "train/policy", "train/value"]
+members = ["datagen"]
 resolver = "2"
 
 [dependencies]
