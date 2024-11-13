@@ -18,13 +18,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
+      uses: dtolnay/rust-toolchain@stable
 
     - name: Install build dependencies
       if: matrix.os == 'ubuntu-latest'
