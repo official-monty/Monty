@@ -98,4 +98,21 @@ impl<const N: usize> Accumulator<f32, N> {
 
         res
     }
+
+    pub fn quantise_i8(&self, qa: i8, warn_limit: f32) -> Accumulator<i8, N> {
+        let mut res = Accumulator([0; N]);
+
+        for (i, &j) in res.0.iter_mut().zip(self.0.iter()) {
+            if j.abs() > warn_limit {
+                println!("WARNING: {j} > {warn_limit}")
+            }
+
+            let unq = j * f32::from(qa);
+            *i = unq as i8;
+
+            assert_eq!(unq.trunc(), f32::from(*i));
+        }
+
+        res
+    }
 }
