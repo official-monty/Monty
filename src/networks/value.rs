@@ -2,7 +2,8 @@ use crate::{boxed_and_zeroed, Board};
 
 use super::{
     activation::SCReLU,
-    layer::{Layer, TransposedLayer}, Accumulator,
+    layer::{Layer, TransposedLayer},
+    Accumulator,
 };
 
 // DO NOT MOVE
@@ -42,7 +43,10 @@ impl ValueNetwork {
 
         let mut act = [0; L1 / 2];
 
-        for (a, (&i, &j)) in act.iter_mut().zip(l2.0.iter().take(L1 / 2).zip(l2.0.iter().skip(L1 / 2))) {
+        for (a, (&i, &j)) in act
+            .iter_mut()
+            .zip(l2.0.iter().take(L1 / 2).zip(l2.0.iter().skip(L1 / 2)))
+        {
             let i = i32::from(i).clamp(0, i32::from(QA));
             let j = i32::from(j).clamp(0, i32::from(QA));
             *a = ((i * j) / i32::from(QA / FACTOR)) as i16;
