@@ -31,7 +31,7 @@ impl ValueNetwork {
 
         let mut count = 0;
         let mut feats = [0; 32];
-        board.map_value_features(|feat| {
+        board.map_features(|feat| {
             feats[count] = feat;
             pst.add(&self.pst.weights[feat]);
             count += 1;

@@ -170,7 +170,7 @@ impl Board {
         }
     }
 
-    pub fn map_value_features<F: FnMut(usize)>(&self, mut f: F) {
+    pub fn map_features<F: FnMut(usize)>(&self, mut f: F) {
         let flip = self.stm() == Side::BLACK;
         let hm = if self.king_index() % 8 > 3 { 7 } else { 0 };
 
@@ -212,62 +212,6 @@ impl Board {
             while opp_bb > 0 {
                 pop_lsb!(sq, opp_bb);
                 let mut feat = 384 + pc + usize::from(sq ^ hm);
-
-                let bit = 1 << sq;
-                if threats & bit > 0 {
-                    feat += 768;
-                }
-
-                if defences & bit > 0 {
-                    feat += 768 * 2;
-                }
-
-                f(feat);
-            }
-        }
-    }
-
-    pub fn map_policy_features<F: FnMut(usize)>(&self, mut f: F) {
-        let flip = self.stm() == Side::BLACK;
-
-        let mut threats = self.threats_by(self.stm() ^ 1);
-        let mut defences = self.threats_by(self.stm());
-
-        if flip {
-            threats = threats.swap_bytes();
-            defences = defences.swap_bytes();
-        }
-
-        for piece in Piece::PAWN..=Piece::KING {
-            let pc = 64 * (piece - 2);
-
-            let mut our_bb = self.piece(piece) & self.piece(self.stm());
-            let mut opp_bb = self.piece(piece) & self.piece(self.stm() ^ 1);
-
-            if flip {
-                our_bb = our_bb.swap_bytes();
-                opp_bb = opp_bb.swap_bytes();
-            }
-
-            while our_bb > 0 {
-                pop_lsb!(sq, our_bb);
-                let mut feat = pc + usize::from(sq);
-
-                let bit = 1 << sq;
-                if threats & bit > 0 {
-                    feat += 768;
-                }
-
-                if defences & bit > 0 {
-                    feat += 768 * 2;
-                }
-
-                f(feat);
-            }
-
-            while opp_bb > 0 {
-                pop_lsb!(sq, opp_bb);
-                let mut feat = 384 + pc + usize::from(sq);
 
                 let bit = 1 << sq;
                 if threats & bit > 0 {
