@@ -69,7 +69,7 @@ impl Default for ChessState {
 
 impl ChessState {
     pub const STARTPOS: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    pub const BENCH_DEPTH: usize = 6;
+    pub const BENCH_DEPTH: usize = 5;
 
     pub fn board(&self) -> Board {
         self.board
