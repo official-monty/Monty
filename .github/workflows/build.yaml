@@ -11,7 +11,7 @@ on:
 jobs:
   create_prerelease:
     runs-on: ubuntu-latest
-    #if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
+    if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,129 +39,95 @@ jobs:
           gh release create prerelease-latest -t "${{ env.PRERELEASE_NAME }}" -p || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build_and_upload:
     needs: create_prerelease
+    
     runs-on: ${{ matrix.os }}
-
+    
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            arch: x86_64
-            cpu_level: [x86-64-v1, x86-64-v2, x86-64-v3, x86-64-v4]
-          - os: windows-latest
-            arch: x86_64
-            cpu_level: [x86-64-v1, x86-64-v2, x86-64-v3, x86-64-v4]
-          - os: macos-latest
-            arch: x86_64
-            cpu_level: [x86-64-v1, x86-64-v2, x86-64-v3, x86-64-v4]
-          - os: macos-latest
-            arch: aarch64
-            cpu_level: [] # ARM64 does not use x86-64-v1 to v4
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set Up Environment
-        shell: bash
-        run: |
-          DATE=$(date +'%Y%m%d')
-          SHORT_SHA=$(git rev-parse --short=8 HEAD)
-          OS_NAME=$(echo "${{ matrix.os }}" | cut -d'-' -f1)
-          ARCH="${{ matrix.arch }}"
-          CPU_LEVEL="${{ matrix.cpu_level }}"
+    - name: Set Up Environment
+      shell: bash
+      run: |
+        DATE=$(date +'%Y%m%d')
+        SHORT_SHA=$(git rev-parse --short=8 HEAD)
+        OS_NAME=$(echo "${{ matrix.os }}" | cut -d'-' -f1)
+        if [[ "$OS_NAME" == "windows" ]]; then
+          BINARY_NAME="Monty-${OS_NAME}-dev-${DATE}-${SHORT_SHA}.exe"
+        else
+          BINARY_NAME="Monty-${OS_NAME}-dev-${DATE}-${SHORT_SHA}"
+        fi
+        echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+        echo "Binary Name: $BINARY_NAME"
+    
+    - name: Install tac on macOS
+      if: matrix.os == 'macos-latest'
+      run: brew install coreutils
 
-          if [[ -n "$CPU_LEVEL" ]]; then
-            BINARY_NAME="Monty-${OS_NAME}-${CPU_LEVEL}-dev-${DATE}-${SHORT_SHA}"
-          else
-            BINARY_NAME="Monty-${OS_NAME}-${ARCH}-dev-${DATE}-${SHORT_SHA}"
-          fi
+    - name: Extract the Bench Reference
+      id: benchref
+      shell: bash
+      run: |
+        tac_cmd="tac"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+          tac_cmd="gtac"  # Use 'gtac' on macOS, provided by coreutils
+        fi
+        for hash in $(git rev-list -100 HEAD); do
+          benchref=$(git show -s $hash | $tac_cmd | grep -m 1 -o -x '[[:space:]]*\b[Bb]ench[ :]\+[1-9][0-9]\{5,7\}\b[[:space:]]*' | sed 's/[^0-9]//g') && break || true
+        done
+        [[ -n "$benchref" ]] && echo "benchref=$benchref" >> $GITHUB_ENV && echo "Reference bench: $benchref" || echo "No bench found"
 
-          if [[ "$OS_NAME" == "windows" ]]; then
-            BINARY_NAME="${BINARY_NAME}.exe"
-          fi
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
 
-          echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
-          echo "Binary Name: $BINARY_NAME"
+    - name: Install build dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt-get update && sudo apt-get install build-essential -y
 
-      - name: Install tac on macOS
-        if: matrix.os == 'macos-latest'
-        run: brew install coreutils
+    - name: Install Make on Windows
+      if: matrix.os == 'windows-latest'
+      run: choco install make
 
-      - name: Extract the Bench Reference
-        id: benchref
-        shell: bash
-        run: |
-          tac_cmd="tac"
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-            tac_cmd="gtac"  # Use 'gtac' on macOS, provided by coreutils
-          fi
-          for hash in $(git rev-list -100 HEAD); do
-            benchref=$(git show -s $hash | $tac_cmd | grep -m 1 -o -x '[[:space:]]*\b[Bb]ench[ :]\+[1-9][0-9]\{5,7\}\b[[:space:]]*' | sed 's/[^0-9]//g') && break || true
-          done
-          [[ -n "$benchref" ]] && echo "benchref=$benchref" >> $GITHUB_ENV && echo "Reference bench: $benchref" || echo "No bench found"
+    - name: Run Make
+      run: make
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Build Dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install build-essential -y
-
-      - name: Install Make on Windows
-        if: matrix.os == 'windows-latest'
-        run: choco install make
-
-      - name: Build Binary
-        shell: bash
-        run: |
-          if [[ "${{ matrix.arch }}" == "x86_64" ]]; then
-            for cpu_level in "${{ matrix.cpu_level[@] }}"; do
-              echo "Building for x86_64 with target CPU level: $cpu_level"
-              cargo rustc --release --bin monty -- -C target-cpu=$cpu_level
-            done
-          elif [[ "${{ matrix.arch }}" == "aarch64" ]]; then
-            echo "Building for aarch64..."
-            cargo build --release --target aarch64-apple-darwin
-          fi
-
-      - name: Get Bench Output
-        id: bench_output
-        shell: bash
-        run: |
-          full_output=$(./monty bench)
-          echo "$full_output"
-          bench_output=$(echo "$full_output" | grep -o -E '[0-9]+' | head -n 1)
-          echo "bench_output=$bench_output" >> $GITHUB_ENV
-          echo "Current bench output: $bench_output"
-
-      - name: Compare Bench Output
-        shell: bash
-        run: |
-          if [[ "$bench_output" -ne "$benchref" ]]; then
-            echo "::warning::Benchmark output for ${{ matrix.os }} ($bench_output) differs from reference ($benchref)"
-          else
-            echo "Benchmark output matches reference."
-          fi
-
-      - name: Upload Binary to Release
-        shell: bash
-        run: |
-          if [[ "${{ matrix.arch }}" == "x86_64" ]]; then
-            for cpu_level in "${{ matrix.cpu_level[@] }}"; do
-              asset_name="$BINARY_NAME"
-              binary_path="target/release/$BINARY_NAME"
-              echo "Uploading $binary_path as $asset_name..."
-              gh release upload prerelease-latest "$binary_path" --clobber --name "$asset_name"
-            done
-          elif [[ "${{ matrix.arch }}" == "aarch64" ]]; then
-            asset_name="$BINARY_NAME"
-            binary_path="target/aarch64-apple-darwin/release/$BINARY_NAME"
-            echo "Uploading $binary_path as $asset_name..."
-            gh release upload prerelease-latest "$binary_path" --clobber --name "$asset_name"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Get Bench Output
+      id: bench_output
+      shell: bash
+      run: |
+        full_output=$(./monty bench)
+        echo "$full_output"
+        bench_output=$(echo "$full_output" | grep -o -E '[0-9]+' | head -n 1)
+        echo "bench_output=$bench_output" >> $GITHUB_ENV
+        echo "Current bench output: $bench_output"
+        
+    - name: Compare Bench Output
+      shell: bash
+      run: |
+        if [[ "$bench_output" -ne "$benchref" ]]; then
+          echo "::warning::Benchmark output for ${{ matrix.os }} ($bench_output) differs from reference ($benchref)"
+        else
+          echo "Benchmark output matches reference."
+        fi
+        
+    - name: Upload Binary to Release
+      shell: bash
+      if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
+      run: |
+        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          binary_path="./monty.exe"
+        else
+          binary_path="./monty"
+        fi
+        asset_name="monty-${{ matrix.os }}"
+        cp "$binary_path" "$BINARY_NAME"
+        gh release upload prerelease-latest "$BINARY_NAME" --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
