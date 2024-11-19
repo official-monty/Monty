@@ -50,7 +50,7 @@ jobs:
         include:
           - os: ubuntu-latest
             arch: x86_64
-            cpu_level: x86-64-v1
+            cpu_level: x86-64
           - os: ubuntu-latest
             arch: x86_64
             cpu_level: x86-64-v2
@@ -62,7 +62,7 @@ jobs:
             cpu_level: x86-64-v4
           - os: windows-latest
             arch: x86_64
-            cpu_level: x86-64-v1
+            cpu_level: x86-64
           - os: windows-latest
             arch: x86_64
             cpu_level: x86-64-v2
@@ -74,7 +74,7 @@ jobs:
             cpu_level: x86-64-v4
           - os: macos-latest
             arch: x86_64
-            cpu_level: x86-64-v1
+            cpu_level: x86-64
           - os: macos-latest
             arch: x86_64
             cpu_level: x86-64-v2
