@@ -100,7 +100,14 @@ jobs:
           OS_NAME=$(echo "${{ matrix.os }}" | cut -d'-' -f1)
           ARCH="${{ matrix.arch }}"
           CPU_LEVEL="${{ matrix.cpu_level }}"
-          BINARY_NAME="Monty-${OS_NAME}-${CPU_LEVEL}-dev-${DATE}-${SHORT_SHA}"
+          
+          if [[ -z "$CPU_LEVEL" ]]; then
+            IDENTIFIER="$ARCH"
+          else
+            IDENTIFIER="$CPU_LEVEL"
+          fi
+          
+          BINARY_NAME="Monty-${OS_NAME}-${IDENTIFIER}-dev-${DATE}-${SHORT_SHA}"
 
           if [[ "$OS_NAME" == "windows" ]]; then
             BINARY_NAME="${BINARY_NAME}.exe"
@@ -157,9 +164,13 @@ jobs:
             exit 1
           fi
 
-          mv "$binary_source" "target/release/"
-          echo "Binary moved to target/release/"
-
+          binary_target="target/release/$BINARY_NAME"
+          if [[ "$binary_source" != "$binary_target" ]]; then
+            mv "$binary_source" "$binary_target"
+            echo "Binary moved to $binary_target"
+          else
+            echo "Binary is already at the target location: $binary_target"
+          fi
 
       - name: Get Bench Output
         id: bench_output
