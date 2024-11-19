@@ -4,11 +4,12 @@ mod consts;
 mod frc;
 mod moves;
 
-use crate::{networks::Accumulator, MctsParams, PolicyNetwork, ValueNetwork};
+use crate::{
+    networks::{Accumulator, POLICY_L1},
+    MctsParams, PolicyNetwork, ValueNetwork,
+};
 
 pub use self::{attacks::Attacks, board::Board, frc::Castling, moves::Move};
-
-const STARTPOS: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum GameState {
@@ -65,24 +66,13 @@ pub struct ChessState {
 
 impl Default for ChessState {
     fn default() -> Self {
-        let mut castling = Castling::default();
-        let board = Board::parse_fen(STARTPOS, &mut castling);
-
-        Self {
-            board,
-            castling,
-            stack: Vec::new(),
-        }
+        Self::from_fen(Self::STARTPOS)
     }
 }
 
 impl ChessState {
-    pub const STARTPOS: &'static str = STARTPOS;
+    pub const STARTPOS: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     pub const BENCH_DEPTH: usize = 5;
-
-    pub fn bbs(&self) -> [u64; 8] {
-        self.board.bbs()
-    }
 
     pub fn board(&self) -> Board {
         self.board
@@ -90,10 +80,6 @@ impl ChessState {
 
     pub fn castling(&self) -> Castling {
         self.castling
-    }
-
-    pub fn is_same(&self, other: &Self) -> bool {
-        self.board == other.board
     }
 
     pub fn conv_mov_to_str(&self, mov: Move) -> String {
@@ -136,18 +122,14 @@ impl ChessState {
         self.board.stm()
     }
 
-    pub fn tm_stm(&self) -> usize {
-        self.stm()
-    }
-
-    pub fn get_policy_feats(&self, policy: &PolicyNetwork) -> Accumulator<i16, 4096> {
+    pub fn get_policy_feats(&self, policy: &PolicyNetwork) -> Accumulator<i16, { POLICY_L1 / 2 }> {
         policy.hl(&self.board)
     }
 
     pub fn get_policy(
         &self,
         mov: Move,
-        hl: &Accumulator<i16, 4096>,
+        hl: &Accumulator<i16, { POLICY_L1 / 2 }>,
         policy: &PolicyNetwork,
     ) -> f32 {
         policy.get(&self.board, &mov, hl)
