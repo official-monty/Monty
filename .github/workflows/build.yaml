@@ -150,6 +150,12 @@ jobs:
           if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
             cargo rustc --release --bin monty --features=embed --target aarch64-apple-darwin
             binary_source="target/aarch64-apple-darwin/release/monty"
+            binary_target="target/release/monty"
+
+            if [[ "$binary_source" != "$binary_target" ]]; then
+              mv "$binary_source" "$binary_target"
+              echo "Binary moved to $binary_target"
+            fi
           else
             cargo rustc --release --bin monty --features=embed -- -C target-cpu=${{ matrix.cpu_level }}
             if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
@@ -164,13 +170,7 @@ jobs:
             exit 1
           fi
 
-          binary_target="target/release/$BINARY_NAME"
-          if [[ "$binary_source" != "$binary_target" ]]; then
-            mv "$binary_source" "$binary_target"
-            echo "Binary moved to $binary_target"
-          else
-            echo "Binary is already at the target location: $binary_target"
-          fi
+          echo "Binary built successfully: $binary_source"
 
       - name: Get Bench Output
         id: bench_output
