@@ -144,7 +144,7 @@ jobs:
         id: bench_output
         shell: bash
         run: |
-          binary_path="target/release/$BINARY_NAME"
+          binary_path="target/release/monty"
           if [[ ! -f "$binary_path" ]]; then
             echo "::error::Binary not found at $binary_path"
             exit 1
