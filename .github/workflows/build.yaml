@@ -182,8 +182,7 @@ jobs:
         #if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
         run: |
           binary_path="./target/release/$BINARY_NAME"
-          asset_name="${BINARY_NAME}"
           echo "Uploading $binary_path as $asset_name..."
-          gh release upload prerelease-latest "$binary_path" --clobber --name "$asset_name"
+          gh release upload prerelease-latest "$binary_path" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
