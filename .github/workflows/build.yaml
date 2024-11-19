@@ -138,13 +138,25 @@ jobs:
         shell: bash
         run: |
           echo "Building for CPU Level: ${{ matrix.cpu_level }}"
-          cargo rustc --release --bin monty -- -C target-cpu=${{ matrix.cpu_level }}
+          cargo rustc --release --bin monty --features=embed -- -C target-cpu=${{ matrix.cpu_level }}
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            mv target/release/monty target/release/monty.exe
+          fi
+          if [[ ! -f "target/release/monty" && ! -f "target/release/monty.exe" ]]; then
+            echo "::error::Build failed, binary not found."
+            exit 1
+          fi
+          echo "Binary built successfully."
 
       - name: Get Bench Output
         id: bench_output
         shell: bash
         run: |
-          binary_path="target/release/monty"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            binary_path="target/release/monty.exe"
+          else
+            binary_path="target/release/monty"
+          fi
           if [[ ! -f "$binary_path" ]]; then
             echo "::error::Binary not found at $binary_path"
             exit 1
