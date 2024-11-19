@@ -84,6 +84,9 @@ jobs:
           - os: macos-latest
             arch: x86_64
             cpu_level: x86-64-v4
+          - os: macos-latest
+            arch: aarch64
+            cpu_level: ""
 
     steps:
       - name: Checkout code
@@ -137,13 +140,26 @@ jobs:
       - name: Build Binary
         shell: bash
         run: |
-          echo "Building for CPU Level: ${{ matrix.cpu_level }}"
-          cargo rustc --release --bin monty --features=embed -- -C target-cpu=${{ matrix.cpu_level }}
-          if [[ ! -f "target/release/monty" && ! -f "target/release/monty.exe" ]]; then
-            echo "::error::Build failed, binary not found."
+          if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
+            cargo rustc --release --bin monty --features=embed --target aarch64-apple-darwin
+            binary_source="target/aarch64-apple-darwin/release/monty"
+          else
+            cargo rustc --release --bin monty --features=embed -- -C target-cpu=${{ matrix.cpu_level }}
+            if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+              binary_source="target/release/monty.exe"
+            else
+              binary_source="target/release/monty"
+            fi
+          fi
+
+          if [[ ! -f "$binary_source" ]]; then
+            echo "::error::Binary not found at $binary_source"
             exit 1
           fi
-          echo "Binary built successfully."
+
+          mv "$binary_source" "target/release/"
+          echo "Binary moved to target/release/"
+
 
       - name: Get Bench Output
         id: bench_output
