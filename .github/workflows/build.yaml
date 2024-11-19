@@ -154,11 +154,6 @@ jobs:
             mv "$binary_source" "$binary_target"
           else
             cargo rustc --release --bin monty --features=embed -- -C target-cpu=${{ matrix.cpu_level }}
-            if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-              binary_source="target/release/monty.exe"
-            else
-              binary_source="target/release/monty"
-            fi
           fi
 
       - name: Get Bench Output
@@ -199,11 +194,6 @@ jobs:
             binary_source="./target/release/monty.exe"
           fi
 
-          if [[ ! -f "$binary_source" ]]; then
-            echo "::error::Binary not found at $binary_source"
-            exit 1
-          fi
-
           mv "$binary_source" "./target/release/$BINARY_NAME"
 
           binary_path="./target/release/$BINARY_NAME"
@@ -211,4 +201,3 @@ jobs:
           gh release upload prerelease-latest "$binary_path" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
