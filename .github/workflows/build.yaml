@@ -139,9 +139,6 @@ jobs:
         run: |
           echo "Building for CPU Level: ${{ matrix.cpu_level }}"
           cargo rustc --release --bin monty --features=embed -- -C target-cpu=${{ matrix.cpu_level }}
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            mv target/release/monty target/release/monty.exe
-          fi
           if [[ ! -f "target/release/monty" && ! -f "target/release/monty.exe" ]]; then
             echo "::error::Build failed, binary not found."
             exit 1
