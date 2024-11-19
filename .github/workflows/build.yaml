@@ -171,8 +171,8 @@ jobs:
       - name: Compare Bench Output
         shell: bash
         run: |
-          if [[ "$bench_output" -ne "$benchref" ]]; then
-            echo "::warning::Benchmark output for ${{ matrix.os }} (${matrix.cpu_level}) differs from reference ($benchref)"
+          if [[ "$bench_output" -ne "${{ env.benchref }}" ]]; then
+            echo "::warning::Benchmark output for ${{ matrix.os }} (CPU Level: ${{ matrix.cpu_level }}) differs from reference (${{ env.benchref }}): $bench_output"
           else
             echo "Benchmark output matches reference."
           fi
