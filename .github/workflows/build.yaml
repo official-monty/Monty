@@ -144,7 +144,13 @@ jobs:
         id: bench_output
         shell: bash
         run: |
-          full_output=$(./monty bench)
+          binary_path="target/release/$BINARY_NAME"
+          if [[ ! -f "$binary_path" ]]; then
+            echo "::error::Binary not found at $binary_path"
+            exit 1
+          fi
+          echo "Running benchmarks with $binary_path"
+          full_output=$("$binary_path" bench)
           echo "$full_output"
           bench_output=$(echo "$full_output" | grep -o -E '[0-9]+' | head -n 1)
           echo "bench_output=$bench_output" >> $GITHUB_ENV
