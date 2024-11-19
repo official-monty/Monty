@@ -181,8 +181,21 @@ jobs:
         shell: bash
         #if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
         run: |
+          binary_source="./target/release/monty"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            binary_source="./target/release/monty.exe"
+          fi
+
+          if [[ ! -f "$binary_source" ]]; then
+            echo "::error::Binary not found at $binary_source"
+            exit 1
+          fi
+
+          mv "$binary_source" "./target/release/$BINARY_NAME"
+
           binary_path="./target/release/$BINARY_NAME"
-          echo "Uploading $binary_path as $asset_name..."
+          echo "Uploading $binary_path as $BINARY_NAME"
           gh release upload prerelease-latest "$binary_path" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
