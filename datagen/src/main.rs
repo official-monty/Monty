@@ -115,8 +115,10 @@ impl Destination {
     }
 
     pub fn report(&self) {
-        let average_iters = self.iters / self.searches;
-        println!("average iters {average_iters}");
+        if self.searches != 0 {
+            let average_iters = self.iters / self.searches;
+            println!("average iters {average_iters}");
+        }
         println!(
             "finished games {} losses {} draws {} wins {}",
             self.games, self.results[0], self.results[1], self.results[2],
@@ -189,6 +191,8 @@ pub fn parse_args(args: Args) -> Option<RunOptions> {
     let mut opts = RunOptions::default();
 
     let mut mode = 0;
+
+    opts.policy_data = true;
 
     for arg in args {
         match arg.as_str() {
