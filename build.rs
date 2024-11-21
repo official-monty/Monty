@@ -7,8 +7,8 @@ use std::fs;
 #[cfg(feature = "embed")]
 use std::path::Path;
 
-use std::process::Command;
 use chrono::Utc;
+use std::process::Command;
 
 fn get_name() {
     // Get the current Git commit hash
