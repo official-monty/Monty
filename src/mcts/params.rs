@@ -130,16 +130,16 @@ macro_rules! make_mcts_params {
 }
 
 make_mcts_params! {
-    root_pst: f32 = 3.64, 1.0, 10.0, 0.4, 0.002;
-    depth_2_pst: f32 = 1.2, 1.0, 10.0, 0.4, 0.002;
-    winning_pst_threshold: f32 = 0.7, 0.0, 1.0, 0.05, 0.002;
-    winning_pst_max: f32 = 1.5, 0.1, 10.0, 0.4, 0.002;
-    root_cpuct: f32 = 1.0, 0.1, 5.0, 0.065, 0.002;
+    root_pst: f32 = 3.102, 1.0, 10.0, 0.4, 0.002;
+    depth_2_pst: f32 = 1.23, 1.0, 10.0, 0.4, 0.002;
+    winning_pst_threshold: f32 = 0.603, 0.0, 1.0, 0.05, 0.002;
+    winning_pst_max: f32 = 1.615, 0.1, 10.0, 0.4, 0.002;
+    root_cpuct: f32 = 1.5, 0.1, 5.0, 0.065, 0.002;
     cpuct: f32 = 0.157, 0.1, 5.0, 0.065, 0.002;
-    cpuct_var_weight: f32 = 0.851, 0.0, 2.0, 0.085, 0.002;
-    cpuct_var_scale: f32 = 0.257, 0.0, 2.0, 0.02, 0.002;
-    cpuct_visits_scale: f32 = 37.3, 1.0, 512.0, 3.2, 0.002;
-    expl_tau: f32 = 0.623, 0.1, 1.0, 0.05, 0.002;
+    cpuct_var_weight: f32 = 0.808, 0.0, 2.0, 0.085, 0.002;
+    cpuct_var_scale: f32 = 0.278, 0.0, 2.0, 0.02, 0.002;
+    cpuct_visits_scale: f32 = 36.91, 1.0, 512.0, 3.2, 0.002;
+    expl_tau: f32 = 0.676, 0.1, 1.0, 0.05, 0.002;
     knight_value: i32 = 450, 250, 750, 25, 0.002;
     bishop_value: i32 = 450, 250, 750, 25, 0.002;
     rook_value: i32 = 650, 400, 1000, 30, 0.002;
