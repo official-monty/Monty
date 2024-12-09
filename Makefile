@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 EXE = monty
 
 ifeq ($(OS),Windows_NT)
@@ -13,8 +15,13 @@ endif
 default:
 	cargo rustc --release --bin monty --features=embed -- -C target-cpu=native --emit link=$(NAME)
 
-montytest:
-	cargo rustc --release --bin monty --features=uci-minimal,tunable -- -C target-cpu=native --emit link=$(NAME)
+# Ensure latest stable rust is installed
+.PHONY: update-stable
+update-stable:
+	source $$HOME/.cargo/env && rustup update stable
+
+montytest: update-stable
+	cargo +stable rustc --release --bin monty --features=uci-minimal,tunable -- -C target-cpu=native --emit link=$(NAME)
 
 noembed:
 	cargo rustc --release --bin monty -- -C target-cpu=native --emit link=$(NAME)

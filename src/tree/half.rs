@@ -29,7 +29,7 @@ impl TreeHalf {
 
         unsafe {
             use std::mem::MaybeUninit;
-            let chunk_size = (size + threads - 1) / threads;
+            let chunk_size = size.div_ceil(threads);
             let ptr = res.nodes.as_mut_ptr().cast();
             let uninit: &mut [MaybeUninit<Node>] = std::slice::from_raw_parts_mut(ptr, size);
 
@@ -83,7 +83,7 @@ impl TreeHalf {
 
     fn clear_ptrs_multi_threaded(&self, threads: usize) {
         std::thread::scope(|s| {
-            let chunk_size = (self.nodes.len() + threads - 1) / threads;
+            let chunk_size = self.nodes.len().div_ceil(threads);
 
             s.spawn(move || {
                 for node_chunk in self.nodes.chunks(chunk_size) {

@@ -3,6 +3,7 @@ name = "monty"
 version = "1.0.0"
 edition = "2021"
 authors = ["Jamie Whiting"]
+rust-version = "1.83"
 
 [profile.release]
 panic = 'abort'
