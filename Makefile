@@ -14,7 +14,7 @@ default:
 	cargo rustc --release --bin monty --features=embed -- -C target-cpu=native --emit link=$(NAME)
 
 montytest:
-	cargo rustc --release --bin monty --features=uci-minimal,tunable -- -C target-cpu=native --emit link=$(NAME)
+	cargo +stable rustc --release --bin monty --features=uci-minimal,tunable -- -C target-cpu=native --emit link=$(NAME)
 
 noembed:
 	cargo rustc --release --bin monty -- -C target-cpu=native --emit link=$(NAME)

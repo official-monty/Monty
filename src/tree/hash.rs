@@ -39,7 +39,7 @@ pub struct HashTable {
 
 impl HashTable {
     pub fn new(size: usize, threads: usize) -> Self {
-        let chunk_size = (size + threads - 1) / threads;
+        let chunk_size = size.div_ceil(threads);
 
         let mut table = HashTable { table: Vec::new() };
         table.table.reserve_exact(size);
@@ -65,7 +65,7 @@ impl HashTable {
     }
 
     pub fn clear(&mut self, threads: usize) {
-        let chunk_size = (self.table.len() + threads - 1) / threads;
+        let chunk_size = self.table.len().div_ceil(threads);
 
         std::thread::scope(|s| {
             for chunk in self.table.chunks_mut(chunk_size) {
