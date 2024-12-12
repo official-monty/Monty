@@ -1,5 +1,5 @@
-use super::attacks::line_through;
-use crate::init;
+use super::attacks::{line_through, File, DIAGS};
+use crate::{init, init_add_assign};
 
 pub struct Side;
 impl Side {
@@ -148,3 +148,50 @@ pub static ZVALS: ZobristVals = {
 pub const PHASE_VALS: [i32; 8] = [0, 0, 0, 1, 1, 2, 4, 0];
 
 pub const SEE_VALS: [i32; 8] = [0, 0, 100, 450, 450, 650, 1250, 0];
+
+pub struct ValueOffsets;
+impl ValueOffsets {
+    pub const PAWN_TOTAL: usize = 84;
+    pub const KNIGHT: [usize; 65] =
+        init_add_assign!(|sq, Self::PAWN_TOTAL, 64| ValueAttacks::KNIGHT[sq].count_ones() as usize);
+    pub const BISHOP: [usize; 65] =
+        init_add_assign!(|sq, Self::KNIGHT[64], 64| ValueAttacks::KNIGHT[sq].count_ones() as usize);
+    pub const ROOK: [usize; 65] =
+        init_add_assign!(|sq, Self::BISHOP[64], 64| ValueAttacks::ROOK[sq].count_ones() as usize);
+    pub const QUEEN: [usize; 65] =
+        init_add_assign!(|sq, Self::ROOK[64], 64| ValueAttacks::QUEEN[sq].count_ones() as usize);
+    pub const KING: [usize; 65] =
+        init_add_assign!(|sq, Self::QUEEN[64], 64| ValueAttacks::KING[sq].count_ones() as usize);
+    pub const END: usize = Self::KING[64];
+}
+
+pub struct ValueAttacks;
+impl ValueAttacks {
+    pub const KNIGHT: [u64; 64] = init!(|sq, 64| {
+        let n = 1 << sq;
+        let h1 = ((n >> 1) & 0x7f7f_7f7f_7f7f_7f7f) | ((n << 1) & 0xfefe_fefe_fefe_fefe);
+        let h2 = ((n >> 2) & 0x3f3f_3f3f_3f3f_3f3f) | ((n << 2) & 0xfcfc_fcfc_fcfc_fcfc);
+        (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8)
+    });
+
+    pub const BISHOP: [u64; 64] = init!(|sq, 64| {
+        let rank = sq / 8;
+        let file = sq % 8;
+        DIAGS[file + rank].swap_bytes() ^ DIAGS[7 + file - rank]
+    });
+
+    pub const ROOK: [u64; 64] = init!(|sq, 64| {
+        let rank = sq / 8;
+        let file = sq % 8;
+        (0xFF << (rank * 8)) ^ (File::A << file)
+    });
+
+    pub const QUEEN: [u64; 64] = init!(|sq, 64| Self::BISHOP[sq] | Self::ROOK[sq]);
+
+    pub const KING: [u64; 64] = init!(|sq, 64| {
+        let mut k = 1 << sq;
+        k |= (k << 8) | (k >> 8);
+        k |= ((k & !File::A) >> 1) | ((k & !File::H) << 1);
+        k ^ (1 << sq)
+    });
+}

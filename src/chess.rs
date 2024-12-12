@@ -1,6 +1,6 @@
 mod attacks;
 mod board;
-mod consts;
+pub mod consts;
 mod frc;
 mod moves;
 

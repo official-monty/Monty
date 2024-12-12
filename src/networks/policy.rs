@@ -46,7 +46,9 @@ impl PolicyNetwork {
             .iter_mut()
             .zip(l1.0.iter().take(L1 / 2).zip(l1.0.iter().skip(L1 / 2)))
         {
-            *elem = (i.clamp(0, QA) * j.clamp(0, QA)) / (QA / FACTOR);
+            let i = i32::from(i).clamp(0, i32::from(QA));
+            let j = i32::from(j).clamp(0, i32::from(QA));
+            *elem = ((i * j) / i32::from(QA / FACTOR)) as i16;
         }
 
         res
