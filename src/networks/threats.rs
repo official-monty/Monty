@@ -46,9 +46,9 @@ pub fn map_features<F: FnMut(usize)>(pos: &Board, mut f: F) {
                 let threats = match piece {
                     Piece::PAWN => Attacks::pawn(sq, side),
                     Piece::KNIGHT => Attacks::knight(sq),
-                    Piece::BISHOP => Attacks::bishop(sq, occ),
-                    Piece::ROOK => Attacks::rook(sq, occ),
-                    Piece::QUEEN => Attacks::queen(sq, occ),
+                    Piece::BISHOP => ValueAttacks::BISHOP[sq],
+                    Piece::ROOK => ValueAttacks::ROOK[sq],
+                    Piece::QUEEN => ValueAttacks::QUEEN[sq],
                     Piece::KING => Attacks::king(sq),
                     _ => unreachable!(),
                 } & occ;
