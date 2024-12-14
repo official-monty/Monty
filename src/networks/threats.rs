@@ -1,6 +1,6 @@
 use crate::{
     chess::{
-        consts::{Piece, Side, ValueAttacks, ValueOffsets},
+        consts::{Piece, Side, ValueAttacks, ValueIndices, ValueOffsets},
         Attacks,
     },
     Board,
@@ -40,6 +40,7 @@ pub fn map_features<F: FnMut(usize)>(pos: &Board, mut f: F) {
 
     for side in [Side::WHITE, Side::BLACK] {
         let side_offset = 12 * ValueOffsets::END * side;
+        let opps = bbs[side ^ 1];
 
         for piece in Piece::PAWN..=Piece::KING {
             map_bb(bbs[side] & bbs[piece], |sq| {
@@ -55,8 +56,10 @@ pub fn map_features<F: FnMut(usize)>(pos: &Board, mut f: F) {
 
                 f(TOTAL_THREATS + [0, 384][side] + 64 * (piece - 2) + sq);
                 map_bb(threats, |dest| {
-                    let idx = map_piece_threat(piece, sq, dest);
-                    f(side_offset + pieces[dest] * ValueOffsets::END + idx)
+                    let enemy = (1 << dest) & opps > 0;
+                    if let Some(idx) = map_piece_threat(piece, sq, dest, pieces[dest], enemy) {
+                        f(side_offset + idx);
+                    }
                 });
             });
         }
@@ -80,14 +83,14 @@ fn flip_horizontal(mut bb: u64) -> u64 {
     ((bb >> 4) & K4) | ((bb & K4) << 4)
 }
 
-fn map_piece_threat(piece: usize, src: usize, dest: usize) -> usize {
+pub fn map_piece_threat(piece: usize, src: usize, dest: usize, target: usize, enemy: bool) -> Option<usize> {
     match piece {
-        Piece::PAWN => map_pawn_threat(src, dest),
-        Piece::KNIGHT => map_knight_threat(src, dest),
-        Piece::BISHOP => map_bishop_threat(src, dest),
-        Piece::ROOK => map_rook_threat(src, dest),
-        Piece::QUEEN => map_queen_threat(src, dest),
-        Piece::KING => map_king_threat(src, dest),
+        Piece::PAWN => map_pawn_threat(src, dest, target, enemy),
+        Piece::KNIGHT => map_knight_threat(src, dest, target),
+        Piece::BISHOP => map_bishop_threat(src, dest, target),
+        Piece::ROOK => map_rook_threat(src, dest, target),
+        Piece::QUEEN => map_queen_threat(src, dest, target),
+        Piece::KING => map_king_threat(src, dest, target),
         _ => unreachable!(),
     }
 }
@@ -96,28 +99,107 @@ fn below(src: usize, dest: usize, table: &[u64; 64]) -> usize {
     (table[src] & ((1 << dest) - 1)).count_ones() as usize
 }
 
-fn map_pawn_threat(src: usize, dest: usize) -> usize {
-    let diff = if dest > src { dest - src } else { src - dest };
-    let attack = if diff == 7 { 0 } else { 1 } + 2 * (src % 8) - 1;
-    (src / 8) * 14 + attack
+const fn offset_mapping<const N: usize>(a: [usize; N]) -> [usize; 12] {
+    let mut res = [usize::MAX; 12];
+
+    let mut i = 0;
+    while i < N {
+        res[a[i] - 2] = i;
+        res[a[i] + 4] = i;
+        i += 1;
+    }
+
+    res
 }
 
-fn map_knight_threat(src: usize, dest: usize) -> usize {
-    ValueOffsets::KNIGHT[src] + below(src, dest, &ValueAttacks::KNIGHT)
+fn target_is(target: usize, piece: usize) -> bool {
+    target % 6 == piece - 2
 }
 
-fn map_bishop_threat(src: usize, dest: usize) -> usize {
-    ValueOffsets::BISHOP[src] + below(src, dest, &ValueAttacks::BISHOP)
+fn map_pawn_threat(src: usize, dest: usize, target: usize, enemy: bool) -> Option<usize> {
+    const MAP: [usize; 12] = offset_mapping([Piece::PAWN, Piece::KNIGHT, Piece::ROOK]);
+    if MAP[target] == usize::MAX || (enemy && dest > src && target_is(target, Piece::PAWN)) {
+        None
+    } else {
+        let diff = if dest > src { dest - src } else { src - dest };
+        let attack = if diff == 7 { 0 } else { 1 } + 2 * (src % 8) - 1;
+        let threat = ValueOffsets::PAWN + MAP[target] * ValueIndices::PAWN + (src / 8) * 14 + attack;
+
+        assert!(threat < ValueOffsets::KNIGHT, "{threat}");
+
+        Some(threat)
+    }
 }
 
-fn map_rook_threat(src: usize, dest: usize) -> usize {
-    ValueOffsets::ROOK[src] + below(src, dest, &ValueAttacks::ROOK)
+fn map_knight_threat(src: usize, dest: usize, target: usize) -> Option<usize> {
+    if dest > src && target_is(target, Piece::KNIGHT) {
+        None
+    } else {
+        let idx = ValueIndices::KNIGHT[src] + below(src, dest, &ValueAttacks::KNIGHT);
+        let threat = ValueOffsets::KNIGHT + target * ValueIndices::KNIGHT[64] + idx;
+    
+        assert!(threat >= ValueOffsets::KNIGHT, "{threat}");
+        assert!(threat < ValueOffsets::BISHOP, "{threat}");
+    
+        Some(threat)
+    }
 }
 
-fn map_queen_threat(src: usize, dest: usize) -> usize {
-    ValueOffsets::QUEEN[src] + below(src, dest, &ValueAttacks::QUEEN)
+fn map_bishop_threat(src: usize, dest: usize, target: usize) -> Option<usize> {
+    const MAP: [usize; 12] = offset_mapping([Piece::PAWN, Piece::KNIGHT, Piece::BISHOP, Piece::ROOK, Piece::KING]);
+    if MAP[target] == usize::MAX || dest > src && target_is(target, Piece::BISHOP) {
+        None
+    } else {
+        let idx = ValueIndices::BISHOP[src] + below(src, dest, &ValueAttacks::BISHOP);
+        let threat = ValueOffsets::BISHOP + MAP[target] * ValueIndices::BISHOP[64] + idx;
+
+        assert!(threat >= ValueOffsets::BISHOP, "{threat}");
+        assert!(threat < ValueOffsets::ROOK, "{threat}");
+
+        Some(threat)
+    }
 }
 
-fn map_king_threat(src: usize, dest: usize) -> usize {
-    ValueOffsets::KING[src] + below(src, dest, &ValueAttacks::KING)
+fn map_rook_threat(src: usize, dest: usize, target: usize) -> Option<usize> {
+    const MAP: [usize; 12] = offset_mapping([Piece::PAWN, Piece::KNIGHT, Piece::BISHOP, Piece::ROOK, Piece::KING]);
+    if MAP[target] == usize::MAX || dest > src && target_is(target, Piece::ROOK) {
+        None
+    } else {
+        let idx = ValueIndices::ROOK[src] + below(src, dest, &ValueAttacks::ROOK);
+        let threat = ValueOffsets::ROOK + MAP[target] * ValueIndices::ROOK[64] + idx;
+
+        assert!(threat >= ValueOffsets::ROOK, "{threat}");
+        assert!(threat < ValueOffsets::QUEEN, "{threat}");
+
+        Some(threat)
+    }
+}
+
+fn map_queen_threat(src: usize, dest: usize, target: usize) -> Option<usize> {
+    if dest > src && target_is(target, Piece::QUEEN) {
+        None
+    } else {
+        let idx = ValueIndices::QUEEN[src] + below(src, dest, &ValueAttacks::QUEEN);
+        let threat = ValueOffsets::QUEEN + target * ValueIndices::QUEEN[64] + idx;
+
+        assert!(threat >= ValueOffsets::QUEEN, "{threat}");
+        assert!(threat < ValueOffsets::KING, "{threat}");
+
+        Some(threat)
+    }
+}
+
+fn map_king_threat(src: usize, dest: usize, target: usize) -> Option<usize> {
+    const MAP: [usize; 12] = offset_mapping([Piece::PAWN, Piece::KNIGHT, Piece::BISHOP, Piece::ROOK]);
+    if MAP[target] == usize::MAX {
+        None
+    } else {
+        let idx = ValueIndices::KING[src] + below(src, dest, &ValueAttacks::KING);
+        let threat = ValueOffsets::KING + MAP[target] * ValueIndices::KING[64] + idx;
+
+        assert!(threat >= ValueOffsets::KING, "{threat}");
+        assert!(threat < ValueOffsets::END, "{threat}");
+
+        Some(threat)
+    }
 }
