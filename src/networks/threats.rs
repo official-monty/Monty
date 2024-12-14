@@ -6,7 +6,7 @@ use crate::{
     Board,
 };
 
-const TOTAL_THREATS: usize = 2 * 12 * ValueOffsets::END;
+const TOTAL_THREATS: usize = 2 * ValueOffsets::END;
 pub const TOTAL: usize = TOTAL_THREATS + 768;
 
 pub fn map_features<F: FnMut(usize)>(pos: &Board, mut f: F) {
@@ -39,7 +39,7 @@ pub fn map_features<F: FnMut(usize)>(pos: &Board, mut f: F) {
     let occ = bbs[0] | bbs[1];
 
     for side in [Side::WHITE, Side::BLACK] {
-        let side_offset = 12 * ValueOffsets::END * side;
+        let side_offset = ValueOffsets::END * side;
         let opps = bbs[side ^ 1];
 
         for piece in Piece::PAWN..=Piece::KING {
