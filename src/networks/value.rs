@@ -30,7 +30,7 @@ impl ValueNetwork {
         let mut pst = self.pst.biases;
 
         let mut count = 0;
-        let mut feats = [0; 128];
+        let mut feats = [0; 160];
         threats::map_features(board, |feat| {
             feats[count] = feat;
             pst.add(&self.pst.weights[feat]);
