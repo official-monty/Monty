@@ -252,9 +252,16 @@ impl Tree {
             total += *policy;
         }
 
+        let mut sum_of_squares = 0.0;
+
         for (action, &policy) in policies.iter().enumerate() {
-            self[*actions + action].set_policy(policy / total);
+            let policy = policy / total;
+            self[*actions + action].set_policy(policy);
+            sum_of_squares += policy * policy;
         }
+
+        let gini_impurity = (1.0 - sum_of_squares).clamp(0.0, 1.0);
+        self[node_ptr].set_gini_impurity(gini_impurity);
     }
 
     pub fn propogate_proven_mates(&self, ptr: NodePtr, child_state: GameState) {
