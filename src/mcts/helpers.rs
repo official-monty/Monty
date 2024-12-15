@@ -61,7 +61,7 @@ impl SearchHelpers {
     pub fn get_pst(q: f32, params: &MctsParams) -> f32 {
         let scalar = q - q.min(params.winning_pst_threshold());
         let t = scalar / (1.0 - params.winning_pst_threshold());
-        1.0 + (params.winning_pst_max() - 1.0) * t
+        params.base_pst() + (params.winning_pst_max() - params.base_pst()) * t
     }
 
     /// First Play Urgency
