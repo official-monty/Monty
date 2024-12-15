@@ -25,7 +25,8 @@ impl SearchHelpers {
 
         // scale CPUCT with variance of Q
         if node.visits() > 1 {
-            let frac = node.var().sqrt() / params.cpuct_var_scale();
+            let mut frac = node.var().sqrt() / params.cpuct_var_scale();
+            frac += (1.0 - frac) / (1.0 + params.cpuct_var_warmup() * node.visits() as f32);
             cpuct *= 1.0 + params.cpuct_var_weight() * (frac - 1.0);
         }
 
