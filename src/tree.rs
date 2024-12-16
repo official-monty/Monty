@@ -181,12 +181,7 @@ impl Tree {
 
         let new_ptr = self.tree[self.half()].reserve_nodes(actions.len())?;
 
-        let pst = match depth {
-            0 => unreachable!(),
-            1 => params.root_pst(),
-            2 => 1.0 + params.depth_2_pst_adjustment(),
-            3.. => SearchHelpers::get_pst(self[node_ptr].q(), params),
-        };
+        let pst = SearchHelpers::get_pst(depth, self[node_ptr].q(), params);
 
         let mut total = 0.0;
 
