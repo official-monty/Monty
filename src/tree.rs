@@ -233,12 +233,7 @@ impl Tree {
             max = max.max(policy);
         }
 
-        let pst = match depth {
-            0 => unreachable!(),
-            1 => params.root_pst(),
-            2 => 1.0 + params.depth_2_pst_adjustment(),
-            3.. => unreachable!(),
-        };
+        let pst = SearchHelpers::get_pst(depth.into(), self[node_ptr].q(), params);
 
         let mut total = 0.0;
 

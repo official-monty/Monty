@@ -62,7 +62,7 @@ impl SearchHelpers {
     pub fn get_pst(depth: usize, q: f32, params: &MctsParams) -> f32 {
         let scalar = q - q.min(params.winning_pst_threshold());
         let t = scalar / (1.0 - params.winning_pst_threshold());
-        let base_pst = ((depth as f32) - 0.34).powf(-1.8) + 0.9;
+        let base_pst = 1.0 - params.base_pst_adjustment()+ ((depth as f32) - params.root_pst_adjustment()).powf(- params.depth_pst_adjustment());
         base_pst + (params.winning_pst_max() - base_pst) * t
     }
 
