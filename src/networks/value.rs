@@ -3,7 +3,7 @@ use crate::{boxed_and_zeroed, Board};
 use super::{
     activation::SCReLU,
     layer::{Layer, TransposedLayer},
-    Accumulator,
+    threats, Accumulator,
 };
 
 // DO NOT MOVE
@@ -18,11 +18,11 @@ const L1: usize = 6144;
 
 #[repr(C)]
 pub struct ValueNetwork {
-    l1: Layer<i16, { 768 * 4 }, L1>,
+    l1: Layer<i16, { threats::TOTAL }, L1>,
     l2: TransposedLayer<i16, { L1 / 2 }, 16>,
     l3: Layer<f32, 16, 128>,
     l4: Layer<f32, 128, 3>,
-    pst: Layer<f32, { 768 * 4 }, 3>,
+    pst: Layer<f32, { threats::TOTAL }, 3>,
 }
 
 impl ValueNetwork {
@@ -30,8 +30,8 @@ impl ValueNetwork {
         let mut pst = self.pst.biases;
 
         let mut count = 0;
-        let mut feats = [0; 32];
-        board.map_features(|feat| {
+        let mut feats = [0; 160];
+        threats::map_features(board, |feat| {
             feats[count] = feat;
             pst.add(&self.pst.weights[feat]);
             count += 1;
@@ -88,11 +88,11 @@ impl ValueNetwork {
 
 #[repr(C)]
 pub struct UnquantisedValueNetwork {
-    l1: Layer<f32, { 768 * 4 }, 6144>,
-    l2: Layer<f32, 3072, 16>,
+    l1: Layer<f32, { threats::TOTAL }, L1>,
+    l2: Layer<f32, { L1 / 2 }, 16>,
     l3: Layer<f32, 16, 128>,
     l4: Layer<f32, 128, 3>,
-    pst: Layer<f32, { 768 * 4 }, 3>,
+    pst: Layer<f32, { threats::TOTAL }, 3>,
 }
 
 impl UnquantisedValueNetwork {
