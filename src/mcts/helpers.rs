@@ -59,11 +59,12 @@ impl SearchHelpers {
     }
 
     /// Common depth PST
-    pub fn get_pst(q: f32, params: &MctsParams) -> f32 {
+    pub fn get_pst(depth: usize, q: f32, params: &MctsParams) -> f32 {
         let scalar = q - q.min(params.winning_pst_threshold());
         let t = scalar / (1.0 - params.winning_pst_threshold());
-        1.0 + params.base_pst_adjustment()
-            + (params.winning_pst_max() - (1.0 + params.base_pst_adjustment())) * t
+        let base_pst = 1.0 - params.base_pst_adjustment()
+            + ((depth as f32) - params.root_pst_adjustment()).powf(-params.depth_pst_adjustment());
+        base_pst + (params.winning_pst_max() - base_pst) * t
     }
 
     /// First Play Urgency
