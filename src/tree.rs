@@ -184,12 +184,7 @@ impl Tree {
 
         let new_ptr = self.tree[self.half()].reserve_nodes(actions.len())?;
 
-        let pst = match depth {
-            0 => unreachable!(),
-            1 => params.root_pst(),
-            2 => params.depth_2_pst(),
-            3.. => SearchHelpers::get_pst(self[node_ptr].q(), params),
-        };
+        let pst = SearchHelpers::get_pst(depth, self[node_ptr].q(), params);
 
         let mut total = 0.0;
 
@@ -241,12 +236,7 @@ impl Tree {
             max = max.max(policy);
         }
 
-        let pst = match depth {
-            0 => unreachable!(),
-            1 => params.root_pst(),
-            2 => params.depth_2_pst(),
-            3.. => unreachable!(),
-        };
+        let pst = SearchHelpers::get_pst(depth.into(), self[node_ptr].q(), params);
 
         let mut total = 0.0;
 
@@ -255,9 +245,16 @@ impl Tree {
             total += *policy;
         }
 
+        let mut sum_of_squares = 0.0;
+
         for (action, &policy) in policies.iter().enumerate() {
-            self[*actions + action].set_policy(policy / total);
+            let policy = policy / total;
+            self[*actions + action].set_policy(policy);
+            sum_of_squares += policy * policy;
         }
+
+        let gini_impurity = (1.0 - sum_of_squares).clamp(0.0, 1.0);
+        self[node_ptr].set_gini_impurity(gini_impurity);
     }
 
     pub fn propogate_proven_mates(&self, ptr: NodePtr, child_state: GameState) {

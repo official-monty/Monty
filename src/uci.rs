@@ -221,8 +221,8 @@ pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork, params:
 }
 
 fn preamble() {
-    println!("id name monty {}", env!("CARGO_PKG_VERSION"));
-    println!("id author Jamie Whiting");
+    println!("id name {}", env!("FORMATTED_NAME"));
+    println!("id author Jamie Whiting, Viren & The Monty Authors");
     println!("option name Hash type spin default 64 min 1 max 8192");
     println!("option name Threads type spin default 1 min 1 max 512");
     println!("option name UCI_Chess960 type check default false");

@@ -25,7 +25,8 @@ impl SearchHelpers {
 
         // scale CPUCT with variance of Q
         if node.visits() > 1 {
-            let frac = node.var().sqrt() / params.cpuct_var_scale();
+            let mut frac = node.var().sqrt() / params.cpuct_var_scale();
+            frac += (1.0 - frac) / (1.0 + params.cpuct_var_warmup() * node.visits() as f32);
             cpuct *= 1.0 + params.cpuct_var_weight() * (frac - 1.0);
         }
 
@@ -51,10 +52,12 @@ impl SearchHelpers {
     }
 
     /// Common depth PST
-    pub fn get_pst(q: f32, params: &MctsParams) -> f32 {
+    pub fn get_pst(depth: usize, q: f32, params: &MctsParams) -> f32 {
         let scalar = q - q.min(params.winning_pst_threshold());
         let t = scalar / (1.0 - params.winning_pst_threshold());
-        1.0 + (params.winning_pst_max() - 1.0) * t
+        let base_pst = 1.0 - params.base_pst_adjustment()
+            + ((depth as f32) - params.root_pst_adjustment()).powf(-params.depth_pst_adjustment());
+        base_pst + (params.winning_pst_max() - base_pst) * t
     }
 
     /// First Play Urgency

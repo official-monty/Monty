@@ -3,6 +3,7 @@ name = "monty"
 version = "1.0.0"
 edition = "2021"
 authors = ["Jamie Whiting"]
+rust-version = "1.83"
 
 [profile.release]
 panic = 'abort'
@@ -27,3 +28,4 @@ resolver = "2"
 
 [build-dependencies]
 sha2 = "0.10.8"
+chrono = "0.4.38"
