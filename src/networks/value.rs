@@ -8,13 +8,13 @@ use super::{
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
-pub const ValueFileDefaultName: &str = "nn-68b9a835a698.network";
+pub const ValueFileDefaultName: &str = "nn-e1fd0d7c451d.network";
 
 const QA: i16 = 512;
 const QB: i16 = 1024;
 const FACTOR: i16 = 32;
 
-const L1: usize = 6144;
+const L1: usize = 3072;
 
 #[repr(C)]
 pub struct ValueNetwork {
