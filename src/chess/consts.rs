@@ -154,7 +154,7 @@ impl ValueOffsets {
     pub const PAWN: usize = 0;
     pub const KNIGHT: usize = Self::PAWN + 6 * ValueIndices::PAWN;
     pub const BISHOP: usize = Self::KNIGHT + 12 * ValueIndices::KNIGHT[64];
-    pub const  ROOK: usize = Self::BISHOP + 10 * ValueIndices::BISHOP[64];
+    pub const ROOK: usize = Self::BISHOP + 10 * ValueIndices::BISHOP[64];
     pub const QUEEN: usize = Self::ROOK + 10 * ValueIndices::ROOK[64];
     pub const KING: usize = Self::QUEEN + 12 * ValueIndices::QUEEN[64];
     pub const END: usize = Self::KING + 8 * ValueIndices::KING[64];
@@ -163,13 +163,17 @@ impl ValueOffsets {
 pub struct ValueIndices;
 impl ValueIndices {
     pub const PAWN: usize = 84;
-    pub const KNIGHT: [usize; 65] = init_add_assign!(|sq, 0, 64| ValueAttacks::KNIGHT[sq].count_ones() as usize);
-    pub const BISHOP: [usize; 65] = init_add_assign!(|sq, 0, 64| ValueAttacks::BISHOP[sq].count_ones() as usize);
-    pub const  ROOK: [usize; 65] = init_add_assign!(|sq, 0, 64| ValueAttacks::ROOK[sq].count_ones() as usize);
-    pub const QUEEN: [usize; 65] = init_add_assign!(|sq, 0, 64| ValueAttacks::QUEEN[sq].count_ones() as usize);
-    pub const KING: [usize; 65] = init_add_assign!(|sq, 0, 64| ValueAttacks::KING[sq].count_ones() as usize);
+    pub const KNIGHT: [usize; 65] =
+        init_add_assign!(|sq, 0, 64| ValueAttacks::KNIGHT[sq].count_ones() as usize);
+    pub const BISHOP: [usize; 65] =
+        init_add_assign!(|sq, 0, 64| ValueAttacks::BISHOP[sq].count_ones() as usize);
+    pub const ROOK: [usize; 65] =
+        init_add_assign!(|sq, 0, 64| ValueAttacks::ROOK[sq].count_ones() as usize);
+    pub const QUEEN: [usize; 65] =
+        init_add_assign!(|sq, 0, 64| ValueAttacks::QUEEN[sq].count_ones() as usize);
+    pub const KING: [usize; 65] =
+        init_add_assign!(|sq, 0, 64| ValueAttacks::KING[sq].count_ones() as usize);
 }
-
 
 pub struct ValueAttacks;
 impl ValueAttacks {
