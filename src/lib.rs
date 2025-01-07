@@ -8,8 +8,8 @@ pub use chess::{Board, Castling, ChessState, GameState, Move};
 pub use mcts::{Limits, MctsParams, Searcher};
 use memmap2::Mmap;
 pub use networks::{
-    PolicyFileDefaultName, PolicyNetwork, UnquantisedPolicyNetwork,
-    ValueFileDefaultName, ValueNetwork,
+    PolicyFileDefaultName, PolicyNetwork, UnquantisedPolicyNetwork, ValueFileDefaultName,
+    ValueNetwork,
 };
 pub use tree::Tree;
 
