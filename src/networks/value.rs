@@ -8,7 +8,7 @@ use super::{
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals)]
-pub const ValueFileDefaultName: &str = "nn-9b0a24e49874.network";
+pub const ValueFileDefaultName: &str = "nn-5601bb8c241d.network";
 
 const QA: i16 = 512;
 const QB: i16 = 1024;
@@ -23,12 +23,11 @@ pub struct ValueNetwork {
     l2: TransposedLayer<i16, { L1 / 2 }, 16>,
     l3: Layer<f32, 16, 128>,
     l4: Layer<f32, 128, 3>,
-    bias: Accumulator<f32, 3>,
 }
 
 impl ValueNetwork {
     pub fn eval(&self, board: &Board) -> (f32, f32, f32) {
-        let mut pst = self.bias;
+        let mut pst = Accumulator([0.0; 3]);
 
         let mut count = 0;
         let mut feats = [0; 160];
