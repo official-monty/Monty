@@ -7,9 +7,6 @@ use std::fs;
 #[cfg(feature = "embed")]
 use std::path::Path;
 
-#[cfg(feature = "embed")]
-use std::io::Write;
-
 use chrono::Utc;
 use std::process::Command;
 
@@ -135,24 +132,25 @@ fn validate_and_download_network(expected_name: &str, dest_path: &str) {
 #[cfg(feature = "embed")]
 fn compress_with_zstd(input_path: &str, output_path: &str) {
     use std::fs::{File};
-    use std::io::{BufReader, BufWriter};
-    use zstd::stream::encode_all;
+    use std::io::{BufReader, BufWriter, copy};
+    use zstd::Encoder;
 
     let input_file = File::open(input_path).expect("Failed to open input file");
     let output_file = File::create(output_path).expect("Failed to create output file");
 
-    let reader = BufReader::new(input_file);
-    let mut writer = BufWriter::new(output_file);
+    let mut reader = BufReader::new(input_file);
+    let writer = BufWriter::new(output_file);
 
-    // Compress the entire file using Zstd and write the result directly to the output file
-    let compressed_data = encode_all(reader, 10).expect("Failed to compress file");
+    // Initialize the Zstd encoder with compression level 22
+    let mut encoder = Encoder::new(writer, 22).expect("Failed to create Zstd encoder");
+    // Use 4 threads
+    encoder.multithread(4).expect("Failed to set multithreaded compression");
 
-    writer
-    .write_all(&compressed_data)
-    .expect("Failed to write compressed file");
+    // Copy the data from the reader and write to the encoder
+    copy(&mut reader, &mut encoder).expect("Failed to compress data");
 
-    // Ensure all data is written
-    writer.flush().expect("Failed to flush compressed file");
+    // Finalize the compression process
+    encoder.finish().expect("Failed to finish compression");
 }
 
 #[cfg(feature = "embed")]
