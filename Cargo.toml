@@ -23,8 +23,9 @@ resolver = "2"
 
 [dependencies]
 memmap2 = "0.9.5"
-zstd = "0.13.2" # For Zstandard decompression
+zstd = "0.13.2"
 
 [build-dependencies]
 sha2 = "0.10.8"
 chrono = "0.4.38"
+zstd = "0.13.2"

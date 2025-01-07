@@ -7,6 +7,9 @@ use std::fs;
 #[cfg(feature = "embed")]
 use std::path::Path;
 
+#[cfg(feature = "embed")]
+use std::io::Write;
+
 use chrono::Utc;
 use std::process::Command;
 
@@ -88,12 +91,15 @@ fn extract_network_name(file_path: &str, const_name: &str) -> String {
 #[cfg(feature = "embed")]
 fn validate_and_download_network(expected_name: &str, dest_path: &str) {
     let path = Path::new(dest_path);
+    // Append `.zst` to the dest_path
+    let compressed_path_string = format!("{}.zst", dest_path);
+    let compressed_path = Path::new(&compressed_path_string);
 
     // Extract the expected SHA-256 prefix from the expected file name
     let expected_prefix = extract_sha_prefix(expected_name);
 
     // If the file exists, calculate its SHA-256 and check the first 12 characters
-    if path.exists() {
+    if path.exists() && compressed_path.exists() {
         if let Ok(existing_sha) = calculate_sha256(path) {
             println!("Expected SHA-256 prefix: {}", expected_prefix);
             println!("Actual SHA-256: {}", &existing_sha[..12]);
@@ -120,6 +126,33 @@ fn validate_and_download_network(expected_name: &str, dest_path: &str) {
 
     // Download the correct network file
     download_network(expected_name, dest_path);
+
+    // Zstd compress the downloaded file
+    let compressed_path = format!("{}.zst", dest_path);
+    compress_with_zstd(dest_path, &compressed_path);
+}
+
+#[cfg(feature = "embed")]
+fn compress_with_zstd(input_path: &str, output_path: &str) {
+    use std::fs::{File};
+    use std::io::{BufReader, BufWriter};
+    use zstd::stream::encode_all;
+
+    let input_file = File::open(input_path).expect("Failed to open input file");
+    let output_file = File::create(output_path).expect("Failed to create output file");
+
+    let reader = BufReader::new(input_file);
+    let mut writer = BufWriter::new(output_file);
+
+    // Compress the entire file using Zstd and write the result directly to the output file
+    let compressed_data = encode_all(reader, 10).expect("Failed to compress file");
+
+    writer
+    .write_all(&compressed_data)
+    .expect("Failed to write compressed file");
+
+    // Ensure all data is written
+    writer.flush().expect("Failed to flush compressed file");
 }
 
 #[cfg(feature = "embed")]
