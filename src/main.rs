@@ -9,28 +9,58 @@ fn main() {
 #[cfg(feature = "embed")]
 mod net {
     use monty::{uci, ChessState, MctsParams, PolicyNetwork, ValueNetwork};
-    use zstd::stream::decode_all;
     use std::io::Cursor;
+    use std::mem::MaybeUninit;
     use std::sync::LazyLock;
+    use zstd::stream::decode_all;
 
     // Embed compressed byte arrays
     static COMPRESSED_VALUE: &[u8] = include_bytes!("../value.network.zst");
     static COMPRESSED_POLICY: &[u8] = include_bytes!("../policy.network.zst");    
 
+    /// Helper function to safely decompress and initialize a Boxed structure.
+    fn decompress_into_boxed<T>(data: &[u8]) -> Box<T> {
+        // Ensure the decompressed data size matches the target structure size
+        assert_eq!(
+            data.len(),
+            std::mem::size_of::<T>(),
+            "Decompressed data size does not match the target structure size."
+        );
+
+        // Create an uninitialized Box
+        let mut boxed = Box::new(MaybeUninit::<T>::uninit());
+
+        unsafe {
+            // Copy the decompressed data into the Box's memory
+            std::ptr::copy_nonoverlapping(
+                data.as_ptr(),
+                boxed.as_mut_ptr() as *mut u8,
+                data.len(),
+            );
+
+            // Assume the Box is now initialized
+            boxed.assume_init()
+        }
+    }
+
+    // Lazy initialization for VALUE using LazyLock to ensure heap allocation
     static VALUE: LazyLock<Box<ValueNetwork>> = LazyLock::new(|| {
+        // Decompress the value network
         let decompressed_data = decode_all(Cursor::new(COMPRESSED_VALUE))
             .expect("Failed to decompress value network");
-    
-        // Allocate the decompressed data on the heap
-        Box::new(unsafe { std::ptr::read(decompressed_data.as_ptr() as *const ValueNetwork) })
+
+        // Initialize the Box<ValueNetwork> with the decompressed data
+        decompress_into_boxed::<ValueNetwork>(&decompressed_data)
     });
-    
+
+    // Lazy initialization for POLICY using LazyLock to ensure heap allocation
     static POLICY: LazyLock<Box<PolicyNetwork>> = LazyLock::new(|| {
+        // Decompress the policy network
         let decompressed_data = decode_all(Cursor::new(COMPRESSED_POLICY))
             .expect("Failed to decompress policy network");
-    
-        // Allocate the decompressed data on the heap
-        Box::new(unsafe { std::ptr::read(decompressed_data.as_ptr() as *const PolicyNetwork) })
+
+        // Initialize the Box<PolicyNetwork> with the decompressed data
+        decompress_into_boxed::<PolicyNetwork>(&decompressed_data)
     });
 
     pub fn run() {
@@ -40,14 +70,14 @@ mod net {
         if let Some("bench") = arg1.as_deref() {
             uci::bench(
                 ChessState::BENCH_DEPTH,
-                &POLICY,
-                &VALUE,
+                &*POLICY, // Dereference the Box to get &PolicyNetwork
+                &*VALUE,  // Dereference the Box to get &ValueNetwork
                 &MctsParams::default(),
             );
             return;
         }
 
-        uci::run(&POLICY, &VALUE);
+        uci::run(&*POLICY, &*VALUE);
     }
 }
 
