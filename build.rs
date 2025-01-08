@@ -165,7 +165,7 @@ fn compress_with_zstd(input_path: &str) {
     let output_path = format!("{}.zst", input_path);
 
     let input_file = File::open(input_path).expect("Failed to open input file");
-    let output_file = File::create(output_path).expect("Failed to create output file");
+    let output_file = File::create(output_path.clone()).expect("Failed to create output file");
 
     let mut reader = BufReader::new(input_file);
     let writer = BufWriter::new(output_file);
