@@ -16,7 +16,7 @@ mod net {
 
     // Embed compressed byte arrays
     static COMPRESSED_VALUE: &[u8] = include_bytes!("../value.network.zst");
-    static COMPRESSED_POLICY: &[u8] = include_bytes!("../policy.network.zst");    
+    static COMPRESSED_POLICY: &[u8] = include_bytes!("../policy.network.zst");
 
     /// Helper function to safely decompress and initialize a Boxed structure.
     fn decompress_into_boxed<T>(data: &[u8]) -> Box<T> {
@@ -32,11 +32,7 @@ mod net {
 
         unsafe {
             // Copy the decompressed data into the Box's memory
-            std::ptr::copy_nonoverlapping(
-                data.as_ptr(),
-                boxed.as_mut_ptr() as *mut u8,
-                data.len(),
-            );
+            std::ptr::copy_nonoverlapping(data.as_ptr(), boxed.as_mut_ptr() as *mut u8, data.len());
 
             // Assume the Box is now initialized
             boxed.assume_init()
@@ -46,8 +42,8 @@ mod net {
     // Lazy initialization for VALUE using LazyLock to ensure heap allocation
     static VALUE: LazyLock<Box<ValueNetwork>> = LazyLock::new(|| {
         // Decompress the value network
-        let decompressed_data = decode_all(Cursor::new(COMPRESSED_VALUE))
-            .expect("Failed to decompress value network");
+        let decompressed_data =
+            decode_all(Cursor::new(COMPRESSED_VALUE)).expect("Failed to decompress value network");
 
         // Initialize the Box<ValueNetwork> with the decompressed data
         decompress_into_boxed::<ValueNetwork>(&decompressed_data)

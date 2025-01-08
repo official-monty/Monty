@@ -44,13 +44,15 @@ fn main() {
     let policy_path;
 
     // Extract the file names from the respective source files
-    #[cfg(feature = "raw")]{
+    #[cfg(feature = "raw")]
+    {
         value_file_name = extract_network_name("src/networks/value.rs", "ValueFileDefaultName");
         policy_file_name = extract_network_name("src/networks/policy.rs", "PolicyFileDefaultName");
         value_path = "value.network";
         policy_path = "policy.network";
     }
-    #[cfg(not(feature = "raw"))]{
+    #[cfg(not(feature = "raw"))]
+    {
         value_file_name = extract_network_name("src/networks/value.rs", "CompressedValueName");
         policy_file_name = extract_network_name("src/networks/policy.rs", "CompressedPolicyName");
         value_path = "value.network.zst";
@@ -59,9 +61,14 @@ fn main() {
 
     // Validate and download the network files if needed
     validate_and_download_network(&value_file_name, &value_path, should_validate(&value_path));
-    validate_and_download_network(&policy_file_name, &policy_path, should_validate(&policy_path));
+    validate_and_download_network(
+        &policy_file_name,
+        &policy_path,
+        should_validate(&policy_path),
+    );
 
-    #[cfg(feature = "raw")]{
+    #[cfg(feature = "raw")]
+    {
         compress_with_zstd(&value_path);
         compress_with_zstd(&policy_path);
     }
@@ -120,7 +127,6 @@ fn extract_network_name(file_path: &str, const_name: &str) -> String {
 
 #[cfg(feature = "embed")]
 fn validate_and_download_network(expected_name: &str, dest_path: &str, should_validate: bool) {
-
     let path = Path::new(dest_path);
     // Extract the expected SHA-256 prefix from the expected file name
     let expected_prefix = extract_sha_prefix(expected_name);
@@ -158,8 +164,8 @@ fn validate_and_download_network(expected_name: &str, dest_path: &str, should_va
 
 #[cfg(all(feature = "embed", feature = "raw"))]
 fn compress_with_zstd(input_path: &str) {
-    use std::fs::{File};
-    use std::io::{BufReader, BufWriter, copy};
+    use std::fs::File;
+    use std::io::{copy, BufReader, BufWriter};
     use zstd::Encoder;
 
     let output_path = format!("{}.zst", input_path);
@@ -173,7 +179,9 @@ fn compress_with_zstd(input_path: &str) {
     // Initialize the Zstd encoder with compression level 22
     let mut encoder = Encoder::new(writer, 22).expect("Failed to create Zstd encoder");
     // Use 4 threads
-    encoder.multithread(4).expect("Failed to set multithreaded compression");
+    encoder
+        .multithread(4)
+        .expect("Failed to set multithreaded compression");
 
     // Copy the data from the reader and write to the encoder
     copy(&mut reader, &mut encoder).expect("Failed to compress data");
