@@ -35,7 +35,8 @@ mod net {
     fn get_network_path(data: &[u8]) -> PathBuf {
         let mut temp_dir = std::env::temp_dir();
         temp_dir.push("Monty");
-        fs::create_dir_all(&temp_dir).expect("Failed to create 'Monty' directory in the temp folder");
+        fs::create_dir_all(&temp_dir)
+            .expect("Failed to create 'Monty' directory in the temp folder");
         let hash_prefix = compute_short_sha(data);
         temp_dir.join(format!("nn-{}.network", hash_prefix))
     }
@@ -60,7 +61,8 @@ mod net {
     fn cleanup_old_files(current_hash_prefixes: &[&str]) -> std::io::Result<()> {
         let mut temp_dir = std::env::temp_dir();
         temp_dir.push("Monty");
-        fs::create_dir_all(&temp_dir).expect("Failed to create 'Monty' directory in the temp folder");
+        fs::create_dir_all(&temp_dir)
+            .expect("Failed to create 'Monty' directory in the temp folder");
         for entry in fs::read_dir(&temp_dir)? {
             let entry = entry?;
             let path = entry.path();
