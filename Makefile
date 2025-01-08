@@ -12,6 +12,9 @@ endif
 
 default:
 	cargo rustc --release --bin monty --features=embed -- -C target-cpu=native --emit link=$(NAME)
+	
+raw:
+	cargo rustc --release --bin monty --features=embed,raw -- -C target-cpu=native --emit link=$(NAME)
 
 montytest:
 	cargo +stable rustc --release --bin monty --features=uci-minimal,tunable -- -C target-cpu=native --emit link=$(NAME)
@@ -21,7 +24,3 @@ noembed:
 
 gen:
 	cargo rustc --release --package datagen --bin datagen -- -C target-cpu=native --emit link=$(NAME)
-
-release:
-	cargo rustc --release --bin monty --features=embed -- --emit link=$(OLD)
-	cargo rustc --release --bin monty --features=embed -- -C target-cpu=x86-64-v2 -C target-feature=+avx2 --emit link=$(AVX2)

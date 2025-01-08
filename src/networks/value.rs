@@ -7,8 +7,10 @@ use super::{
 };
 
 // DO NOT MOVE
-#[allow(non_upper_case_globals)]
+#[allow(non_upper_case_globals, dead_code)]
 pub const ValueFileDefaultName: &str = "nn-5601bb8c241d.network";
+#[allow(non_upper_case_globals, dead_code)]
+pub const CompressedValueName: &str = "nn-f004da0ebf25.network";
 
 const QA: i16 = 512;
 const QB: i16 = 1024;

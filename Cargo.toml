@@ -13,6 +13,7 @@ codegen-units = 1
 
 [features]
 embed = []
+raw = []
 datagen = []
 uci-minimal = []
 tunable = []
