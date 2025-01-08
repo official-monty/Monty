@@ -8,12 +8,12 @@ fn main() {
 
 #[cfg(feature = "embed")]
 mod net {
-    use monty::{uci, ChessState, MctsParams, PolicyNetwork, ValueNetwork};
     use memmap2::Mmap;
+    use monty::{uci, ChessState, MctsParams, PolicyNetwork, ValueNetwork};
     use once_cell::sync::Lazy;
+    use sha2::{Digest, Sha256};
     use std::fs::{self, File};
     use std::io::{Cursor, Write};
-    use sha2::{Digest, Sha256};
     use std::path::{Path, PathBuf};
     use zstd::stream::decode_all;
 
@@ -81,7 +81,11 @@ mod net {
     /// Decompress the data and write it to the specified file path.
     /// If the file already exists and its hash prefix matches, do nothing.
     /// Otherwise, decompress and write the file.
-    fn decompress_and_write(_network_type: &str, compressed_data: &[u8], file_path: &Path) -> std::io::Result<()> {
+    fn decompress_and_write(
+        _network_type: &str,
+        compressed_data: &[u8],
+        file_path: &Path,
+    ) -> std::io::Result<()> {
         // Compute expected hash prefix
         let expected_hash_prefix = compute_short_sha(compressed_data);
 
@@ -141,10 +145,7 @@ mod net {
         let value_hash_prefix = compute_short_sha(COMPRESSED_VALUE);
 
         // Current hash prefixes
-        let current_hash_prefixes = [
-            policy_hash_prefix.as_str(),
-            value_hash_prefix.as_str(),
-        ];
+        let current_hash_prefixes = [policy_hash_prefix.as_str(), value_hash_prefix.as_str()];
 
         // Cleanup old network files not matching current hash prefixes
         cleanup_old_files(&current_hash_prefixes).expect("Failed to cleanup old network files");
@@ -161,12 +162,16 @@ mod net {
             .expect("Failed to decompress/write value network");
 
         // Memory-map the policy network file
-        let policy_file = File::open(&policy_path).expect("Failed to open policy network file for mmap");
-        let policy_mmap = unsafe { Mmap::map(&policy_file).expect("Failed to memory-map policy network file") };
+        let policy_file =
+            File::open(&policy_path).expect("Failed to open policy network file for mmap");
+        let policy_mmap =
+            unsafe { Mmap::map(&policy_file).expect("Failed to memory-map policy network file") };
 
         // Memory-map the value network file
-        let value_file = File::open(&value_path).expect("Failed to open value network file for mmap");
-        let value_mmap = unsafe { Mmap::map(&value_file).expect("Failed to memory-map value network file") };
+        let value_file =
+            File::open(&value_path).expect("Failed to open value network file for mmap");
+        let value_mmap =
+            unsafe { Mmap::map(&value_file).expect("Failed to memory-map value network file") };
 
         (policy_mmap, value_mmap)
     });
