@@ -190,6 +190,7 @@ version = "1.0.0"
 dependencies = [
  "chrono",
  "memmap2",
+ "once_cell",
  "sha2",
  "zstd",
 ]
