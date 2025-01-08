@@ -33,7 +33,9 @@ mod net {
     /// Get the full path in the OS's temporary directory for the given data.
     /// The filename format is "nn-<hash_prefix>.network"
     fn get_network_path(data: &[u8]) -> PathBuf {
-        let temp_dir = std::env::temp_dir();
+        let mut temp_dir = std::env::temp_dir();
+        temp_dir.push("Monty");
+        fs::create_dir_all(&temp_dir).expect("Failed to create 'Monty' directory in the temp folder");
         let hash_prefix = compute_short_sha(data);
         temp_dir.join(format!("nn-{}.network", hash_prefix))
     }
@@ -56,7 +58,9 @@ mod net {
 
     /// Cleanup old decompressed network files that do not match the current hash prefixes.
     fn cleanup_old_files(current_hash_prefixes: &[&str]) -> std::io::Result<()> {
-        let temp_dir = std::env::temp_dir();
+        let mut temp_dir = std::env::temp_dir();
+        temp_dir.push("Monty");
+        fs::create_dir_all(&temp_dir).expect("Failed to create 'Monty' directory in the temp folder");
         for entry in fs::read_dir(&temp_dir)? {
             let entry = entry?;
             let path = entry.path();
