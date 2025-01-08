@@ -103,16 +103,16 @@ impl Attacks {
     });
 }
 
-struct File;
+pub struct File;
 impl File {
-    const A: u64 = 0x0101_0101_0101_0101;
-    const H: u64 = Self::A << 7;
+    pub const A: u64 = 0x0101_0101_0101_0101;
+    pub const H: u64 = Self::A << 7;
 }
 
 const EAST: [u64; 64] = init!(|sq, 64| (0xFF << (sq & 56)) ^ (1 << sq) ^ WEST[sq]);
 const WEST: [u64; 64] = init!(|sq, 64| (0xFF << (sq & 56)) & ((1 << sq) - 1));
 const DIAG: u64 = DIAGS[7];
-const DIAGS: [u64; 15] = [
+pub const DIAGS: [u64; 15] = [
     0x0100_0000_0000_0000,
     0x0201_0000_0000_0000,
     0x0402_0100_0000_0000,
