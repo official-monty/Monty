@@ -30,6 +30,7 @@ pub struct SearchStats {
     pub total_iters: AtomicUsize,
     pub main_iters: AtomicUsize,
     pub avg_depth: AtomicUsize,
+    pub seldepth: AtomicUsize,
 }
 
 pub struct Searcher<'a> {
@@ -65,6 +66,7 @@ impl<'a> Searcher<'a> {
         &self,
         limits: &Limits,
         timer: &Instant,
+        timer_last_output: &mut Instant,
         search_stats: &SearchStats,
         best_move: &mut Move,
         best_move_changes: &mut i32,
@@ -75,6 +77,7 @@ impl<'a> Searcher<'a> {
             self.check_limits(
                 limits,
                 timer,
+                timer_last_output,
                 search_stats,
                 best_move,
                 best_move_changes,
@@ -115,6 +118,7 @@ impl<'a> Searcher<'a> {
             search_stats
                 .total_nodes
                 .fetch_add(this_depth, Ordering::Relaxed);
+            search_stats.seldepth.fetch_max(this_depth - 1, Ordering::Relaxed);
             if main_thread {
                 search_stats.main_iters.fetch_add(1, Ordering::Relaxed);
             }
@@ -140,6 +144,7 @@ impl<'a> Searcher<'a> {
         &self,
         limits: &Limits,
         timer: &Instant,
+        timer_last_output: &mut Instant,
         search_stats: &SearchStats,
         best_move: &mut Move,
         best_move_changes: &mut i32,
@@ -207,10 +212,25 @@ impl<'a> Searcher<'a> {
             if uci_output {
                 self.search_report(
                     new_depth,
+                    search_stats.seldepth.load(Ordering::Relaxed),
                     timer,
                     search_stats.total_nodes.load(Ordering::Relaxed),
                 );
+
+                *timer_last_output = Instant::now();
             }
+        }
+
+        #[cfg(not(feature = "uci-minimal"))]
+        if uci_output && iters % 8192 == 0 && timer_last_output.elapsed().as_secs() >= 15  {
+            self.search_report(
+                search_stats.avg_depth.load(Ordering::Relaxed),
+                search_stats.seldepth.load(Ordering::Relaxed),
+                timer,
+                search_stats.total_nodes.load(Ordering::Relaxed),
+            );
+
+            *timer_last_output = Instant::now();
         }
 
         false
@@ -224,6 +244,7 @@ impl<'a> Searcher<'a> {
         update_nodes: &mut usize,
     ) -> (Move, f32) {
         let timer = Instant::now();
+        let mut timer_last_output = Instant::now();
 
         let node = self.tree.root_node();
 
@@ -275,6 +296,7 @@ impl<'a> Searcher<'a> {
                     self.playout_until_full_main(
                         &limits,
                         &timer,
+                        &mut timer_last_output,
                         &search_stats,
                         &mut best_move,
                         &mut best_move_changes,
@@ -299,6 +321,7 @@ impl<'a> Searcher<'a> {
         if uci_output {
             self.search_report(
                 search_stats.avg_depth.load(Ordering::Relaxed).max(1),
+                search_stats.seldepth.load(Ordering::Relaxed),
                 &timer,
                 search_stats.total_nodes.load(Ordering::Relaxed),
             );
@@ -426,8 +449,8 @@ impl<'a> Searcher<'a> {
         })
     }
 
-    fn search_report(&self, depth: usize, timer: &Instant, nodes: usize) {
-        print!("info depth {depth} ");
+    fn search_report(&self, depth: usize, seldepth: usize, timer: &Instant, nodes: usize) {
+        print!("info depth {depth} seldepth {seldepth} ");
         let (pv_line, score) = self.get_pv(depth);
 
         if score > 1.0 {
