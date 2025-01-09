@@ -118,7 +118,9 @@ impl<'a> Searcher<'a> {
             search_stats
                 .total_nodes
                 .fetch_add(this_depth, Ordering::Relaxed);
-            search_stats.seldepth.fetch_max(this_depth - 1, Ordering::Relaxed);
+            search_stats
+                .seldepth
+                .fetch_max(this_depth - 1, Ordering::Relaxed);
             if main_thread {
                 search_stats.main_iters.fetch_add(1, Ordering::Relaxed);
             }
@@ -222,7 +224,7 @@ impl<'a> Searcher<'a> {
         }
 
         #[cfg(not(feature = "uci-minimal"))]
-        if uci_output && iters % 8192 == 0 && timer_last_output.elapsed().as_secs() >= 15  {
+        if uci_output && iters % 8192 == 0 && timer_last_output.elapsed().as_secs() >= 15 {
             self.search_report(
                 search_stats.avg_depth.load(Ordering::Relaxed),
                 search_stats.seldepth.load(Ordering::Relaxed),
