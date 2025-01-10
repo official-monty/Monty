@@ -1,4 +1,4 @@
-mod chess;
+pub(crate) mod chess;
 mod mcts;
 mod networks;
 mod tree;
@@ -8,8 +8,8 @@ pub use chess::{Board, Castling, ChessState, GameState, Move};
 pub use mcts::{Limits, MctsParams, Searcher};
 use memmap2::Mmap;
 pub use networks::{
-    PolicyFileDefaultName, PolicyNetwork, UnquantisedPolicyNetwork, UnquantisedValueNetwork,
-    ValueFileDefaultName, ValueNetwork,
+    PolicyFileDefaultName, PolicyNetwork, UnquantisedPolicyNetwork, ValueFileDefaultName,
+    ValueNetwork,
 };
 pub use tree::Tree;
 
@@ -27,6 +27,24 @@ macro_rules! init {
             res[$sq] = {$($rest)+};
             $sq += 1;
         }
+        res
+    }};
+}
+
+#[macro_export]
+macro_rules! init_add_assign {
+    (|$sq:ident, $init:expr, $size:literal | $($rest:tt)+) => {{
+        let mut $sq = 0;
+        let mut res = [{$($rest)+}; $size + 1];
+        let mut val = $init;
+        while $sq < $size {
+            res[$sq] = val;
+            val += {$($rest)+};
+            $sq += 1;
+        }
+
+        res[$size] = val;
+
         res
     }};
 }

@@ -1,39 +1,41 @@
-use crate::{boxed_and_zeroed, Board};
+use crate::Board;
 
 use super::{
     activation::SCReLU,
     layer::{Layer, TransposedLayer},
-    Accumulator,
+    threats, Accumulator,
 };
 
 // DO NOT MOVE
-#[allow(non_upper_case_globals)]
-pub const ValueFileDefaultName: &str = "nn-68b9a835a698.network";
+#[allow(non_upper_case_globals, dead_code)]
+pub const ValueFileDefaultName: &str = "nn-5601bb8c241d.network";
+#[allow(non_upper_case_globals, dead_code)]
+pub const CompressedValueName: &str = "nn-f004da0ebf25.network";
 
 const QA: i16 = 512;
 const QB: i16 = 1024;
 const FACTOR: i16 = 32;
 
-const L1: usize = 6144;
+const L1: usize = 3072;
 
 #[repr(C)]
 pub struct ValueNetwork {
-    l1: Layer<i16, { 768 * 4 }, L1>,
+    pst: [Accumulator<f32, 3>; threats::TOTAL],
+    l1: Layer<i16, { threats::TOTAL }, L1>,
     l2: TransposedLayer<i16, { L1 / 2 }, 16>,
     l3: Layer<f32, 16, 128>,
     l4: Layer<f32, 128, 3>,
-    pst: Layer<f32, { 768 * 4 }, 3>,
 }
 
 impl ValueNetwork {
     pub fn eval(&self, board: &Board) -> (f32, f32, f32) {
-        let mut pst = self.pst.biases;
+        let mut pst = Accumulator([0.0; 3]);
 
         let mut count = 0;
-        let mut feats = [0; 32];
-        board.map_features(|feat| {
+        let mut feats = [0; 160];
+        threats::map_features(board, |feat| {
             feats[count] = feat;
-            pst.add(&self.pst.weights[feat]);
+            pst.add(&self.pst[feat]);
             count += 1;
         });
 
@@ -83,30 +85,5 @@ impl ValueNetwork {
         let sum = win + draw + loss;
 
         (win / sum, draw / sum, loss / sum)
-    }
-}
-
-#[repr(C)]
-pub struct UnquantisedValueNetwork {
-    l1: Layer<f32, { 768 * 4 }, 6144>,
-    l2: Layer<f32, 3072, 16>,
-    l3: Layer<f32, 16, 128>,
-    l4: Layer<f32, 128, 3>,
-    pst: Layer<f32, { 768 * 4 }, 3>,
-}
-
-impl UnquantisedValueNetwork {
-    pub fn quantise(&self) -> Box<ValueNetwork> {
-        let mut quantised: Box<ValueNetwork> = unsafe { boxed_and_zeroed() };
-
-        self.l1.quantise_into_i16(&mut quantised.l1, QA, 0.99);
-        self.l2
-            .quantise_transpose_into_i16(&mut quantised.l2, QB, 0.99);
-
-        quantised.l3 = self.l3;
-        quantised.l4 = self.l4;
-        quantised.pst = self.pst;
-
-        quantised
     }
 }

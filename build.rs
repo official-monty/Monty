@@ -37,26 +37,66 @@ fn main() {
     // Get the build version name
     get_name();
 
-    // Extract the file names from the respective source files
-    let value_file_name = extract_network_name("src/networks/value.rs", "ValueFileDefaultName");
-    let policy_file_name = extract_network_name("src/networks/policy.rs", "PolicyFileDefaultName");
+    // Declare variables for file names
+    let value_file_name;
+    let policy_file_name;
+    let value_path;
+    let policy_path;
 
-    // Define fixed paths where the networks will be stored
-    let value_path = "value.network";
-    let policy_path = "policy.network";
+    // Extract the file names from the respective source files
+    #[cfg(feature = "raw")]
+    {
+        value_file_name = extract_network_name("src/networks/value.rs", "ValueFileDefaultName");
+        policy_file_name = extract_network_name("src/networks/policy.rs", "PolicyFileDefaultName");
+        value_path = "value.network";
+        policy_path = "policy.network";
+    }
+    #[cfg(not(feature = "raw"))]
+    {
+        value_file_name = extract_network_name("src/networks/value.rs", "CompressedValueName");
+        policy_file_name = extract_network_name("src/networks/policy.rs", "CompressedPolicyName");
+        value_path = "value.network.zst";
+        policy_path = "policy.network.zst";
+    }
 
     // Validate and download the network files if needed
-    validate_and_download_network(&value_file_name, &value_path);
-    validate_and_download_network(&policy_file_name, &policy_path);
+    validate_and_download_network(&value_file_name, &value_path, should_validate(&value_path));
+    validate_and_download_network(
+        &policy_file_name,
+        &policy_path,
+        should_validate(&policy_path),
+    );
+
+    #[cfg(feature = "raw")]
+    {
+        compress_with_zstd(&value_path);
+        compress_with_zstd(&policy_path);
+    }
 
     // Set up cargo instructions to track changes
     println!("cargo:rerun-if-changed=src/networks/value.rs");
     println!("cargo:rerun-if-changed=src/networks/policy.rs");
-    println!("cargo:rerun-if-changed={}", value_path);
-    println!("cargo:rerun-if-changed={}", policy_path);
 }
 
-#[cfg(not(feature = "embed"))]
+#[cfg(all(feature = "embed", feature = "raw"))]
+fn should_validate(dest_path: &str) -> bool {
+    let path = Path::new(dest_path);
+
+    // Construct the compressed path with `.zst` extension
+    let compressed_path = path.with_extension("zst");
+
+    // Check if both paths exist
+    path.exists() && compressed_path.exists()
+}
+
+#[cfg(all(feature = "embed", not(feature = "raw")))]
+fn should_validate(dest_path: &str) -> bool {
+    let path = Path::new(dest_path);
+
+    path.exists()
+}
+
+#[cfg(not(any(feature = "embed", feature = "raw")))]
 fn main() {
     // Get the build version name
     get_name();
@@ -86,14 +126,13 @@ fn extract_network_name(file_path: &str, const_name: &str) -> String {
 }
 
 #[cfg(feature = "embed")]
-fn validate_and_download_network(expected_name: &str, dest_path: &str) {
+fn validate_and_download_network(expected_name: &str, dest_path: &str, should_validate: bool) {
     let path = Path::new(dest_path);
-
     // Extract the expected SHA-256 prefix from the expected file name
     let expected_prefix = extract_sha_prefix(expected_name);
 
     // If the file exists, calculate its SHA-256 and check the first 12 characters
-    if path.exists() {
+    if should_validate {
         if let Ok(existing_sha) = calculate_sha256(path) {
             println!("Expected SHA-256 prefix: {}", expected_prefix);
             println!("Actual SHA-256: {}", &existing_sha[..12]);
@@ -120,6 +159,37 @@ fn validate_and_download_network(expected_name: &str, dest_path: &str) {
 
     // Download the correct network file
     download_network(expected_name, dest_path);
+    println!("cargo:rerun-if-changed={}", dest_path);
+}
+
+#[cfg(all(feature = "embed", feature = "raw"))]
+fn compress_with_zstd(input_path: &str) {
+    use std::fs::File;
+    use std::io::{copy, BufReader, BufWriter};
+    use zstd::Encoder;
+
+    let output_path = format!("{}.zst", input_path);
+
+    let input_file = File::open(input_path).expect("Failed to open input file");
+    let output_file = File::create(output_path.clone()).expect("Failed to create output file");
+
+    let mut reader = BufReader::new(input_file);
+    let writer = BufWriter::new(output_file);
+
+    // Initialize the Zstd encoder with compression level 22
+    let mut encoder = Encoder::new(writer, 22).expect("Failed to create Zstd encoder");
+    // Use 4 threads
+    encoder
+        .multithread(4)
+        .expect("Failed to set multithreaded compression");
+
+    // Copy the data from the reader and write to the encoder
+    copy(&mut reader, &mut encoder).expect("Failed to compress data");
+
+    // Finalize the compression process
+    encoder.finish().expect("Failed to finish compression");
+
+    println!("cargo:rerun-if-changed={}", output_path);
 }
 
 #[cfg(feature = "embed")]

@@ -103,16 +103,16 @@ impl Attacks {
     });
 }
 
-struct File;
+pub struct File;
 impl File {
-    const A: u64 = 0x0101_0101_0101_0101;
-    const H: u64 = Self::A << 7;
+    pub const A: u64 = 0x0101_0101_0101_0101;
+    pub const H: u64 = Self::A << 7;
 }
 
 const EAST: [u64; 64] = init!(|sq, 64| (0xFF << (sq & 56)) ^ (1 << sq) ^ WEST[sq]);
 const WEST: [u64; 64] = init!(|sq, 64| (0xFF << (sq & 56)) & ((1 << sq) - 1));
 const DIAG: u64 = DIAGS[7];
-const DIAGS: [u64; 15] = [
+pub const DIAGS: [u64; 15] = [
     0x0100_0000_0000_0000,
     0x0201_0000_0000_0000,
     0x0402_0100_0000_0000,
@@ -190,7 +190,7 @@ const BISHOP: [Mask; 64] = init!(|sq, 64|
 
 const RANK_SHIFT: [usize; 64] = init!(|sq, 64| sq - (sq & 7) + 1);
 
-const RANK: [[u64; 64]; 64] = init!(|sq, 64| init!(|occ, 64| {
+static RANK: [[u64; 64]; 64] = init!(|sq, 64| init!(|occ, 64| {
     let file = sq & 7;
     let mask = (occ << 1) as u64;
     let east = ((EAST[file] & mask) | (1 << 63)).trailing_zeros() as usize;
@@ -198,7 +198,7 @@ const RANK: [[u64; 64]; 64] = init!(|sq, 64| init!(|occ, 64| {
     (EAST[file] ^ EAST[east] | WEST[file] ^ WEST[west]) << (sq - file)
 }));
 
-const FILE: [[u64; 64]; 64] = init!(|sq, 64| init!(|occ, 64| (RANK[7 - sq / 8][occ]
+static FILE: [[u64; 64]; 64] = init!(|sq, 64| init!(|occ, 64| (RANK[7 - sq / 8][occ]
     .wrapping_mul(DIAG)
     & File::H)
     >> (7 - (sq & 7))));

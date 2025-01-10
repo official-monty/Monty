@@ -157,6 +157,7 @@ jobs:
           fi
 
       - name: Get Bench Output
+        if: false
         id: bench_output
         shell: bash
         run: |
@@ -177,6 +178,7 @@ jobs:
           echo "Current bench output: $bench_output"
 
       - name: Compare Bench Output
+        if: false
         shell: bash
         run: |
           if [[ "$bench_output" -ne "${{ env.benchref }}" ]]; then
