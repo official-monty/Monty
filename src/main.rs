@@ -13,8 +13,9 @@ mod net {
     use once_cell::sync::Lazy;
     use sha2::{Digest, Sha256};
     use std::fs::{self, File};
-    use std::io::{Cursor, Write};
+    use std::io::{self, Cursor, Write};
     use std::path::{Path, PathBuf};
+    use std::time::SystemTime;
     use zstd::stream::decode_all;
 
     // Embed compressed byte arrays
@@ -57,30 +58,61 @@ mod net {
         panic!("Invalid file name format: {}", file_name);
     }
 
-    /// Cleanup old decompressed network files that do not match the current hash prefixes.
-    fn cleanup_old_files(current_hash_prefixes: &[&str]) -> std::io::Result<()> {
+    /// Cleanup old decompressed network files, ensuring that:
+    /// - Files matching `current_hash_prefixes` are never deleted.
+    /// - Only up to 6 non-matching files are retained, deleting the oldest ones beyond this limit.
+    fn cleanup_old_files(current_hash_prefixes: &[&str]) -> io::Result<()> {
         let mut temp_dir = std::env::temp_dir();
         temp_dir.push("Monty");
         fs::create_dir_all(&temp_dir)
             .expect("Failed to create 'Monty' directory in the temp folder");
+
+        // Vectors to hold (path, modified_time) tuples
+        let mut matching_files: Vec<(fs::DirEntry, SystemTime)> = Vec::new();
+        let mut non_matching_files: Vec<(fs::DirEntry, SystemTime)> = Vec::new();
+
         for entry in fs::read_dir(&temp_dir)? {
             let entry = entry?;
             let path = entry.path();
+
             if path.is_file() {
                 if let Some(fname) = path.file_name().and_then(|s| s.to_str()) {
                     // Check if the file matches the naming pattern
                     if fname.starts_with("nn-") && fname.ends_with(".network") {
                         // Extract the hash prefix from the filename
                         let extracted_hash = extract_sha_prefix(fname);
-                        // If the extracted hash is not in the current hash prefixes, remove the file
-                        if !current_hash_prefixes.contains(&extracted_hash.as_str()) {
-                            // Attempt to remove the file; ignore errors for now
-                            let _ = fs::remove_file(&path);
+                        // Get the file's metadata to retrieve the modification time
+                        if let Ok(metadata) = entry.metadata() {
+                            if let Ok(modified_time) = metadata.modified() {
+                                if current_hash_prefixes.contains(&extracted_hash.as_str()) {
+                                    // This file matches a current hash prefix; preserve it
+                                    matching_files.push((entry, modified_time));
+                                } else {
+                                    // This file does not match; consider it for cleanup
+                                    non_matching_files.push((entry, modified_time));
+                                }
+                            }
                         }
                     }
                 }
             }
         }
+
+        // Sort non-matching files by modification time (oldest first)
+        non_matching_files.sort_by_key(|(_, mtime)| *mtime);
+
+        // Calculate how many non-matching files to delete
+        let excess_non_matching = non_matching_files.len().saturating_sub(6);
+
+        if excess_non_matching > 0 {
+            for (entry, _) in non_matching_files.into_iter().take(excess_non_matching) {
+                let path = entry.path();
+                if let Err(e) = fs::remove_file(&path) {
+                    eprintln!("Failed to delete {:?}: {}", path, e);
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -94,8 +126,6 @@ mod net {
     ) -> std::io::Result<()> {
         // Compute expected hash prefix
         let expected_hash_prefix = compute_short_sha(compressed_data);
-
-        // Note: Removed cleanup_old_files from here to prevent deleting other network files
 
         // Check if a file with the expected hash prefix already exists
         if file_path.exists() {
