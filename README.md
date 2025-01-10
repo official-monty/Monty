@@ -1,6 +1,6 @@
 <div align="center">
 
-# Monty 
+# Monty
 #### "MCTS is cool."
 
 </div>
