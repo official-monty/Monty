@@ -6,7 +6,6 @@ pub mod uci;
 
 use memmap2::Mmap;
 
-
 pub struct MappedWeights<'a, T> {
     pub mmap: Mmap,  // The memory-mapped file
     pub data: &'a T, // A reference to the data in the mmap

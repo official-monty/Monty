@@ -9,7 +9,12 @@ fn main() {
 #[cfg(feature = "embed")]
 mod net {
     use memmap2::Mmap;
-    use monty::{uci, chess::ChessState, mcts::MctsParams, networks::{PolicyNetwork, ValueNetwork}};
+    use monty::{
+        chess::ChessState,
+        mcts::MctsParams,
+        networks::{PolicyNetwork, ValueNetwork},
+        uci,
+    };
     use once_cell::sync::Lazy;
     use sha2::{Digest, Sha256};
     use std::fs::{self, File};
@@ -236,7 +241,10 @@ mod net {
 
 #[cfg(not(feature = "embed"))]
 mod nonet {
-    use monty::{read_into_struct_unchecked, uci, chess::ChessState, MappedWeights, mcts::MctsParams, networks};
+    use monty::{
+        chess::ChessState, mcts::MctsParams, networks, read_into_struct_unchecked, uci,
+        MappedWeights,
+    };
 
     pub fn run() {
         let mut args = std::env::args();

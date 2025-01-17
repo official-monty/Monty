@@ -11,7 +11,11 @@ use std::{
     time::Instant,
 };
 
-use crate::{chess::{ChessState, GameState}, mcts::{MctsParams, SearchHelpers}, networks::PolicyNetwork};
+use crate::{
+    chess::{ChessState, GameState},
+    mcts::{MctsParams, SearchHelpers},
+    networks::PolicyNetwork,
+};
 
 pub struct Tree {
     root: ChessState,

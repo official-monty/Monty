@@ -1,6 +1,6 @@
 use crate::{
     chess::{ChessState, Move},
-    mcts::{MctsParams, Limits, SearchHelpers, Searcher},
+    mcts::{Limits, MctsParams, SearchHelpers, Searcher},
     networks::{PolicyNetwork, ValueNetwork},
     tree::Tree,
 };

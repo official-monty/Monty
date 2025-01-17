@@ -6,7 +6,10 @@ use rng::Rand;
 use thread::DatagenThread;
 
 use monty::{
-    chess::ChessState, mcts::MctsParams, networks::{self, PolicyNetwork, ValueNetwork}, read_into_struct_unchecked, uci, MappedWeights
+    chess::ChessState,
+    mcts::MctsParams,
+    networks::{self, PolicyNetwork, ValueNetwork},
+    read_into_struct_unchecked, uci, MappedWeights,
 };
 
 use std::{

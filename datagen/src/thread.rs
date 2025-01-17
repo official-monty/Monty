@@ -1,7 +1,10 @@
 use crate::{Destination, Rand};
 
 use monty::{
-    chess::{ChessState, GameState}, mcts::{Limits, MctsParams, Searcher}, networks::{PolicyNetwork, ValueNetwork}, tree::Tree
+    chess::{ChessState, GameState},
+    mcts::{Limits, MctsParams, Searcher},
+    networks::{PolicyNetwork, ValueNetwork},
+    tree::Tree,
 };
 use montyformat::{MontyFormat, MontyValueFormat, SearchData};
 

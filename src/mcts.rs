@@ -7,8 +7,8 @@ pub use params::MctsParams;
 
 use crate::{
     chess::{GameState, Move},
-    tree::{NodePtr, Tree},
     networks::{PolicyNetwork, ValueNetwork},
+    tree::{NodePtr, Tree},
 };
 
 use std::{
@@ -258,8 +258,7 @@ impl<'a> Searcher<'a> {
             assert_eq!(node, ptr);
 
             self.tree[ptr].clear();
-            self.tree
-                .expand_node(ptr, pos, self.params, self.policy, 1);
+            self.tree.expand_node(ptr, pos, self.params, self.policy, 1);
 
             let root_eval = pos.get_value_wdl(self.value, self.params);
             self.tree[ptr].update(1.0 - root_eval);
@@ -280,7 +279,8 @@ impl<'a> Searcher<'a> {
 
                 let mut child = pos.clone();
                 child.make_move(self.tree[ptr].parent_move());
-                self.tree.relabel_policy(ptr, &child, self.params, self.policy, 2);
+                self.tree
+                    .relabel_policy(ptr, &child, self.params, self.policy, 2);
             }
         }
 
@@ -416,7 +416,10 @@ impl<'a> Searcher<'a> {
         let first_child_ptr = { *self.tree[self.tree.root_node()].actions() };
         for action in 0..self.tree[self.tree.root_node()].num_actions() {
             let child = &self.tree[first_child_ptr + action];
-            let mov = self.tree.root_position().conv_mov_to_str(child.parent_move());
+            let mov = self
+                .tree
+                .root_position()
+                .conv_mov_to_str(child.parent_move());
             let q = child.q() * 100.0;
             println!(
                 "{mov} -> {q:.2}% V({}) S({})",

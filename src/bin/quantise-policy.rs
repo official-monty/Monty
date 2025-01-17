@@ -1,6 +1,9 @@
 use std::io::Write;
 
-use monty::{read_into_struct_unchecked, MappedWeights, networks::{PolicyNetwork, UnquantisedPolicyNetwork}};
+use monty::{
+    networks::{PolicyNetwork, UnquantisedPolicyNetwork},
+    read_into_struct_unchecked, MappedWeights,
+};
 
 fn main() {
     let unquantised: MappedWeights<UnquantisedPolicyNetwork> =

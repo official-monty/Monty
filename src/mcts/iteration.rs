@@ -1,4 +1,7 @@
-use crate::{tree::{Node, NodePtr}, chess::{ChessState, GameState}};
+use crate::{
+    chess::{ChessState, GameState},
+    tree::{Node, NodePtr},
+};
 
 use super::{SearchHelpers, Searcher};
 
