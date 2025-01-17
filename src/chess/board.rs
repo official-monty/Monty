@@ -1,4 +1,4 @@
-use crate::{pop_lsb, GameState};
+use crate::{pop_lsb, chess::GameState};
 
 use super::{
     attacks::Attacks,

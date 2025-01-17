@@ -1,10 +1,6 @@
-use crate::{
-    chess::{
+use crate::chess::{
         consts::{Piece, Side, ValueAttacks, ValueIndices, ValueOffsets},
-        Attacks,
-    },
-    Board,
-};
+        Attacks,Board};
 
 const TOTAL_THREATS: usize = 2 * ValueOffsets::END;
 pub const TOTAL: usize = TOTAL_THREATS + 768;

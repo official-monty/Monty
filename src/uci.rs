@@ -1,7 +1,8 @@
 use crate::{
     chess::{ChessState, Move},
-    mcts::{Limits, SearchHelpers, Searcher},
-    MctsParams, PolicyNetwork, Tree, ValueNetwork,
+    mcts::{MctsParams, Limits, SearchHelpers, Searcher},
+    networks::{PolicyNetwork, ValueNetwork},
+    tree::Tree,
 };
 
 use std::{
@@ -11,7 +12,6 @@ use std::{
 };
 
 pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
-    let mut prev = None;
     let mut pos = ChessState::default();
     let mut root_game_ply = 0;
     let mut params = MctsParams::default();
@@ -59,7 +59,6 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                 go(
                     &commands,
                     &mut tree,
-                    prev,
                     &pos,
                     root_game_ply,
                     &params,
@@ -70,8 +69,6 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                     move_overhead,
                     &mut stored_message,
                 );
-
-                prev = Some(pos.clone());
             }
             "bench" => {
                 let depth = if let Some(d) = commands.get(1) {
@@ -122,7 +119,6 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
             "params" => params.list_spsa(),
             "uci" => preamble(),
             "ucinewgame" => {
-                prev = None;
                 root_game_ply = 0;
                 tree.clear(threads);
             }
@@ -204,8 +200,8 @@ pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork, params:
     for fen in bench_fens {
         let abort = AtomicBool::new(false);
         let pos = ChessState::from_fen(fen);
-        tree.try_use_subtree(&pos, &None);
-        let searcher = Searcher::new(pos, &tree, params, policy, value, &abort);
+        tree.set_root_position(&pos);
+        let searcher = Searcher::new(&tree, params, policy, value, &abort);
         let timer = Instant::now();
         searcher.search(1, limits, false, &mut total_nodes);
         time += timer.elapsed().as_secs_f32();
@@ -312,7 +308,6 @@ fn position(commands: Vec<&str>, pos: &mut ChessState) {
 fn go(
     commands: &[&str],
     tree: &mut Tree,
-    prev: Option<ChessState>,
     pos: &ChessState,
     root_game_ply: u32,
     params: &MctsParams,
@@ -385,7 +380,7 @@ fn go(
 
     let abort = AtomicBool::new(false);
 
-    tree.try_use_subtree(pos, &prev);
+    tree.set_root_position(pos);
 
     let limits = Limits {
         max_time,
@@ -396,7 +391,7 @@ fn go(
 
     std::thread::scope(|s| {
         s.spawn(|| {
-            let searcher = Searcher::new(pos.clone(), tree, params, policy, value, &abort);
+            let searcher = Searcher::new(tree, params, policy, value, &abort);
             let (mov, _) = searcher.search(threads, limits, true, &mut 0);
             println!("bestmove {}", pos.conv_mov_to_str(mov));
 

@@ -5,8 +5,8 @@ mod frc;
 mod moves;
 
 use crate::{
-    networks::{Accumulator, POLICY_L1},
-    MctsParams, PolicyNetwork, ValueNetwork,
+    networks::{Accumulator, POLICY_L1, PolicyNetwork, ValueNetwork},
+    mcts::MctsParams, 
 };
 
 pub use self::{attacks::Attacks, board::Board, frc::Castling, moves::Move};

@@ -1,13 +1,14 @@
 mod helpers;
+mod iteration;
 mod params;
 
 pub use helpers::SearchHelpers;
 pub use params::MctsParams;
 
 use crate::{
-    chess::Move,
-    tree::{Node, NodePtr, Tree},
-    ChessState, GameState, PolicyNetwork, ValueNetwork,
+    chess::{GameState, Move},
+    tree::{NodePtr, Tree},
+    networks::{PolicyNetwork, ValueNetwork},
 };
 
 use std::{
@@ -34,7 +35,6 @@ pub struct SearchStats {
 }
 
 pub struct Searcher<'a> {
-    root_position: ChessState,
     tree: &'a Tree,
     params: &'a MctsParams,
     policy: &'a PolicyNetwork,
@@ -44,7 +44,6 @@ pub struct Searcher<'a> {
 
 impl<'a> Searcher<'a> {
     pub fn new(
-        root_position: ChessState,
         tree: &'a Tree,
         params: &'a MctsParams,
         policy: &'a PolicyNetwork,
@@ -52,7 +51,6 @@ impl<'a> Searcher<'a> {
         abort: &'a AtomicBool,
     ) -> Self {
         Self {
-            root_position,
             tree,
             params,
             policy,
@@ -105,11 +103,10 @@ impl<'a> Searcher<'a> {
         F: FnMut() -> bool,
     {
         loop {
-            let mut pos = self.root_position.clone();
+            let mut pos = self.tree.root_position().clone();
             let mut this_depth = 0;
 
-            if self
-                .perform_one_iteration(&mut pos, self.tree.root_node(), &mut this_depth)
+            if iteration::perform_one(self, &mut pos, self.tree.root_node(), &mut this_depth)
                 .is_none()
             {
                 return false;
@@ -261,15 +258,15 @@ impl<'a> Searcher<'a> {
 
             self.tree[ptr].clear();
             self.tree
-                .expand_node(ptr, &self.root_position, self.params, self.policy, 1);
+                .expand_node(ptr, self.tree.root_position(), self.params, self.policy, 1);
 
-            let root_eval = self.root_position.get_value_wdl(self.value, self.params);
+            let root_eval = self.tree.root_position().get_value_wdl(self.value, self.params);
             self.tree[ptr].update(1.0 - root_eval);
         }
         // relabel preexisting root policies with root PST value
         else if self.tree[node].has_children() {
             self.tree
-                .relabel_policy(node, &self.root_position, self.params, self.policy, 1);
+                .relabel_policy(node, self.tree.root_position(), self.params, self.policy, 1);
 
             let first_child_ptr = { *self.tree[node].actions() };
 
@@ -280,7 +277,7 @@ impl<'a> Searcher<'a> {
                     continue;
                 }
 
-                let mut position = self.root_position.clone();
+                let mut position = self.tree.root_position().clone();
                 position.make_move(self.tree[ptr].parent_move());
                 self.tree
                     .relabel_policy(ptr, &position, self.params, self.policy, 2);
@@ -336,124 +333,6 @@ impl<'a> Searcher<'a> {
         (mov, q)
     }
 
-    fn perform_one_iteration(
-        &self,
-        pos: &mut ChessState,
-        ptr: NodePtr,
-        depth: &mut usize,
-    ) -> Option<f32> {
-        *depth += 1;
-
-        let hash = pos.hash();
-        let node = &self.tree[ptr];
-
-        let mut u = if node.is_terminal() || node.visits() == 0 {
-            if node.visits() == 0 {
-                node.set_state(pos.game_state());
-            }
-
-            // probe hash table to use in place of network
-            if node.state() == GameState::Ongoing {
-                if let Some(entry) = self.tree.probe_hash(hash) {
-                    entry.q()
-                } else {
-                    self.get_utility(ptr, pos)
-                }
-            } else {
-                self.get_utility(ptr, pos)
-            }
-        } else {
-            // expand node on the second visit
-            if node.is_not_expanded() {
-                self.tree
-                    .expand_node(ptr, pos, self.params, self.policy, *depth)?;
-            }
-
-            // this node has now been accessed so we need to move its
-            // children across if they are in the other tree half
-            self.tree.fetch_children(ptr)?;
-
-            // select action to take via PUCT
-            let action = self.pick_action(ptr, node);
-
-            let first_child_ptr = { *node.actions() };
-            let child_ptr = first_child_ptr + action;
-
-            let mov = self.tree[child_ptr].parent_move();
-
-            pos.make_move(mov);
-
-            self.tree[child_ptr].inc_threads();
-
-            // acquire lock to avoid issues with desynced setting of
-            // game state between threads when threads > 1
-            let lock = if self.tree[child_ptr].visits() == 0 {
-                Some(node.actions_mut())
-            } else {
-                None
-            };
-
-            // descend further
-            let maybe_u = self.perform_one_iteration(pos, child_ptr, depth);
-
-            drop(lock);
-
-            self.tree[child_ptr].dec_threads();
-
-            let u = maybe_u?;
-
-            self.tree
-                .propogate_proven_mates(ptr, self.tree[child_ptr].state());
-
-            u
-        };
-
-        // node scores are stored from the perspective
-        // **of the parent**, as they are usually only
-        // accessed from the parent's POV
-        u = 1.0 - u;
-
-        let new_q = node.update(u);
-        self.tree.push_hash(hash, 1.0 - new_q);
-
-        Some(u)
-    }
-
-    fn get_utility(&self, ptr: NodePtr, pos: &ChessState) -> f32 {
-        match self.tree[ptr].state() {
-            GameState::Ongoing => pos.get_value_wdl(self.value, self.params),
-            GameState::Draw => 0.5,
-            GameState::Lost(_) => 0.0,
-            GameState::Won(_) => 1.0,
-        }
-    }
-
-    fn pick_action(&self, ptr: NodePtr, node: &Node) -> usize {
-        let is_root = ptr == self.tree.root_node();
-
-        let cpuct = SearchHelpers::get_cpuct(self.params, node, is_root);
-        let fpu = SearchHelpers::get_fpu(node);
-        let expl_scale = SearchHelpers::get_explore_scaling(self.params, node);
-
-        let expl = cpuct * expl_scale;
-
-        self.tree.get_best_child_by_key(ptr, |child| {
-            let mut q = SearchHelpers::get_action_value(child, fpu);
-
-            // virtual loss
-            let threads = f64::from(child.threads());
-            if threads > 0.0 {
-                let visits = f64::from(child.visits());
-                let q2 = f64::from(q) * visits / (visits + threads);
-                q = q2 as f32;
-            }
-
-            let u = expl * child.policy() / (1 + child.visits()) as f32;
-
-            q + u
-        })
-    }
-
     fn search_report(&self, depth: usize, seldepth: usize, timer: &Instant, nodes: usize) {
         print!("info depth {depth} seldepth {seldepth} ");
         let (pv_line, score) = self.get_pv(depth);
@@ -474,7 +353,7 @@ impl<'a> Searcher<'a> {
         print!("time {ms} nodes {nodes} nps {nps:.0} pv");
 
         for mov in pv_line {
-            print!(" {}", self.root_position.conv_mov_to_str(mov));
+            print!(" {}", self.tree.root_position().conv_mov_to_str(mov));
         }
 
         println!();
@@ -537,7 +416,7 @@ impl<'a> Searcher<'a> {
         let first_child_ptr = { *self.tree[self.tree.root_node()].actions() };
         for action in 0..self.tree[self.tree.root_node()].num_actions() {
             let child = &self.tree[first_child_ptr + action];
-            let mov = self.root_position.conv_mov_to_str(child.parent_move());
+            let mov = self.tree.root_position().conv_mov_to_str(child.parent_move());
             let q = child.q() * 100.0;
             println!(
                 "{mov} -> {q:.2}% V({}) S({})",

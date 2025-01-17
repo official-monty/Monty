@@ -9,7 +9,7 @@ fn main() {
 #[cfg(feature = "embed")]
 mod net {
     use memmap2::Mmap;
-    use monty::{uci, ChessState, MctsParams, PolicyNetwork, ValueNetwork};
+    use monty::{uci, chess::ChessState, mcts::MctsParams, networks::{PolicyNetwork, ValueNetwork}};
     use once_cell::sync::Lazy;
     use sha2::{Digest, Sha256};
     use std::fs::{self, File};
@@ -236,17 +236,17 @@ mod net {
 
 #[cfg(not(feature = "embed"))]
 mod nonet {
-    use monty::{read_into_struct_unchecked, uci, ChessState, MappedWeights, MctsParams};
+    use monty::{read_into_struct_unchecked, uci, chess::ChessState, MappedWeights, mcts::MctsParams, networks};
 
     pub fn run() {
         let mut args = std::env::args();
         let arg1 = args.nth(1);
 
-        let policy_mapped: MappedWeights<monty::PolicyNetwork> =
-            unsafe { read_into_struct_unchecked(monty::PolicyFileDefaultName) };
+        let policy_mapped: MappedWeights<networks::PolicyNetwork> =
+            unsafe { read_into_struct_unchecked(networks::PolicyFileDefaultName) };
 
-        let value_mapped: MappedWeights<monty::ValueNetwork> =
-            unsafe { read_into_struct_unchecked(monty::ValueFileDefaultName) };
+        let value_mapped: MappedWeights<networks::ValueNetwork> =
+            unsafe { read_into_struct_unchecked(networks::ValueFileDefaultName) };
 
         let policy = policy_mapped.data;
         let value = value_mapped.data;
