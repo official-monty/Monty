@@ -14,7 +14,6 @@ pub fn perform_one(
     let tree = searcher.tree;
     let node = &tree[ptr];
 
-
     let mut u = if node.is_terminal() || node.visits() == 0 {
         if node.visits() == 0 {
             node.set_state(pos.game_state());

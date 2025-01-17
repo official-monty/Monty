@@ -247,6 +247,7 @@ impl<'a> Searcher<'a> {
         #[cfg(not(feature = "uci-minimal"))]
         let mut timer_last_output = Instant::now();
 
+        let pos = self.tree.root_position();
         let node = self.tree.root_node();
 
         // the root node is added to an empty tree, **and not counted** towards the
@@ -258,15 +259,15 @@ impl<'a> Searcher<'a> {
 
             self.tree[ptr].clear();
             self.tree
-                .expand_node(ptr, self.tree.root_position(), self.params, self.policy, 1);
+                .expand_node(ptr, pos, self.params, self.policy, 1);
 
-            let root_eval = self.tree.root_position().get_value_wdl(self.value, self.params);
+            let root_eval = pos.get_value_wdl(self.value, self.params);
             self.tree[ptr].update(1.0 - root_eval);
         }
         // relabel preexisting root policies with root PST value
         else if self.tree[node].has_children() {
             self.tree
-                .relabel_policy(node, self.tree.root_position(), self.params, self.policy, 1);
+                .relabel_policy(node, pos, self.params, self.policy, 1);
 
             let first_child_ptr = { *self.tree[node].actions() };
 
@@ -277,10 +278,9 @@ impl<'a> Searcher<'a> {
                     continue;
                 }
 
-                let mut position = self.tree.root_position().clone();
-                position.make_move(self.tree[ptr].parent_move());
-                self.tree
-                    .relabel_policy(ptr, &position, self.params, self.policy, 2);
+                let mut child = pos.clone();
+                child.make_move(self.tree[ptr].parent_move());
+                self.tree.relabel_policy(ptr, &child, self.params, self.policy, 2);
             }
         }
 

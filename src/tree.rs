@@ -148,6 +148,7 @@ impl Tree {
     }
 
     pub fn clear(&mut self, threads: usize) {
+        self.root = ChessState::default();
         self.clear_halves();
         self.hash.clear(threads);
     }
@@ -294,8 +295,11 @@ impl Tree {
         }
     }
 
-    pub fn set_root_position(&self, root: &ChessState) {
+    pub fn set_root_position(&mut self, new_root: &ChessState) {
         let t = Instant::now();
+
+        let old_root = self.root.clone();
+        self.root = new_root.clone();
 
         if self.is_empty() {
             return;
@@ -307,7 +311,7 @@ impl Tree {
 
         println!("info string searching for subtree");
 
-        let root = self.recurse_find(self.root_node(), &self.root, root, 2);
+        let root = self.recurse_find(self.root_node(), &old_root, new_root, 2);
 
         if !root.is_null() && self[root].has_children() {
             found = true;
