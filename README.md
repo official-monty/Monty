@@ -15,10 +15,8 @@ The required networks will be downloaded automatically (and validated).
 ## Development
 
 Development of Monty is facilitated by [montytest](https://tests.montychess.org/tests).
-If you want to contribute, it is recommended to look in:
-- [src/mcts/helpers.rs](src/mcts/helpers.rs) - location of functions that
-calculate many important search heuristics, e.g. CPUCT scaling
-- [src/mcts.rs](src/mcts.rs) - the actual search logic
+If you want to contribute, it is recommended to look in the [mcts](src/mcts.rs) module
+and its submodules.
 
 Functional patches are required to pass on montytest, with an STC followed by an LTC test.
 
