@@ -1,17 +1,10 @@
-pub(crate) mod chess;
-mod mcts;
-mod networks;
-mod tree;
+pub mod chess;
+pub mod mcts;
+pub mod networks;
+pub mod tree;
 pub mod uci;
 
-pub use chess::{Board, Castling, ChessState, GameState, Move};
-pub use mcts::{Limits, MctsParams, Searcher};
 use memmap2::Mmap;
-pub use networks::{
-    PolicyFileDefaultName, PolicyNetwork, UnquantisedPolicyNetwork, ValueFileDefaultName,
-    ValueNetwork,
-};
-pub use tree::Tree;
 
 pub struct MappedWeights<'a, T> {
     pub mmap: Mmap,  // The memory-mapped file

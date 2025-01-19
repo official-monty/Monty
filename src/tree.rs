@@ -11,9 +11,14 @@ use std::{
     time::Instant,
 };
 
-use crate::{chess::ChessState, mcts::SearchHelpers, GameState, MctsParams, PolicyNetwork};
+use crate::{
+    chess::{ChessState, GameState},
+    mcts::{MctsParams, SearchHelpers},
+    networks::PolicyNetwork,
+};
 
 pub struct Tree {
+    root: ChessState,
     tree: [TreeHalf; 2],
     half: AtomicBool,
     hash: HashTable,
@@ -36,6 +41,7 @@ impl Tree {
 
     fn new(tree_cap: usize, hash_cap: usize, threads: usize) -> Self {
         Self {
+            root: ChessState::default(),
             tree: [
                 TreeHalf::new(tree_cap / 2, false, threads),
                 TreeHalf::new(tree_cap / 2, true, threads),
@@ -43,6 +49,10 @@ impl Tree {
             half: AtomicBool::new(false),
             hash: HashTable::new(hash_cap / 4, threads),
         }
+    }
+
+    pub fn root_position(&self) -> &ChessState {
+        &self.root
     }
 
     pub fn half(&self) -> usize {
@@ -142,6 +152,7 @@ impl Tree {
     }
 
     pub fn clear(&mut self, threads: usize) {
+        self.root = ChessState::default();
         self.clear_halves();
         self.hash.clear(threads);
     }
@@ -288,8 +299,11 @@ impl Tree {
         }
     }
 
-    pub fn try_use_subtree(&self, root: &ChessState, prev_board: &Option<ChessState>) {
+    pub fn set_root_position(&mut self, new_root: &ChessState) {
         let t = Instant::now();
+
+        let old_root = self.root.clone();
+        self.root = new_root.clone();
 
         if self.is_empty() {
             return;
@@ -299,21 +313,19 @@ impl Tree {
 
         let mut found = false;
 
-        if let Some(board) = prev_board {
-            println!("info string searching for subtree");
+        println!("info string searching for subtree");
 
-            let root = self.recurse_find(self.root_node(), board, root, 2);
+        let root = self.recurse_find(self.root_node(), &old_root, new_root, 2);
 
-            if !root.is_null() && self[root].has_children() {
-                found = true;
+        if !root.is_null() && self[root].has_children() {
+            found = true;
 
-                if root != self.root_node() {
-                    self[self.root_node()].clear();
-                    self.copy_node_across(root, self.root_node());
-                    println!("info string found subtree");
-                } else {
-                    println!("info string using current tree");
-                }
+            if root != self.root_node() {
+                self[self.root_node()].clear();
+                self.copy_node_across(root, self.root_node());
+                println!("info string found subtree");
+            } else {
+                println!("info string using current tree");
             }
         }
 

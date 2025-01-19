@@ -6,8 +6,10 @@ use rng::Rand;
 use thread::DatagenThread;
 
 use monty::{
-    read_into_struct_unchecked, uci, ChessState, MappedWeights, MctsParams, PolicyNetwork,
-    ValueNetwork,
+    chess::ChessState,
+    mcts::MctsParams,
+    networks::{self, PolicyNetwork, ValueNetwork},
+    read_into_struct_unchecked, uci, MappedWeights,
 };
 
 use std::{
@@ -25,11 +27,11 @@ fn main() {
     let mut args = std::env::args();
     args.next();
 
-    let policy_mapped: MappedWeights<monty::PolicyNetwork> =
-        unsafe { read_into_struct_unchecked(monty::PolicyFileDefaultName) };
+    let policy_mapped: MappedWeights<networks::PolicyNetwork> =
+        unsafe { read_into_struct_unchecked(networks::PolicyFileDefaultName) };
 
-    let value_mapped: MappedWeights<monty::ValueNetwork> =
-        unsafe { read_into_struct_unchecked(monty::ValueFileDefaultName) };
+    let value_mapped: MappedWeights<networks::ValueNetwork> =
+        unsafe { read_into_struct_unchecked(networks::ValueFileDefaultName) };
 
     let policy = &policy_mapped.data;
     let value = &value_mapped.data;
