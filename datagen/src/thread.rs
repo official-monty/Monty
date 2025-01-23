@@ -128,7 +128,7 @@ impl<'a> DatagenThread<'a> {
 
             temp *= 0.9;
             if temp <= 0.2 {
-                temp = 0.0;
+                temp = 0.2;
             }
 
             let best_move = montyformat::chess::Move::from(u16::from(bm));
