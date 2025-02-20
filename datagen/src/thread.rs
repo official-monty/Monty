@@ -148,7 +148,7 @@ impl<'a> DatagenThread<'a> {
             } else {
                 let mut dist = Vec::new();
 
-                let actions = { *tree[tree.root_node()].actions() };
+                let actions = tree[tree.root_node()].actions();
 
                 for action in 0..tree[tree.root_node()].num_actions() {
                     let node = &tree[actions + action];

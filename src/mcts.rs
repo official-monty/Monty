@@ -268,7 +268,7 @@ impl<'a> Searcher<'a> {
             self.tree
                 .relabel_policy(node, pos, self.params, self.policy, 1);
 
-            let first_child_ptr = { *self.tree[node].actions() };
+            let first_child_ptr = self.tree[node].actions();
 
             for action in 0..self.tree[node].num_actions() {
                 let ptr = first_child_ptr + action;
@@ -395,7 +395,7 @@ impl<'a> Searcher<'a> {
 
     fn get_best_action(&self, node: NodePtr) -> (NodePtr, Move, f32) {
         let idx = self.tree.get_best_child(node);
-        let ptr = *self.tree[node].actions() + idx;
+        let ptr = self.tree[node].actions() + idx;
         let child = &self.tree[ptr];
         (ptr, child.parent_move(), child.q())
     }
@@ -413,7 +413,7 @@ impl<'a> Searcher<'a> {
     }
 
     pub fn display_moves(&self) {
-        let first_child_ptr = { *self.tree[self.tree.root_node()].actions() };
+        let first_child_ptr = self.tree[self.tree.root_node()].actions();
         for action in 0..self.tree[self.tree.root_node()].num_actions() {
             let child = &self.tree[first_child_ptr + action];
             let mov = self

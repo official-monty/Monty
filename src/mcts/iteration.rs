@@ -45,8 +45,7 @@ pub fn perform_one(
         // select action to take via PUCT
         let action = pick_action(searcher, ptr, node);
 
-        let first_child_ptr = { *node.actions() };
-        let child_ptr = first_child_ptr + action;
+        let child_ptr = node.actions() + action;
 
         let mov = tree[child_ptr].parent_move();
 

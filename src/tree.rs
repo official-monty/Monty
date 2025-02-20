@@ -1,5 +1,6 @@
 mod half;
 mod hash;
+mod lock;
 mod node;
 
 use half::TreeHalf;
@@ -72,8 +73,8 @@ impl Tree {
             return Some(());
         }
 
-        let f = &mut *self[from].actions_mut();
-        let t = &mut *self[to].actions_mut();
+        let f = self[from].actions_mut();
+        let t = self[to].actions_mut();
 
         // no other thread is able to modify `from`
         // whilst the above write locks are held,
@@ -82,7 +83,7 @@ impl Tree {
         // another thread is already doing the same work)
         self[to].copy_from(&self[from]);
         self[to].set_num_actions(self[from].num_actions());
-        *t = *f;
+        t.store(f.val());
 
         Some(())
     }
@@ -112,23 +113,23 @@ impl Tree {
 
     #[must_use]
     pub fn fetch_children(&self, parent_ptr: NodePtr) -> Option<()> {
-        let first_child_ptr = { *self[parent_ptr].actions() };
+        let first_child_ptr = { self[parent_ptr].actions() };
 
         if first_child_ptr.half() != self.half.load(Ordering::Relaxed) {
-            let mut most_recent_ptr = self[parent_ptr].actions_mut();
+            let most_recent_ptr = self[parent_ptr].actions_mut();
 
-            if most_recent_ptr.half() == self.half.load(Ordering::Relaxed) {
+            if most_recent_ptr.val().half() == self.half.load(Ordering::Relaxed) {
                 return Some(());
             }
 
-            assert_eq!(first_child_ptr, *most_recent_ptr);
+            assert_eq!(first_child_ptr, most_recent_ptr.val());
 
             let num_children = self[parent_ptr].num_actions();
             let new_ptr = self.tree[self.half()].reserve_nodes(num_children)?;
 
             self.copy_across(first_child_ptr, num_children, new_ptr);
 
-            *most_recent_ptr = new_ptr;
+            most_recent_ptr.store(new_ptr);
         }
 
         Some(())
@@ -171,7 +172,7 @@ impl Tree {
     ) -> Option<()> {
         let node = &self[node_ptr];
 
-        let mut actions_ptr = node.actions_mut();
+        let actions_ptr = node.actions_mut();
 
         // when running with >1 threads, this function may
         // be called twice, and this acts as a safeguard in
@@ -214,7 +215,7 @@ impl Tree {
         let gini_impurity = (1.0 - sum_of_squares).clamp(0.0, 1.0);
         node.set_gini_impurity(gini_impurity);
 
-        *actions_ptr = new_ptr;
+        actions_ptr.store(new_ptr);
         node.set_num_actions(actions.len());
 
         Some(())
@@ -235,9 +236,10 @@ impl Tree {
 
         let actions = self[node_ptr].actions_mut();
         let num_actions = self[node_ptr].num_actions();
+        let actions_ptr = actions.val();
 
         for action in 0..num_actions {
-            let mov = self[*actions + action].parent_move();
+            let mov = self[actions_ptr + action].parent_move();
             let policy = pos.get_policy(mov, &feats, policy);
 
             policies.push(policy);
@@ -257,7 +259,7 @@ impl Tree {
 
         for (action, &policy) in policies.iter().enumerate() {
             let policy = policy / total;
-            self[*actions + action].set_policy(policy);
+            self[actions_ptr + action].set_policy(policy);
             sum_of_squares += policy * policy;
         }
 
@@ -277,7 +279,7 @@ impl Tree {
 
                 let mut proven_loss = true;
                 let mut max_win_len = n;
-                let first_child_ptr = *self[ptr].actions();
+                let first_child_ptr = self[ptr].actions();
 
                 for action in 0..self[ptr].num_actions() {
                     let ptr = first_child_ptr + action;
@@ -355,7 +357,7 @@ impl Tree {
             return NodePtr::NULL;
         }
 
-        let first_child_ptr = { *self[start].actions() };
+        let first_child_ptr = self[start].actions();
 
         if first_child_ptr.is_null() {
             return NodePtr::NULL;
@@ -383,7 +385,7 @@ impl Tree {
         let mut best_child = usize::MAX;
         let mut best_score = f32::NEG_INFINITY;
 
-        let first_child_ptr = { *self[ptr].actions() };
+        let first_child_ptr = self[ptr].actions();
 
         for action in 0..self[ptr].num_actions() {
             let score = key(&self[first_child_ptr + action]);

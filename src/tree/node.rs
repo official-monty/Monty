@@ -1,12 +1,11 @@
 use std::{
     ops::Add,
-    sync::{
-        atomic::{AtomicI32, AtomicU16, AtomicU32, AtomicU8, Ordering},
-        RwLock, RwLockReadGuard, RwLockWriteGuard,
-    },
+    sync::atomic::{AtomicI32, AtomicU16, AtomicU32, AtomicU8, Ordering},
 };
 
 use crate::chess::{GameState, Move};
+
+use super::lock::{CustomLock, WriteGuard};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct NodePtr(u32);
@@ -49,7 +48,7 @@ impl Add<usize> for NodePtr {
 
 #[derive(Debug)]
 pub struct Node {
-    actions: RwLock<NodePtr>,
+    actions: CustomLock,
     num_actions: AtomicU8,
     state: AtomicU16,
     threads: AtomicU16,
@@ -64,7 +63,7 @@ pub struct Node {
 impl Node {
     pub fn new(state: GameState) -> Self {
         Node {
-            actions: RwLock::new(NodePtr::NULL),
+            actions: CustomLock::new(NodePtr::NULL),
             num_actions: AtomicU8::new(0),
             state: AtomicU16::new(u16::from(state)),
             threads: AtomicU16::new(0),
@@ -127,12 +126,12 @@ impl Node {
         self.threads.fetch_sub(1, Ordering::Relaxed);
     }
 
-    pub fn actions(&self) -> RwLockReadGuard<NodePtr> {
-        self.actions.read().unwrap()
+    pub fn actions(&self) -> NodePtr {
+        self.actions.read()
     }
 
-    pub fn actions_mut(&self) -> RwLockWriteGuard<NodePtr> {
-        self.actions.write().unwrap()
+    pub fn actions_mut(&self) -> WriteGuard {
+        self.actions.write()
     }
 
     pub fn state(&self) -> GameState {
@@ -170,7 +169,7 @@ impl Node {
     }
 
     pub fn clear_actions(&self) {
-        *self.actions.write().unwrap() = NodePtr::NULL;
+        self.actions.write().store(NodePtr::NULL);
         self.num_actions.store(0, Ordering::Relaxed);
     }
 
