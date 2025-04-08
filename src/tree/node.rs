@@ -1,11 +1,13 @@
 use std::{
     ops::Add,
-    sync::atomic::{AtomicI32, AtomicU16, AtomicU32, AtomicU8, Ordering},
+    sync::atomic::{AtomicI32, AtomicU16, AtomicI64, AtomicU8, Ordering},
 };
 
 use crate::chess::{GameState, Move};
 
 use super::lock::{CustomLock, WriteGuard};
+
+const QUANT: i32 = 16384 * 4;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct NodePtr(u32);
@@ -55,9 +57,9 @@ pub struct Node {
     mov: AtomicU16,
     policy: AtomicU16,
     visits: AtomicI32,
-    q: AtomicU32,
-    sq_q: AtomicU32,
-    gini_impurity: AtomicU32,
+    sum_q: AtomicI64,
+    sum_sq_q: AtomicI64,
+    gini_impurity: AtomicU8,
 }
 
 impl Node {
@@ -70,9 +72,9 @@ impl Node {
             mov: AtomicU16::new(0),
             policy: AtomicU16::new(0),
             visits: AtomicI32::new(0),
-            q: AtomicU32::new(0),
-            sq_q: AtomicU32::new(0),
-            gini_impurity: AtomicU32::new(0),
+            sum_q: AtomicI64::new(0),
+            sum_sq_q: AtomicI64::new(0),
+            gini_impurity: AtomicU8::new(0),
         }
     }
 
@@ -103,7 +105,15 @@ impl Node {
     }
 
     fn q64(&self) -> f64 {
-        f64::from(self.q.load(Ordering::Relaxed)) / f64::from(u32::MAX)
+        let visits = self.visits.load(Ordering::Relaxed);
+
+        if visits == 0 {
+            return 0.0;
+        }
+
+        let sum_q = self.sum_q.load(Ordering::Relaxed);
+
+        (sum_q / i64::from(visits)) as f64 / f64::from(QUANT)
     }
 
     pub fn q(&self) -> f32 {
@@ -111,7 +121,9 @@ impl Node {
     }
 
     pub fn sq_q(&self) -> f64 {
-        f64::from(self.sq_q.load(Ordering::Relaxed)) / f64::from(u32::MAX)
+        let sum_sq_q = self.sum_sq_q.load(Ordering::Relaxed);
+        let visits = self.visits.load(Ordering::Relaxed);
+        (sum_sq_q / i64::from(visits)) as f64 / f64::from(QUANT).powi(2)
     }
 
     pub fn var(&self) -> f32 {
@@ -160,12 +172,12 @@ impl Node {
     }
 
     pub fn gini_impurity(&self) -> f32 {
-        f32::from_bits(self.gini_impurity.load(Ordering::Relaxed))
+        f32::from(self.gini_impurity.load(Ordering::Relaxed)) / 255.0
     }
 
     pub fn set_gini_impurity(&self, gini_impurity: f32) {
         self.gini_impurity
-            .store(f32::to_bits(gini_impurity), Ordering::Relaxed);
+            .store((gini_impurity.clamp(0.0, 1.0) * 255.0) as u8, Ordering::Relaxed);
     }
 
     pub fn clear_actions(&self) {
@@ -187,8 +199,8 @@ impl Node {
         self.gini_impurity
             .store(other.gini_impurity.load(Relaxed), Relaxed);
         self.visits.store(other.visits.load(Relaxed), Relaxed);
-        self.q.store(other.q.load(Relaxed), Relaxed);
-        self.sq_q.store(other.sq_q.load(Relaxed), Relaxed);
+        self.sum_q.store(other.sum_q.load(Relaxed), Relaxed);
+        self.sum_sq_q.store(other.sum_sq_q.load(Relaxed), Relaxed);
     }
 
     pub fn clear(&self) {
@@ -196,23 +208,17 @@ impl Node {
         self.set_state(GameState::Ongoing);
         self.set_gini_impurity(0.0);
         self.visits.store(0, Ordering::Relaxed);
-        self.q.store(0, Ordering::Relaxed);
-        self.sq_q.store(0, Ordering::Relaxed);
+        self.sum_q.store(0, Ordering::Relaxed);
+        self.sum_sq_q.store(0, Ordering::Relaxed);
         self.threads.store(0, Ordering::Relaxed);
     }
 
-    pub fn update(&self, result: f32) -> f32 {
-        let r = f64::from(result);
-        let v = f64::from(self.visits.fetch_add(1, Ordering::Relaxed));
+    pub fn update(&self, q: f32) -> f32 {
+        let q = (f64::from(q) * f64::from(QUANT)) as i64;
+        let old_v = self.visits.fetch_add(1, Ordering::Relaxed);
+        let old_q = self.sum_q.fetch_add(q, Ordering::Relaxed);
+        self.sum_sq_q.fetch_add(q * q, Ordering::Relaxed);
 
-        let q = (self.q64() * v + r) / (v + 1.0);
-        let sq_q = (self.sq_q() * v + r.powi(2)) / (v + 1.0);
-
-        self.q
-            .store((q * f64::from(u32::MAX)) as u32, Ordering::Relaxed);
-        self.sq_q
-            .store((sq_q * f64::from(u32::MAX)) as u32, Ordering::Relaxed);
-
-        q as f32
+        (((q + old_q) / i64::from(1 + old_v)) as f64 / f64::from(QUANT)) as f32
     }
 }
