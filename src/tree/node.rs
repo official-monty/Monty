@@ -1,6 +1,6 @@
 use std::{
     ops::Add,
-    sync::atomic::{AtomicU32, AtomicU16, AtomicU64, AtomicU8, Ordering},
+    sync::atomic::{AtomicU16, AtomicU32, AtomicU64, AtomicU8, Ordering},
 };
 
 use crate::chess::{GameState, Move};
@@ -176,8 +176,10 @@ impl Node {
     }
 
     pub fn set_gini_impurity(&self, gini_impurity: f32) {
-        self.gini_impurity
-            .store((gini_impurity.clamp(0.0, 1.0) * 255.0) as u8, Ordering::Relaxed);
+        self.gini_impurity.store(
+            (gini_impurity.clamp(0.0, 1.0) * 255.0) as u8,
+            Ordering::Relaxed,
+        );
     }
 
     pub fn clear_actions(&self) {

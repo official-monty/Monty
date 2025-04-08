@@ -30,7 +30,10 @@ impl WriteGuard<'_> {
 
 impl CustomLock {
     pub fn new(val: NodePtr) -> Self {
-        Self { value: AtomicU32::new(val.inner()), write_locked: AtomicBool::new(false) }
+        Self {
+            value: AtomicU32::new(val.inner()),
+            write_locked: AtomicBool::new(false),
+        }
     }
 
     pub fn read(&self) -> NodePtr {
@@ -42,7 +45,11 @@ impl CustomLock {
     }
 
     pub fn write(&self) -> WriteGuard<'_> {
-        while self.write_locked.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        while self
+            .write_locked
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
             std::hint::spin_loop();
         }
 

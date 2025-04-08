@@ -8,7 +8,9 @@ use hash::{HashEntry, HashTable};
 pub use node::{Node, NodePtr};
 
 use std::{
-    mem::MaybeUninit, sync::atomic::{AtomicBool, Ordering}, time::Instant
+    mem::MaybeUninit,
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
 };
 
 use crate::{
