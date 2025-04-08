@@ -1,6 +1,6 @@
 use std::{
     ops::Add,
-    sync::atomic::{AtomicI32, AtomicU16, AtomicI64, AtomicU8, Ordering},
+    sync::atomic::{AtomicU32, AtomicU16, AtomicU64, AtomicU8, Ordering},
 };
 
 use crate::chess::{GameState, Move};
@@ -56,9 +56,9 @@ pub struct Node {
     threads: AtomicU16,
     mov: AtomicU16,
     policy: AtomicU16,
-    visits: AtomicI32,
-    sum_q: AtomicI64,
-    sum_sq_q: AtomicI64,
+    visits: AtomicU32,
+    sum_q: AtomicU64,
+    sum_sq_q: AtomicU64,
     gini_impurity: AtomicU8,
 }
 
@@ -71,9 +71,9 @@ impl Node {
             threads: AtomicU16::new(0),
             mov: AtomicU16::new(0),
             policy: AtomicU16::new(0),
-            visits: AtomicI32::new(0),
-            sum_q: AtomicI64::new(0),
-            sum_sq_q: AtomicI64::new(0),
+            visits: AtomicU32::new(0),
+            sum_q: AtomicU64::new(0),
+            sum_sq_q: AtomicU64::new(0),
             gini_impurity: AtomicU8::new(0),
         }
     }
@@ -100,7 +100,7 @@ impl Node {
         self.threads.load(Ordering::Relaxed)
     }
 
-    pub fn visits(&self) -> i32 {
+    pub fn visits(&self) -> u32 {
         self.visits.load(Ordering::Relaxed)
     }
 
@@ -113,7 +113,7 @@ impl Node {
 
         let sum_q = self.sum_q.load(Ordering::Relaxed);
 
-        (sum_q / i64::from(visits)) as f64 / f64::from(QUANT)
+        (sum_q / u64::from(visits)) as f64 / f64::from(QUANT)
     }
 
     pub fn q(&self) -> f32 {
@@ -123,7 +123,7 @@ impl Node {
     pub fn sq_q(&self) -> f64 {
         let sum_sq_q = self.sum_sq_q.load(Ordering::Relaxed);
         let visits = self.visits.load(Ordering::Relaxed);
-        (sum_sq_q / i64::from(visits)) as f64 / f64::from(QUANT).powi(2)
+        (sum_sq_q / u64::from(visits)) as f64 / f64::from(QUANT).powi(2)
     }
 
     pub fn var(&self) -> f32 {
@@ -214,11 +214,11 @@ impl Node {
     }
 
     pub fn update(&self, q: f32) -> f32 {
-        let q = (f64::from(q) * f64::from(QUANT)) as i64;
+        let q = (f64::from(q) * f64::from(QUANT)) as u64;
         let old_v = self.visits.fetch_add(1, Ordering::Relaxed);
         let old_q = self.sum_q.fetch_add(q, Ordering::Relaxed);
         self.sum_sq_q.fetch_add(q * q, Ordering::Relaxed);
 
-        (((q + old_q) / i64::from(1 + old_v)) as f64 / f64::from(QUANT)) as f32
+        (((q + old_q) / u64::from(1 + old_v)) as f64 / f64::from(QUANT)) as f32
     }
 }

@@ -153,7 +153,7 @@ impl<'a> DatagenThread<'a> {
                 for action in 0..tree[tree.root_node()].num_actions() {
                     let node = &tree[actions + action];
                     let mov = montyformat::chess::Move::from(u16::from(node.parent_move()));
-                    dist.push((mov, node.visits() as u32));
+                    dist.push((mov, node.visits()));
                 }
 
                 assert_eq!(root_count, dist.len());
