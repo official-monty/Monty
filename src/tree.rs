@@ -8,8 +8,7 @@ use hash::{HashEntry, HashTable};
 pub use node::{Node, NodePtr};
 
 use std::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Instant,
+    mem::MaybeUninit, sync::atomic::{AtomicBool, Ordering}, time::Instant
 };
 
 use crate::{
@@ -183,28 +182,33 @@ impl Tree {
 
         let feats = pos.get_policy_feats(policy);
         let mut max = f32::NEG_INFINITY;
-        let mut actions = Vec::new();
+        let mut moves = [const { MaybeUninit::uninit() }; 256];
+        let mut count = 0;
 
         pos.map_legal_moves(|mov| {
             let policy = pos.get_policy(mov, &feats, policy);
-            actions.push((mov, policy));
+            moves[count].write((mov, policy));
+            count += 1;
             max = max.max(policy);
         });
 
-        let new_ptr = self.tree[self.half()].reserve_nodes(actions.len())?;
+        let new_ptr = self.tree[self.half()].reserve_nodes(count)?;
 
         let pst = SearchHelpers::get_pst(depth, self[node_ptr].q(), params);
 
         let mut total = 0.0;
 
-        for (_, policy) in actions.iter_mut() {
-            *policy = ((*policy - max) / pst).exp();
-            total += *policy;
+        for item in moves.iter_mut().take(count) {
+            let (mov, mut policy) = unsafe { item.assume_init() };
+            policy = ((policy - max) / pst).exp();
+            total += policy;
+            item.write((mov, policy));
         }
 
         let mut sum_of_squares = 0.0;
 
-        for (action, &(mov, policy)) in actions.iter().enumerate() {
+        for (action, item) in moves.iter().take(count).enumerate() {
+            let (mov, policy) = unsafe { item.assume_init() };
             let ptr = new_ptr + action;
             let policy = policy / total;
 
@@ -216,7 +220,7 @@ impl Tree {
         node.set_gini_impurity(gini_impurity);
 
         actions_ptr.store(new_ptr);
-        node.set_num_actions(actions.len());
+        node.set_num_actions(count);
 
         Some(())
     }
