@@ -182,13 +182,11 @@ impl Tree {
             return Some(());
         }
 
-        let feats = pos.get_policy_feats(policy);
         let mut max = f32::NEG_INFINITY;
         let mut moves = [const { MaybeUninit::uninit() }; 256];
         let mut count = 0;
 
-        pos.map_legal_moves(|mov| {
-            let policy = pos.get_policy(mov, &feats, policy);
+        pos.map_moves_with_policies(policy, |mov, policy| {
             moves[count].write((mov, policy));
             count += 1;
             max = max.max(policy);
@@ -235,7 +233,7 @@ impl Tree {
         policy: &PolicyNetwork,
         depth: u8,
     ) {
-        let feats = pos.get_policy_feats(policy);
+        let hl = pos.get_policy_hl(policy);
         let mut max = f32::NEG_INFINITY;
 
         let mut policies = Vec::new();
@@ -246,7 +244,7 @@ impl Tree {
 
         for action in 0..num_actions {
             let mov = self[actions_ptr + action].parent_move();
-            let policy = pos.get_policy(mov, &feats, policy);
+            let policy = pos.get_policy(mov, &hl, policy);
 
             policies.push(policy);
             max = max.max(policy);

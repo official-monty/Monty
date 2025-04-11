@@ -86,19 +86,17 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                 println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl(value, &params));
             }
             "policy" => {
-                let f = pos.get_policy_feats(policy);
                 let mut max = f32::NEG_INFINITY;
                 let mut moves = Vec::new();
 
-                pos.map_legal_moves(|mov| {
+                pos.map_moves_with_policies(policy, |mov, policy| {
                     let s = pos.conv_mov_to_str(mov);
-                    let p = pos.get_policy(mov, &f, policy);
 
-                    if p > max {
-                        max = p;
+                    if policy > max {
+                        max = policy;
                     }
 
-                    moves.push((s, p));
+                    moves.push((s, policy));
                 });
 
                 let mut total = 0.0;

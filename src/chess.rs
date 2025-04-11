@@ -122,7 +122,16 @@ impl ChessState {
         self.board.stm()
     }
 
-    pub fn get_policy_feats(&self, policy: &PolicyNetwork) -> Accumulator<i16, { POLICY_L1 / 2 }> {
+    pub fn map_moves_with_policies<F: FnMut(Move, f32)>(&self, policy: &PolicyNetwork, mut f: F) {
+        let hl = policy.hl(&self.board);
+
+        self.map_legal_moves(|mov| {
+            let policy = policy.get(&self.board, &mov, &hl);
+            f(mov, policy);
+        });
+    }
+
+    pub fn get_policy_hl(&self, policy: &PolicyNetwork) -> Accumulator<i16, { POLICY_L1 / 2 }> {
         policy.hl(&self.board)
     }
 
@@ -174,11 +183,9 @@ impl ChessState {
     }
 
     pub fn display(&self, policy: &PolicyNetwork) {
-        let feats = self.get_policy_feats(policy);
         let mut moves = Vec::new();
         let mut max = f32::NEG_INFINITY;
-        self.map_legal_moves(|mov| {
-            let policy = self.get_policy(mov, &feats, policy);
+        self.map_moves_with_policies(policy, |mov, policy| {
             moves.push((mov, policy));
 
             if policy > max {
