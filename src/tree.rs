@@ -9,8 +9,8 @@ pub use node::{Node, NodePtr};
 
 use std::{
     mem::MaybeUninit,
+    ops::Index,
     sync::atomic::{AtomicBool, Ordering},
-    time::Instant,
 };
 
 use crate::{
@@ -26,7 +26,7 @@ pub struct Tree {
     hash: HashTable,
 }
 
-impl std::ops::Index<NodePtr> for Tree {
+impl Index<NodePtr> for Tree {
     type Output = Node;
 
     fn index(&self, index: NodePtr) -> &Self::Output {
@@ -38,7 +38,12 @@ impl Tree {
     pub fn new_mb(mb: usize, threads: usize) -> Self {
         let bytes = mb * 1024 * 1024;
 
-        Self::new(bytes / 48, bytes / 48 / 16, threads)
+        const _: () = assert!(
+            std::mem::size_of::<Node>() == 40,
+            "You must reconsider this allocation!"
+        );
+
+        Self::new(bytes / 42, bytes / 42 / 16, threads)
     }
 
     fn new(tree_cap: usize, hash_cap: usize, threads: usize) -> Self {
@@ -69,32 +74,23 @@ impl Tree {
         self.tree[self.half()].reserve_nodes(1)
     }
 
-    fn copy_node_across(&self, from: NodePtr, to: NodePtr) -> Option<()> {
-        if from == to {
-            return Some(());
+    fn copy_node_across(&self, from: NodePtr, to: NodePtr) {
+        if from != to {
+            return;
         }
 
         let f = self[from].actions_mut();
         let t = self[to].actions_mut();
 
-        // no other thread is able to modify `from`
-        // whilst the above write locks are held,
-        // so this will never result in copying garbage
-        // (for a thread that calls this function whilst
-        // another thread is already doing the same work)
         self[to].copy_from(&self[from]);
         self[to].set_num_actions(self[from].num_actions());
         t.store(f.val());
-
-        Some(())
     }
 
-    pub fn copy_across(&self, from: NodePtr, num: usize, to: NodePtr) -> Option<()> {
+    fn copy_across(&self, from: NodePtr, num: usize, to: NodePtr) {
         for i in 0..num {
-            self.copy_node_across(from + i, to + i)?;
+            self.copy_node_across(from + i, to + i);
         }
-
-        Some(())
     }
 
     pub fn flip(&self, copy_across: bool, threads: usize) {
@@ -233,14 +229,13 @@ impl Tree {
         policy: &PolicyNetwork,
         depth: u8,
     ) {
-        let hl = pos.get_policy_hl(policy);
-        let mut max = f32::NEG_INFINITY;
-
-        let mut policies = Vec::new();
-
         let actions = self[node_ptr].actions_mut();
         let num_actions = self[node_ptr].num_actions();
         let actions_ptr = actions.val();
+
+        let hl = pos.get_policy_hl(policy);
+        let mut max = f32::NEG_INFINITY;
+        let mut policies = Vec::new();
 
         for action in 0..num_actions {
             let mov = self[actions_ptr + action].parent_move();
@@ -306,16 +301,12 @@ impl Tree {
     }
 
     pub fn set_root_position(&mut self, new_root: &ChessState) {
-        let t = Instant::now();
-
         let old_root = self.root.clone();
         self.root = new_root.clone();
 
         if self.is_empty() {
             return;
         }
-
-        println!("info string attempting to reuse tree");
 
         let mut found = false;
 
@@ -329,21 +320,15 @@ impl Tree {
             if root != self.root_node() {
                 self[self.root_node()].clear();
                 self.copy_node_across(root, self.root_node());
-                println!("info string found subtree");
-            } else {
-                println!("info string using current tree");
             }
+
+            println!("info string found subtree");
         }
 
         if !found {
             println!("info string no subtree found");
             self.clear_halves();
         }
-
-        println!(
-            "info string tree processing took {} microseconds",
-            t.elapsed().as_micros()
-        );
     }
 
     fn recurse_find(
@@ -401,20 +386,5 @@ impl Tree {
         }
 
         best_child
-    }
-
-    pub fn get_best_child(&self, ptr: NodePtr) -> usize {
-        self.get_best_child_by_key(ptr, |child| {
-            if child.visits() == 0 {
-                f32::NEG_INFINITY
-            } else {
-                match child.state() {
-                    GameState::Lost(n) => 1.0 + f32::from(n),
-                    GameState::Won(n) => f32::from(n) - 256.0,
-                    GameState::Draw => 0.5,
-                    GameState::Ongoing => child.q(),
-                }
-            }
-        })
     }
 }

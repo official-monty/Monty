@@ -380,7 +380,7 @@ impl<'a> Searcher<'a> {
 
         while (mate || depth > 0) && !ptr.is_null() && ptr.half() == half {
             pv.push(mov);
-            let idx = self.tree.get_best_child(ptr);
+            let idx = self.get_best_child(ptr);
 
             if idx == usize::MAX {
                 break;
@@ -394,10 +394,25 @@ impl<'a> Searcher<'a> {
     }
 
     fn get_best_action(&self, node: NodePtr) -> (NodePtr, Move, f32) {
-        let idx = self.tree.get_best_child(node);
+        let idx = self.get_best_child(node);
         let ptr = self.tree[node].actions() + idx;
         let child = &self.tree[ptr];
         (ptr, child.parent_move(), child.q())
+    }
+
+    fn get_best_child(&self, node: NodePtr) -> usize {
+        self.tree.get_best_child_by_key(node, |child| {
+            if child.visits() == 0 {
+                f32::NEG_INFINITY
+            } else {
+                match child.state() {
+                    GameState::Lost(n) => 1.0 + f32::from(n),
+                    GameState::Won(n) => f32::from(n) - 256.0,
+                    GameState::Draw => 0.5,
+                    GameState::Ongoing => child.q(),
+                }
+            }
+        })
     }
 
     fn get_cp(score: f32) -> f32 {
