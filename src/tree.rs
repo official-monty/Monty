@@ -75,7 +75,7 @@ impl Tree {
     }
 
     fn copy_node_across(&self, from: NodePtr, to: NodePtr) {
-        if from != to {
+        if from == to {
             return;
         }
 
