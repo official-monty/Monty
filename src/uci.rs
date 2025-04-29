@@ -1,6 +1,6 @@
 use crate::{
     chess::{ChessState, Move},
-    mcts::{Limits, MctsParams, SearchHelpers, Searcher},
+    mcts::{Limits, MctsParams, SearchHelpers, Searcher, REPORT_ITERS},
     networks::{PolicyNetwork, ValueNetwork},
     tree::Tree,
 };
@@ -220,6 +220,7 @@ fn preamble() {
     println!("option name UCI_Chess960 type check default false");
     println!("option name MoveOverhead type spin default 40 min 0 max 5000");
     println!("option name report_moves type button");
+    println!("option name report_iters type button");
 
     #[cfg(feature = "tunable")]
     MctsParams::info(MctsParams::default());
@@ -237,6 +238,11 @@ fn setoption(
 ) {
     if let ["setoption", "name", "report_moves"] = commands {
         *report_moves = !*report_moves;
+        return;
+    }
+
+    if let ["setoption", "name", "report_iters"] = commands {
+        REPORT_ITERS.fetch_xor(true, Ordering::Relaxed);
         return;
     }
 

@@ -17,6 +17,8 @@ use std::{
     time::Instant,
 };
 
+pub static REPORT_ITERS: AtomicBool = AtomicBool::new(false);
+
 #[derive(Clone, Copy)]
 pub struct Limits {
     pub max_time: Option<u128>,
@@ -215,6 +217,7 @@ impl<'a> Searcher<'a> {
                     search_stats.seldepth.load(Ordering::Relaxed),
                     timer,
                     search_stats.total_nodes.load(Ordering::Relaxed),
+                    search_stats.total_iters.load(Ordering::Relaxed),
                 );
 
                 *timer_last_output = Instant::now();
@@ -228,6 +231,7 @@ impl<'a> Searcher<'a> {
                 search_stats.seldepth.load(Ordering::Relaxed),
                 timer,
                 search_stats.total_nodes.load(Ordering::Relaxed),
+                search_stats.total_iters.load(Ordering::Relaxed),
             );
 
             *timer_last_output = Instant::now();
@@ -326,6 +330,7 @@ impl<'a> Searcher<'a> {
                 search_stats.seldepth.load(Ordering::Relaxed),
                 &timer,
                 search_stats.total_nodes.load(Ordering::Relaxed),
+                search_stats.total_iters.load(Ordering::Relaxed),
             );
         }
 
@@ -333,12 +338,12 @@ impl<'a> Searcher<'a> {
         (mov, q)
     }
 
-    fn search_report(&self, depth: usize, seldepth: usize, timer: &Instant, nodes: usize) {
+    fn search_report(&self, depth: usize, seldepth: usize, timer: &Instant, nodes: usize, iters: usize) {
         print!("info depth {depth} seldepth {seldepth} ");
         let (pv_line, score) = self.get_pv(depth);
 
         if score > 1.0 {
-            print!("score mate {} ", (pv_line.len() + 1) / 2);
+            print!("score mate {} ", pv_line.len().div_ceil(2));
         } else if score < 0.0 {
             print!("score mate -{} ", pv_line.len() / 2);
         } else {
@@ -346,6 +351,7 @@ impl<'a> Searcher<'a> {
             print!("score cp {cp:.0} ");
         }
 
+        let nodes = if REPORT_ITERS.load(Ordering::Relaxed) { iters } else { nodes };
         let elapsed = timer.elapsed();
         let nps = nodes as f32 / elapsed.as_secs_f32();
         let ms = elapsed.as_millis();
