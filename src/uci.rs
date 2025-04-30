@@ -356,7 +356,10 @@ fn go(
     }
 
     // `go wtime <wtime> btime <btime> winc <winc> binc <binc>``
-    if let Some(remaining) = times[pos.stm()] {
+    if let Some(mut remaining) = times[pos.stm()] {
+        // apply move overhead
+        remaining = remaining.saturating_sub(move_overhead as u64).max(10);
+
         let timeman =
             SearchHelpers::get_time(remaining, incs[pos.stm()], root_game_ply, movestogo, params);
 
@@ -368,14 +371,6 @@ fn go(
     if let Some(max) = max_time {
         // if both movetime and increment time controls given, use
         max_time = Some(max_time.unwrap_or(u128::MAX).min(max));
-    }
-
-    // apply move overhead
-    if let Some(t) = opt_time.as_mut() {
-        *t = t.saturating_sub(move_overhead as u128);
-    }
-    if let Some(t) = max_time.as_mut() {
-        *t = t.saturating_sub(move_overhead as u128);
     }
 
     let abort = AtomicBool::new(false);
