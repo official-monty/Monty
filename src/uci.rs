@@ -18,7 +18,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
     let mut tree = Tree::new_mb(64, 1);
     let mut report_moves = false;
     let mut threads = 1;
-    let mut move_overhead = 40;
+    let mut move_overhead = 400;
 
     let mut stored_message: Option<String> = None;
 
@@ -218,7 +218,7 @@ fn preamble() {
     println!("option name Hash type spin default 64 min 1 max 8192");
     println!("option name Threads type spin default 1 min 1 max 512");
     println!("option name UCI_Chess960 type check default false");
-    println!("option name MoveOverhead type spin default 40 min 0 max 5000");
+    println!("option name MoveOverhead type spin default 400 min 0 max 5000");
     println!("option name report_moves type button");
     println!("option name report_iters type button");
 
