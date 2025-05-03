@@ -338,7 +338,14 @@ impl<'a> Searcher<'a> {
         (mov, q)
     }
 
-    fn search_report(&self, depth: usize, seldepth: usize, timer: &Instant, nodes: usize, iters: usize) {
+    fn search_report(
+        &self,
+        depth: usize,
+        seldepth: usize,
+        timer: &Instant,
+        nodes: usize,
+        iters: usize,
+    ) {
         print!("info depth {depth} seldepth {seldepth} ");
         let (pv_line, score) = self.get_pv(depth);
 
@@ -351,7 +358,11 @@ impl<'a> Searcher<'a> {
             print!("score cp {cp:.0} ");
         }
 
-        let nodes = if REPORT_ITERS.load(Ordering::Relaxed) { iters } else { nodes };
+        let nodes = if REPORT_ITERS.load(Ordering::Relaxed) {
+            iters
+        } else {
+            nodes
+        };
         let elapsed = timer.elapsed();
         let nps = nodes as f32 / elapsed.as_secs_f32();
         let ms = elapsed.as_millis();
