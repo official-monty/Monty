@@ -153,7 +153,7 @@ jobs:
             binary_target="target/release/monty"
             mv "$binary_source" "$binary_target"
           else
-            cargo rustc --release --bin monty --features=embed -- -C target-cpu=${{ matrix.cpu_level }}
+            RUSTFLAGS="-Ctarget-cpu=${{ matrix.cpu_level }}" cargo rustc --release --bin monty --features=embed
           fi
 
       - name: Get Bench Output
