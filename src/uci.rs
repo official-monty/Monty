@@ -1,6 +1,6 @@
 use crate::{
     chess::{ChessState, Move},
-    mcts::{Limits, MctsParams, SearchHelpers, Searcher},
+    mcts::{Limits, MctsParams, SearchHelpers, Searcher, REPORT_ITERS},
     networks::{PolicyNetwork, ValueNetwork},
     tree::Tree,
 };
@@ -18,7 +18,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
     let mut tree = Tree::new_mb(64, 1);
     let mut report_moves = false;
     let mut threads = 1;
-    let mut move_overhead = 40;
+    let mut move_overhead = 400;
 
     let mut stored_message: Option<String> = None;
 
@@ -86,19 +86,17 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                 println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl(value, &params));
             }
             "policy" => {
-                let f = pos.get_policy_feats(policy);
                 let mut max = f32::NEG_INFINITY;
                 let mut moves = Vec::new();
 
-                pos.map_legal_moves(|mov| {
+                pos.map_moves_with_policies(policy, |mov, policy| {
                     let s = pos.conv_mov_to_str(mov);
-                    let p = pos.get_policy(mov, &f, policy);
 
-                    if p > max {
-                        max = p;
+                    if policy > max {
+                        max = policy;
                     }
 
-                    moves.push((s, p));
+                    moves.push((s, policy));
                 });
 
                 let mut total = 0.0;
@@ -220,8 +218,9 @@ fn preamble() {
     println!("option name Hash type spin default 64 min 1 max 8192");
     println!("option name Threads type spin default 1 min 1 max 512");
     println!("option name UCI_Chess960 type check default false");
-    println!("option name MoveOverhead type spin default 40 min 0 max 5000");
+    println!("option name MoveOverhead type spin default 400 min 0 max 5000");
     println!("option name report_moves type button");
+    println!("option name report_iters type button");
 
     #[cfg(feature = "tunable")]
     MctsParams::info(MctsParams::default());
@@ -239,6 +238,11 @@ fn setoption(
 ) {
     if let ["setoption", "name", "report_moves"] = commands {
         *report_moves = !*report_moves;
+        return;
+    }
+
+    if let ["setoption", "name", "report_iters"] = commands {
+        REPORT_ITERS.fetch_xor(true, Ordering::Relaxed);
         return;
     }
 
@@ -356,7 +360,10 @@ fn go(
     }
 
     // `go wtime <wtime> btime <btime> winc <winc> binc <binc>``
-    if let Some(remaining) = times[pos.stm()] {
+    if let Some(mut remaining) = times[pos.stm()] {
+        // apply move overhead
+        remaining = remaining.saturating_sub(move_overhead as u64).max(10);
+
         let timeman =
             SearchHelpers::get_time(remaining, incs[pos.stm()], root_game_ply, movestogo, params);
 
@@ -368,14 +375,6 @@ fn go(
     if let Some(max) = max_time {
         // if both movetime and increment time controls given, use
         max_time = Some(max_time.unwrap_or(u128::MAX).min(max));
-    }
-
-    // apply move overhead
-    if let Some(t) = opt_time.as_mut() {
-        *t = t.saturating_sub(move_overhead as u128);
-    }
-    if let Some(t) = max_time.as_mut() {
-        *t = t.saturating_sub(move_overhead as u128);
     }
 
     let abort = AtomicBool::new(false);

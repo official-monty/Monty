@@ -1,5 +1,6 @@
 mod half;
 mod hash;
+mod lock;
 mod node;
 
 use half::TreeHalf;
@@ -7,8 +8,9 @@ use hash::{HashEntry, HashTable};
 pub use node::{Node, NodePtr};
 
 use std::{
+    mem::MaybeUninit,
+    ops::Index,
     sync::atomic::{AtomicBool, Ordering},
-    time::Instant,
 };
 
 use crate::{
@@ -24,7 +26,7 @@ pub struct Tree {
     hash: HashTable,
 }
 
-impl std::ops::Index<NodePtr> for Tree {
+impl Index<NodePtr> for Tree {
     type Output = Node;
 
     fn index(&self, index: NodePtr) -> &Self::Output {
@@ -36,7 +38,12 @@ impl Tree {
     pub fn new_mb(mb: usize, threads: usize) -> Self {
         let bytes = mb * 1024 * 1024;
 
-        Self::new(bytes / 48, bytes / 48 / 16, threads)
+        const _: () = assert!(
+            std::mem::size_of::<Node>() == 40,
+            "You must reconsider this allocation!"
+        );
+
+        Self::new(bytes / 42, bytes / 42 / 16, threads)
     }
 
     fn new(tree_cap: usize, hash_cap: usize, threads: usize) -> Self {
@@ -67,32 +74,23 @@ impl Tree {
         self.tree[self.half()].reserve_nodes(1)
     }
 
-    fn copy_node_across(&self, from: NodePtr, to: NodePtr) -> Option<()> {
+    fn copy_node_across(&self, from: NodePtr, to: NodePtr) {
         if from == to {
-            return Some(());
+            return;
         }
 
-        let f = &mut *self[from].actions_mut();
-        let t = &mut *self[to].actions_mut();
+        let f = self[from].actions_mut();
+        let t = self[to].actions_mut();
 
-        // no other thread is able to modify `from`
-        // whilst the above write locks are held,
-        // so this will never result in copying garbage
-        // (for a thread that calls this function whilst
-        // another thread is already doing the same work)
         self[to].copy_from(&self[from]);
         self[to].set_num_actions(self[from].num_actions());
-        *t = *f;
-
-        Some(())
+        t.store(f.val());
     }
 
-    pub fn copy_across(&self, from: NodePtr, num: usize, to: NodePtr) -> Option<()> {
+    fn copy_across(&self, from: NodePtr, num: usize, to: NodePtr) {
         for i in 0..num {
-            self.copy_node_across(from + i, to + i)?;
+            self.copy_node_across(from + i, to + i);
         }
-
-        Some(())
     }
 
     pub fn flip(&self, copy_across: bool, threads: usize) {
@@ -112,23 +110,23 @@ impl Tree {
 
     #[must_use]
     pub fn fetch_children(&self, parent_ptr: NodePtr) -> Option<()> {
-        let first_child_ptr = { *self[parent_ptr].actions() };
+        let first_child_ptr = { self[parent_ptr].actions() };
 
         if first_child_ptr.half() != self.half.load(Ordering::Relaxed) {
-            let mut most_recent_ptr = self[parent_ptr].actions_mut();
+            let most_recent_ptr = self[parent_ptr].actions_mut();
 
-            if most_recent_ptr.half() == self.half.load(Ordering::Relaxed) {
+            if most_recent_ptr.val().half() == self.half.load(Ordering::Relaxed) {
                 return Some(());
             }
 
-            assert_eq!(first_child_ptr, *most_recent_ptr);
+            assert_eq!(first_child_ptr, most_recent_ptr.val());
 
             let num_children = self[parent_ptr].num_actions();
             let new_ptr = self.tree[self.half()].reserve_nodes(num_children)?;
 
             self.copy_across(first_child_ptr, num_children, new_ptr);
 
-            *most_recent_ptr = new_ptr;
+            most_recent_ptr.store(new_ptr);
         }
 
         Some(())
@@ -171,7 +169,7 @@ impl Tree {
     ) -> Option<()> {
         let node = &self[node_ptr];
 
-        let mut actions_ptr = node.actions_mut();
+        let actions_ptr = node.actions_mut();
 
         // when running with >1 threads, this function may
         // be called twice, and this acts as a safeguard in
@@ -180,30 +178,33 @@ impl Tree {
             return Some(());
         }
 
-        let feats = pos.get_policy_feats(policy);
         let mut max = f32::NEG_INFINITY;
-        let mut actions = Vec::new();
+        let mut moves = [const { MaybeUninit::uninit() }; 256];
+        let mut count = 0;
 
-        pos.map_legal_moves(|mov| {
-            let policy = pos.get_policy(mov, &feats, policy);
-            actions.push((mov, policy));
+        pos.map_moves_with_policies(policy, |mov, policy| {
+            moves[count].write((mov, policy));
+            count += 1;
             max = max.max(policy);
         });
 
-        let new_ptr = self.tree[self.half()].reserve_nodes(actions.len())?;
+        let new_ptr = self.tree[self.half()].reserve_nodes(count)?;
 
         let pst = SearchHelpers::get_pst(depth, self[node_ptr].q(), params);
 
         let mut total = 0.0;
 
-        for (_, policy) in actions.iter_mut() {
-            *policy = ((*policy - max) / pst).exp();
-            total += *policy;
+        for item in moves.iter_mut().take(count) {
+            let (mov, mut policy) = unsafe { item.assume_init() };
+            policy = ((policy - max) / pst).exp();
+            total += policy;
+            item.write((mov, policy));
         }
 
         let mut sum_of_squares = 0.0;
 
-        for (action, &(mov, policy)) in actions.iter().enumerate() {
+        for (action, item) in moves.iter().take(count).enumerate() {
+            let (mov, policy) = unsafe { item.assume_init() };
             let ptr = new_ptr + action;
             let policy = policy / total;
 
@@ -214,8 +215,8 @@ impl Tree {
         let gini_impurity = (1.0 - sum_of_squares).clamp(0.0, 1.0);
         node.set_gini_impurity(gini_impurity);
 
-        *actions_ptr = new_ptr;
-        node.set_num_actions(actions.len());
+        actions_ptr.store(new_ptr);
+        node.set_num_actions(count);
 
         Some(())
     }
@@ -228,17 +229,17 @@ impl Tree {
         policy: &PolicyNetwork,
         depth: u8,
     ) {
-        let feats = pos.get_policy_feats(policy);
-        let mut max = f32::NEG_INFINITY;
-
-        let mut policies = Vec::new();
-
         let actions = self[node_ptr].actions_mut();
         let num_actions = self[node_ptr].num_actions();
+        let actions_ptr = actions.val();
+
+        let hl = pos.get_policy_hl(policy);
+        let mut max = f32::NEG_INFINITY;
+        let mut policies = Vec::new();
 
         for action in 0..num_actions {
-            let mov = self[*actions + action].parent_move();
-            let policy = pos.get_policy(mov, &feats, policy);
+            let mov = self[actions_ptr + action].parent_move();
+            let policy = pos.get_policy(mov, &hl, policy);
 
             policies.push(policy);
             max = max.max(policy);
@@ -257,7 +258,7 @@ impl Tree {
 
         for (action, &policy) in policies.iter().enumerate() {
             let policy = policy / total;
-            self[*actions + action].set_policy(policy);
+            self[actions_ptr + action].set_policy(policy);
             sum_of_squares += policy * policy;
         }
 
@@ -277,7 +278,7 @@ impl Tree {
 
                 let mut proven_loss = true;
                 let mut max_win_len = n;
-                let first_child_ptr = *self[ptr].actions();
+                let first_child_ptr = self[ptr].actions();
 
                 for action in 0..self[ptr].num_actions() {
                     let ptr = first_child_ptr + action;
@@ -300,16 +301,12 @@ impl Tree {
     }
 
     pub fn set_root_position(&mut self, new_root: &ChessState) {
-        let t = Instant::now();
-
         let old_root = self.root.clone();
         self.root = new_root.clone();
 
         if self.is_empty() {
             return;
         }
-
-        println!("info string attempting to reuse tree");
 
         let mut found = false;
 
@@ -323,21 +320,15 @@ impl Tree {
             if root != self.root_node() {
                 self[self.root_node()].clear();
                 self.copy_node_across(root, self.root_node());
-                println!("info string found subtree");
-            } else {
-                println!("info string using current tree");
             }
+
+            println!("info string found subtree");
         }
 
         if !found {
             println!("info string no subtree found");
             self.clear_halves();
         }
-
-        println!(
-            "info string tree processing took {} microseconds",
-            t.elapsed().as_micros()
-        );
     }
 
     fn recurse_find(
@@ -355,7 +346,7 @@ impl Tree {
             return NodePtr::NULL;
         }
 
-        let first_child_ptr = { *self[start].actions() };
+        let first_child_ptr = self[start].actions();
 
         if first_child_ptr.is_null() {
             return NodePtr::NULL;
@@ -383,7 +374,7 @@ impl Tree {
         let mut best_child = usize::MAX;
         let mut best_score = f32::NEG_INFINITY;
 
-        let first_child_ptr = { *self[ptr].actions() };
+        let first_child_ptr = self[ptr].actions();
 
         for action in 0..self[ptr].num_actions() {
             let score = key(&self[first_child_ptr + action]);
@@ -395,20 +386,5 @@ impl Tree {
         }
 
         best_child
-    }
-
-    pub fn get_best_child(&self, ptr: NodePtr) -> usize {
-        self.get_best_child_by_key(ptr, |child| {
-            if child.visits() == 0 {
-                f32::NEG_INFINITY
-            } else {
-                match child.state() {
-                    GameState::Lost(n) => 1.0 + f32::from(n),
-                    GameState::Won(n) => f32::from(n) - 256.0,
-                    GameState::Draw => 0.5,
-                    GameState::Ongoing => child.q(),
-                }
-            }
-        })
     }
 }

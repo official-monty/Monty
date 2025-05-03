@@ -17,6 +17,8 @@ use std::{
     time::Instant,
 };
 
+pub static REPORT_ITERS: AtomicBool = AtomicBool::new(false);
+
 #[derive(Clone, Copy)]
 pub struct Limits {
     pub max_time: Option<u128>,
@@ -215,6 +217,7 @@ impl<'a> Searcher<'a> {
                     search_stats.seldepth.load(Ordering::Relaxed),
                     timer,
                     search_stats.total_nodes.load(Ordering::Relaxed),
+                    search_stats.total_iters.load(Ordering::Relaxed),
                 );
 
                 *timer_last_output = Instant::now();
@@ -228,6 +231,7 @@ impl<'a> Searcher<'a> {
                 search_stats.seldepth.load(Ordering::Relaxed),
                 timer,
                 search_stats.total_nodes.load(Ordering::Relaxed),
+                search_stats.total_iters.load(Ordering::Relaxed),
             );
 
             *timer_last_output = Instant::now();
@@ -268,7 +272,7 @@ impl<'a> Searcher<'a> {
             self.tree
                 .relabel_policy(node, pos, self.params, self.policy, 1);
 
-            let first_child_ptr = { *self.tree[node].actions() };
+            let first_child_ptr = self.tree[node].actions();
 
             for action in 0..self.tree[node].num_actions() {
                 let ptr = first_child_ptr + action;
@@ -326,6 +330,7 @@ impl<'a> Searcher<'a> {
                 search_stats.seldepth.load(Ordering::Relaxed),
                 &timer,
                 search_stats.total_nodes.load(Ordering::Relaxed),
+                search_stats.total_iters.load(Ordering::Relaxed),
             );
         }
 
@@ -333,12 +338,19 @@ impl<'a> Searcher<'a> {
         (mov, q)
     }
 
-    fn search_report(&self, depth: usize, seldepth: usize, timer: &Instant, nodes: usize) {
+    fn search_report(
+        &self,
+        depth: usize,
+        seldepth: usize,
+        timer: &Instant,
+        nodes: usize,
+        iters: usize,
+    ) {
         print!("info depth {depth} seldepth {seldepth} ");
         let (pv_line, score) = self.get_pv(depth);
 
         if score > 1.0 {
-            print!("score mate {} ", (pv_line.len() + 1) / 2);
+            print!("score mate {} ", pv_line.len().div_ceil(2));
         } else if score < 0.0 {
             print!("score mate -{} ", pv_line.len() / 2);
         } else {
@@ -346,6 +358,11 @@ impl<'a> Searcher<'a> {
             print!("score cp {cp:.0} ");
         }
 
+        let nodes = if REPORT_ITERS.load(Ordering::Relaxed) {
+            iters
+        } else {
+            nodes
+        };
         let elapsed = timer.elapsed();
         let nps = nodes as f32 / elapsed.as_secs_f32();
         let ms = elapsed.as_millis();
@@ -380,7 +397,7 @@ impl<'a> Searcher<'a> {
 
         while (mate || depth > 0) && !ptr.is_null() && ptr.half() == half {
             pv.push(mov);
-            let idx = self.tree.get_best_child(ptr);
+            let idx = self.get_best_child(ptr);
 
             if idx == usize::MAX {
                 break;
@@ -394,10 +411,25 @@ impl<'a> Searcher<'a> {
     }
 
     fn get_best_action(&self, node: NodePtr) -> (NodePtr, Move, f32) {
-        let idx = self.tree.get_best_child(node);
-        let ptr = *self.tree[node].actions() + idx;
+        let idx = self.get_best_child(node);
+        let ptr = self.tree[node].actions() + idx;
         let child = &self.tree[ptr];
         (ptr, child.parent_move(), child.q())
+    }
+
+    fn get_best_child(&self, node: NodePtr) -> usize {
+        self.tree.get_best_child_by_key(node, |child| {
+            if child.visits() == 0 {
+                f32::NEG_INFINITY
+            } else {
+                match child.state() {
+                    GameState::Lost(n) => 1.0 + f32::from(n),
+                    GameState::Won(n) => f32::from(n) - 256.0,
+                    GameState::Draw => 0.5,
+                    GameState::Ongoing => child.q(),
+                }
+            }
+        })
     }
 
     fn get_cp(score: f32) -> f32 {
@@ -413,7 +445,7 @@ impl<'a> Searcher<'a> {
     }
 
     pub fn display_moves(&self) {
-        let first_child_ptr = { *self.tree[self.tree.root_node()].actions() };
+        let first_child_ptr = self.tree[self.tree.root_node()].actions();
         for action in 0..self.tree[self.tree.root_node()].num_actions() {
             let child = &self.tree[first_child_ptr + action];
             let mov = self
