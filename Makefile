@@ -2,25 +2,24 @@ EXE = monty
 
 ifeq ($(OS),Windows_NT)
 	NAME := $(EXE).exe
-	OLD := monty-$(VER).exe
-	AVX2 := monty-$(VER)-avx2.exe
 else
 	NAME := $(EXE)
-	OLD := monty-$(VER)
-	AVX2 := monty-$(VER)-avx2
 endif
 
+INVOKE := RUSTFLAGS="-Ctarget-cpu=native" cargo +stable rustc --release
+LINK := -- --emit link=$(NAME)
+
 default:
-	cargo rustc --release --bin monty --features=embed -- -C target-cpu=native --emit link=$(NAME)
+	$(INVOKE) --bin monty --features=embed $(LINK)
 	
 raw:
-	cargo rustc --release --bin monty --features=embed,raw -- -C target-cpu=native --emit link=$(NAME)
+	$(INVOKE) --bin monty --features=embed,raw $(LINK)
 
 montytest:
-	cargo +stable rustc --release --bin monty --features=uci-minimal,tunable -- -C target-cpu=native --emit link=$(NAME)
+	$(INVOKE) --bin monty --features=uci-minimal,tunable $(LINK)
 
 noembed:
-	cargo rustc --release --bin monty -- -C target-cpu=native --emit link=$(NAME)
+	$(INVOKE) --bin monty $(LINK)
 
 gen:
-	cargo rustc --release --package datagen --bin datagen -- -C target-cpu=native --emit link=$(NAME)
+	$(INVOKE) --package datagen --bin datagen $(LINK)
