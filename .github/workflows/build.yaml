@@ -67,7 +67,7 @@ jobs:
           - os: windows-latest
             arch: x86_64
             cpu_level: x86-64
-            target_triple: x86-64-pc-windows-msvc
+            target_triple: x86_64-pc-windows-msvc
           - os: windows-latest
             arch: x86_64
             cpu_level: x86-64-v2
