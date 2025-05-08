@@ -11,7 +11,7 @@ on:
 jobs:
   create_prerelease:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
+    #if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -99,7 +99,7 @@ jobs:
           - os: macos-latest
             arch: aarch64
             cpu_level: ""
-            target_triple: ""
+            target_triple: aarch64-apple-darwin
 
     steps:
       - name: Checkout code
@@ -162,9 +162,6 @@ jobs:
         run: |
           if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
             cargo rustc --release --bin monty --features=embed --target aarch64-apple-darwin
-            binary_source="target/aarch64-apple-darwin/release/monty"
-            binary_target="target/release/monty"
-            mv "$binary_source" "$binary_target"
           else
             rustup target add ${{ matrix.target_triple }}
             RUSTFLAGS="-Ctarget-cpu=${{ matrix.cpu_level }}" cargo rustc --release --bin monty --target=${{ matrix.target_triple }} --features=embed
@@ -176,9 +173,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            binary_path="target/release/monty.exe"
+            binary_path="target/${{ matrix.target_triple }}/release/monty.exe"
           else
-            binary_path="target/release/monty"
+            binary_path="target/${{ matrix.target_triple }}/release/monty"
           fi
           if [[ ! -f "$binary_path" ]]; then
             echo "::error::Binary not found at $binary_path"
@@ -203,16 +200,16 @@ jobs:
 
       - name: Upload Binary to Release
         shell: bash
-        if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
+        #if: github.ref == 'refs/heads/master' && github.repository == 'official-monty/Monty'
         run: |
-          binary_source="./target/release/monty"
+          binary_source="./target/${{ matrix.target_triple }}/release/monty"
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            binary_source="./target/release/monty.exe"
+            binary_source="./target/${{ matrix.target_triple }}/release/monty.exe"
           fi
 
-          mv "$binary_source" "./target/release/$BINARY_NAME"
+          mv "$binary_source" "./target/${{ matrix.target_triple }}/release/$BINARY_NAME"
 
-          binary_path="./target/release/$BINARY_NAME"
+          binary_path="./target/${{ matrix.target_triple }}/release/$BINARY_NAME"
           echo "Uploading $binary_path as $BINARY_NAME"
           gh release upload prerelease-latest "$binary_path" --clobber
         env:
