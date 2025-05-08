@@ -51,42 +51,55 @@ jobs:
           - os: ubuntu-latest
             arch: x86_64
             cpu_level: x86-64
+            target_triple: x86-64-unknown-linux-gnu
           - os: ubuntu-latest
             arch: x86_64
             cpu_level: x86-64-v2
+            target_triple: x86-64-unknown-linux-gnu
           - os: ubuntu-latest
             arch: x86_64
             cpu_level: x86-64-v3
+            target_triple: x86-64-unknown-linux-gnu
           - os: ubuntu-latest
             arch: x86_64
             cpu_level: x86-64-v4
+            target_triple: x86-64-unknown-linux-gnu
           - os: windows-latest
             arch: x86_64
             cpu_level: x86-64
+            target_triple: x86-64-unknown-windows-msvc
           - os: windows-latest
             arch: x86_64
             cpu_level: x86-64-v2
+            target_triple: x86-64-unknown-windows-msvc
           - os: windows-latest
             arch: x86_64
             cpu_level: x86-64-v3
+            target_triple: x86-64-unknown-windows-msvc
           - os: windows-latest
             arch: x86_64
             cpu_level: x86-64-v4
+            target_triple: x86-64-unknown-windows-msvc
           - os: macos-latest
             arch: x86_64
             cpu_level: x86-64
+            target_triple: x86_64-apple-darwin
           - os: macos-latest
             arch: x86_64
             cpu_level: x86-64-v2
+            target_triple: x86_64-apple-darwin
           - os: macos-latest
             arch: x86_64
             cpu_level: x86-64-v3
+            target_triple: x86_64-apple-darwin
           - os: macos-latest
             arch: x86_64
             cpu_level: x86-64-v4
+            target_triple: x86_64-apple-darwin
           - os: macos-latest
             arch: aarch64
             cpu_level: ""
+            target_triple: ""
 
     steps:
       - name: Checkout code
@@ -153,7 +166,7 @@ jobs:
             binary_target="target/release/monty"
             mv "$binary_source" "$binary_target"
           else
-            RUSTFLAGS="-Ctarget-cpu=${{ matrix.cpu_level }}" cargo rustc --release --bin monty --features=embed
+            RUSTFLAGS="-Ctarget-cpu=${{ matrix.cpu_level }}" cargo rustc --release --bin monty --target=${{ matrix.target_triple }} --features=embed
           fi
 
       - name: Get Bench Output
