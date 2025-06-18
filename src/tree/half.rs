@@ -84,12 +84,13 @@ impl TreeHalf {
     fn clear_ptrs_multi_threaded(&self, threads: usize) {
         std::thread::scope(|s| {
             let chunk_size = self.nodes.len().div_ceil(threads);
+            let half = self.half;
 
-            s.spawn(move || {
-                for node_chunk in self.nodes.chunks(chunk_size) {
-                    Self::clear_ptrs_single_threaded(self.half, node_chunk)
-                }
-            });
+            for chunk in self.nodes.chunks(chunk_size) {
+                s.spawn(move || {
+                    Self::clear_ptrs_single_threaded(half, chunk);
+                });
+            }
         });
     }
 
