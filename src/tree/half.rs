@@ -5,7 +5,8 @@ use crate::chess::GameState;
 
 pub struct TreeHalf {
     pub(super) nodes: Vec<Node>,
-    used: AtomicUsize,
+    used: Vec<AtomicUsize>,
+    chunk_size: usize,
     half: bool,
 }
 
@@ -21,7 +22,8 @@ impl TreeHalf {
     pub fn new(size: usize, half: bool, threads: usize) -> Self {
         let mut res = Self {
             nodes: Vec::new(),
-            used: AtomicUsize::new(0),
+            used: (0..threads).map(|_| AtomicUsize::new(0)).collect(),
+            chunk_size: size.div_ceil(threads),
             half,
         };
 
@@ -29,12 +31,12 @@ impl TreeHalf {
 
         unsafe {
             use std::mem::MaybeUninit;
-            let chunk_size = size.div_ceil(threads);
             let ptr = res.nodes.as_mut_ptr().cast();
-            let uninit: &mut [MaybeUninit<Node>] = std::slice::from_raw_parts_mut(ptr, size);
+            let uninit: &mut [MaybeUninit<Node>] =
+                std::slice::from_raw_parts_mut(ptr, size);
 
             std::thread::scope(|s| {
-                for chunk in uninit.chunks_mut(chunk_size) {
+                for chunk in uninit.chunks_mut(res.chunk_size) {
                     s.spawn(|| {
                         for node in chunk {
                             node.write(Node::new(GameState::Ongoing));
@@ -49,18 +51,19 @@ impl TreeHalf {
         res
     }
 
-    pub fn reserve_nodes(&self, num: usize) -> Option<NodePtr> {
-        let idx = self.used.fetch_add(num, Ordering::Relaxed);
-
-        if idx + num > self.nodes.len() {
+    pub fn reserve_nodes_thread(&self, num: usize, thread: usize) -> Option<NodePtr> {
+        let idx = self.used[thread].fetch_add(num, Ordering::Relaxed);
+        if idx + num > self.chunk_size {
             return None;
         }
 
-        Some(NodePtr::new(self.half, idx as u32))
+        Some(NodePtr::new(self.half, (thread * self.chunk_size + idx) as u32))
     }
 
     pub fn clear(&self) {
-        self.used.store(0, Ordering::Relaxed);
+        for used in &self.used {
+            used.store(0, Ordering::Relaxed);
+        }
     }
 
     pub fn clear_ptrs(&self, threads: usize) {
@@ -95,11 +98,11 @@ impl TreeHalf {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.used.load(Ordering::Relaxed) == 0
+        self.used.iter().all(|u| u.load(Ordering::Relaxed) == 0)
     }
 
     pub fn used(&self) -> usize {
-        self.used.load(Ordering::Relaxed)
+        self.used.iter().map(|u| u.load(Ordering::Relaxed)).sum()
     }
 
     pub fn is_full(&self) -> bool {
