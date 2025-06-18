@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+#[repr(align(64))]
 #[derive(Default)]
 pub struct ThreadStats {
     total_nodes: AtomicUsize,
