@@ -37,8 +37,7 @@ impl TreeHalf {
             use std::mem::MaybeUninit;
             let chunk_size = size.div_ceil(threads);
             let ptr = res.nodes.as_mut_ptr().cast();
-            let uninit: &mut [MaybeUninit<Node>] =
-                std::slice::from_raw_parts_mut(ptr, size);
+            let uninit: &mut [MaybeUninit<Node>] = std::slice::from_raw_parts_mut(ptr, size);
 
             std::thread::scope(|s| {
                 for chunk in uninit.chunks_mut(chunk_size) {

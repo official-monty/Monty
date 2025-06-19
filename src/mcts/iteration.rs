@@ -36,7 +36,14 @@ pub fn perform_one(
     } else {
         // expand node on the second visit
         if node.is_not_expanded() {
-            tree.expand_node(ptr, pos, searcher.params, searcher.policy, *depth, thread_id)?;
+            tree.expand_node(
+                ptr,
+                pos,
+                searcher.params,
+                searcher.policy,
+                *depth,
+                thread_id,
+            )?;
         }
 
         // this node has now been accessed so we need to move its

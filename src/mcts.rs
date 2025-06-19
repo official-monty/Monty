@@ -110,7 +110,7 @@ impl<'a> Searcher<'a> {
                 &mut this_depth,
                 thread_id,
             )
-                .is_none()
+            .is_none()
             {
                 return false;
             }
@@ -253,7 +253,8 @@ impl<'a> Searcher<'a> {
             assert_eq!(node, ptr);
 
             self.tree[ptr].clear();
-            self.tree.expand_node(ptr, pos, self.params, self.policy, 1, 0);
+            self.tree
+                .expand_node(ptr, pos, self.params, self.policy, 1, 0);
 
             let root_eval = pos.get_value_wdl(self.value, self.params);
             self.tree[ptr].update(1.0 - root_eval);
