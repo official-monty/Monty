@@ -15,7 +15,8 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
     let mut pos = ChessState::default();
     let mut root_game_ply = 0;
     let mut params = MctsParams::default();
-    let mut tree = Tree::new_mb(64, 1);
+    let mut hash_mb = 64;
+    let mut tree = Tree::new_mb(hash_mb, 1);
     let mut report_moves = false;
     let mut threads = 1;
     let mut move_overhead = 400;
@@ -50,6 +51,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                 &mut tree,
                 &mut threads,
                 &mut move_overhead,
+                &mut hash_mb,
             ),
             "position" => position(commands, &mut pos),
             "go" => {
@@ -235,6 +237,7 @@ fn setoption(
     tree: &mut Tree,
     threads: &mut usize,
     move_overhead: &mut usize,
+    hash_mb: &mut usize,
 ) {
     if let ["setoption", "name", "report_moves"] = commands {
         *report_moves = !*report_moves;
@@ -253,6 +256,9 @@ fn setoption(
 
         if *x == "Threads" {
             *threads = y.parse().unwrap();
+            let root = tree.root_position().clone();
+            *tree = Tree::new_mb(*hash_mb, *threads);
+            tree.set_root_position(&root);
             return;
         }
 
@@ -267,7 +273,10 @@ fn setoption(
     };
 
     if name == "Hash" {
-        *tree = Tree::new_mb(val as usize, *threads);
+        *hash_mb = val as usize;
+        let root = tree.root_position().clone();
+        *tree = Tree::new_mb(*hash_mb, *threads);
+        tree.set_root_position(&root);
     } else {
         params.set(name, val);
     }
