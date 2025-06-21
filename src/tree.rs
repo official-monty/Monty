@@ -71,7 +71,7 @@ impl Tree {
     }
 
     pub fn push_new_node(&self) -> Option<NodePtr> {
-        self.tree[self.half()].reserve_nodes(1)
+        self.tree[self.half()].reserve_nodes_thread(1, 0)
     }
 
     fn copy_node_across(&self, from: NodePtr, to: NodePtr) {
@@ -101,7 +101,7 @@ impl Tree {
         self.tree[old ^ 1].clear();
 
         if copy_across {
-            let new_root_ptr = self.tree[self.half()].reserve_nodes(1).unwrap();
+            let new_root_ptr = self.tree[self.half()].reserve_nodes_thread(1, 0).unwrap();
             self[new_root_ptr].clear();
 
             self.copy_node_across(old_root_ptr, new_root_ptr);
@@ -109,7 +109,7 @@ impl Tree {
     }
 
     #[must_use]
-    pub fn fetch_children(&self, parent_ptr: NodePtr) -> Option<()> {
+    pub fn fetch_children(&self, parent_ptr: NodePtr, thread_id: usize) -> Option<()> {
         let first_child_ptr = { self[parent_ptr].actions() };
 
         if first_child_ptr.half() != self.half.load(Ordering::Relaxed) {
@@ -122,7 +122,7 @@ impl Tree {
             assert_eq!(first_child_ptr, most_recent_ptr.val());
 
             let num_children = self[parent_ptr].num_actions();
-            let new_ptr = self.tree[self.half()].reserve_nodes(num_children)?;
+            let new_ptr = self.tree[self.half()].reserve_nodes_thread(num_children, thread_id)?;
 
             self.copy_across(first_child_ptr, num_children, new_ptr);
 
@@ -166,6 +166,7 @@ impl Tree {
         params: &MctsParams,
         policy: &PolicyNetwork,
         depth: usize,
+        thread_id: usize,
     ) -> Option<()> {
         let node = &self[node_ptr];
 
@@ -188,7 +189,7 @@ impl Tree {
             max = max.max(policy);
         });
 
-        let new_ptr = self.tree[self.half()].reserve_nodes(count)?;
+        let new_ptr = self.tree[self.half()].reserve_nodes_thread(count, thread_id)?;
 
         let pst = SearchHelpers::get_pst(depth, self[node_ptr].q(), params);
 

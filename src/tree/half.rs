@@ -3,9 +3,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use super::{Node, NodePtr};
 use crate::chess::GameState;
 
+const CACHE_SIZE: usize = 1024;
+
 pub struct TreeHalf {
     pub(super) nodes: Vec<Node>,
     used: AtomicUsize,
+    next: Vec<AtomicUsize>,
+    end: Vec<AtomicUsize>,
     half: bool,
 }
 
@@ -22,6 +26,8 @@ impl TreeHalf {
         let mut res = Self {
             nodes: Vec::new(),
             used: AtomicUsize::new(0),
+            next: (0..threads).map(|_| AtomicUsize::new(0)).collect(),
+            end: (0..threads).map(|_| AtomicUsize::new(0)).collect(),
             half,
         };
 
@@ -49,18 +55,33 @@ impl TreeHalf {
         res
     }
 
-    pub fn reserve_nodes(&self, num: usize) -> Option<NodePtr> {
-        let idx = self.used.fetch_add(num, Ordering::Relaxed);
+    pub fn reserve_nodes_thread(&self, num: usize, thread: usize) -> Option<NodePtr> {
+        let mut next = self.next[thread].load(Ordering::Relaxed);
+        let mut end = self.end[thread].load(Ordering::Relaxed);
 
-        if idx + num > self.nodes.len() {
-            return None;
+        if next + num > end {
+            let block = CACHE_SIZE.max(num);
+            let start = self.used.fetch_add(block, Ordering::Relaxed);
+            if start + block > self.nodes.len() {
+                return None;
+            }
+            next = start;
+            end = start + block;
+            self.next[thread].store(next + num, Ordering::Relaxed);
+            self.end[thread].store(end, Ordering::Relaxed);
+            Some(NodePtr::new(self.half, start as u32))
+        } else {
+            self.next[thread].store(next + num, Ordering::Relaxed);
+            Some(NodePtr::new(self.half, next as u32))
         }
-
-        Some(NodePtr::new(self.half, idx as u32))
     }
 
     pub fn clear(&self) {
         self.used.store(0, Ordering::Relaxed);
+        for (n, e) in self.next.iter().zip(&self.end) {
+            n.store(0, Ordering::Relaxed);
+            e.store(0, Ordering::Relaxed);
+        }
     }
 
     pub fn clear_ptrs(&self, threads: usize) {
@@ -84,12 +105,13 @@ impl TreeHalf {
     fn clear_ptrs_multi_threaded(&self, threads: usize) {
         std::thread::scope(|s| {
             let chunk_size = self.nodes.len().div_ceil(threads);
+            let half = self.half;
 
-            s.spawn(move || {
-                for node_chunk in self.nodes.chunks(chunk_size) {
-                    Self::clear_ptrs_single_threaded(self.half, node_chunk)
-                }
-            });
+            for chunk in self.nodes.chunks(chunk_size) {
+                s.spawn(move || {
+                    Self::clear_ptrs_single_threaded(half, chunk);
+                });
+            }
         });
     }
 
