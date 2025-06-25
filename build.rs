@@ -7,28 +7,26 @@ use std::fs;
 #[cfg(feature = "embed")]
 use std::path::Path;
 
-use chrono::Utc;
 use std::process::Command;
 
 fn get_name() {
-    // Get the current Git commit hash
-    let output = Command::new("git")
-        .args(["rev-parse", "HEAD"])
+    // Try to obtain the first 8 characters of the current Git commit hash.
+    let git_commit_hash = Command::new("git")
+        .args(["rev-parse", "--short=8", "HEAD"])
         .output()
-        .expect("Failed to execute git command");
+        .ok()                             // did the command run?
+        .filter(|o| o.status.success())   // did Git exit 0?
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_owned())
+        .unwrap_or_else(|| "nogit000".to_owned());   // <-- fallback hash
 
-    let git_commit_hash = String::from_utf8(output.stdout)
-        .expect("Git output was not valid UTF-8")
-        .trim()
-        .to_string();
+    // Current date in YYYYMMDD format
+    let current_date = chrono::Utc::now().format("%Y%m%d").to_string();
 
-    // Get the current date in YYYYMMDD format
-    let current_date = Utc::now().format("%Y%m%d").to_string();
+    // Compose the final build label
+    let formatted_name = format!("Monty-dev-{}-{}", current_date, git_commit_hash);
 
-    // Combine into the desired format
-    let formatted_name = format!("Monty-dev-{}-{}", current_date, &git_commit_hash[..8]);
-
-    // Pass the formatted name as an environment variable
+    // Export it for the rest of the build
     println!("cargo:rustc-env=FORMATTED_NAME={}", formatted_name);
 }
 
