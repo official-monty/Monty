@@ -14,11 +14,11 @@ fn get_name() {
     let git_commit_hash = Command::new("git")
         .args(["rev-parse", "--short=8", "HEAD"])
         .output()
-        .ok()                             // did the command run?
-        .filter(|o| o.status.success())   // did Git exit 0?
+        .ok() // did the command run?
+        .filter(|o| o.status.success()) // did Git exit 0?
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.trim().to_owned())
-        .unwrap_or_else(|| "nogit000".to_owned());   // <-- fallback hash
+        .unwrap_or_else(|| "nogit000".to_owned()); // <-- fallback hash
 
     // Current date in YYYYMMDD format
     let current_date = chrono::Utc::now().format("%Y%m%d").to_string();
