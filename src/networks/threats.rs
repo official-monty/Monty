@@ -124,7 +124,7 @@ fn map_pawn_threat(src: usize, dest: usize, target: usize, enemy: bool) -> Optio
     if MAP[target] == usize::MAX || (enemy && dest > src && target_is(target, Piece::PAWN)) {
         None
     } else {
-        let diff = if dest > src { dest - src } else { src - dest };
+        let diff = dest.abs_diff(src);
         let attack = if diff == 7 { 0 } else { 1 } + 2 * (src % 8) - 1;
         let threat =
             ValueOffsets::PAWN + MAP[target] * ValueIndices::PAWN + (src / 8) * 14 + attack;
