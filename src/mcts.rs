@@ -280,7 +280,8 @@ impl<'a> Searcher<'a> {
             }
         }
 
-        let search_stats = std::sync::Arc::new(SearchStats::new(threads));
+        let search_stats = SearchStats::new(threads);
+        let stats_ref = &search_stats;
 
         let mut best_move = Move::NULL;
         let mut best_move_changes = 0;
@@ -288,16 +289,14 @@ impl<'a> Searcher<'a> {
 
         // search loop
         while !self.abort.load(Ordering::Relaxed) {
-            let stats_ref = search_stats.clone();
             thread::scope(|s| {
-                let stats_ref_main = stats_ref.clone();
-                s.spawn(move || {
+                s.spawn(|| {
                     self.playout_until_full_main(
                         &limits,
                         &timer,
                         #[cfg(not(feature = "uci-minimal"))]
                         &mut timer_last_output,
-                        &stats_ref_main,
+                        stats_ref,
                         &mut best_move,
                         &mut best_move_changes,
                         &mut previous_score,
@@ -308,8 +307,7 @@ impl<'a> Searcher<'a> {
                 });
 
                 for i in 1..threads {
-                    let stats_ref_worker = stats_ref.clone();
-                    s.spawn(move || self.playout_until_full_worker(&stats_ref_worker, i));
+                    s.spawn(move || self.playout_until_full_worker(stats_ref, i));
                 }
             });
 
