@@ -835,7 +835,7 @@ impl Board {
                 let pc = self.get_pc(bit);
                 if pc != 0 {
                     if clear > 0 {
-                        fen.push_str(&format!("{}", clear));
+                        fen.push_str(&format!("{clear}"));
                     }
                     clear = 0;
                     fen.push(PIECES[pc - 2 + 6 * usize::from(self.piece(Side::BLACK) & bit > 0)]);
@@ -845,7 +845,7 @@ impl Board {
             }
 
             if clear > 0 {
-                fen.push_str(&format!("{}", clear));
+                fen.push_str(&format!("{clear}"));
             }
 
             if rank > 0 {
