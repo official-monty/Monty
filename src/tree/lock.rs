@@ -14,17 +14,21 @@ pub struct WriteGuard<'a> {
 
 impl Drop for WriteGuard<'_> {
     fn drop(&mut self) {
-        self.lock.write_locked.store(false, Ordering::SeqCst);
+        // release the write lock with a Release store so subsequent reads
+        // see any writes performed while the lock was held
+        self.lock.write_locked.store(false, Ordering::Release);
     }
 }
 
 impl WriteGuard<'_> {
     pub fn val(&self) -> NodePtr {
-        NodePtr::from_raw(self.lock.value.load(Ordering::SeqCst))
+        // load the value using Acquire to synchronise with the writer
+        NodePtr::from_raw(self.lock.value.load(Ordering::Acquire))
     }
 
     pub fn store(&self, val: NodePtr) {
-        self.lock.value.store(val.inner(), Ordering::SeqCst)
+        // writes are relaxed as mutual exclusion is provided by the lock
+        self.lock.value.store(val.inner(), Ordering::Relaxed)
     }
 }
 
@@ -37,17 +41,18 @@ impl CustomLock {
     }
 
     pub fn read(&self) -> NodePtr {
-        while self.write_locked.load(Ordering::SeqCst) {
+        // spin until no writer holds the lock
+        while self.write_locked.load(Ordering::Acquire) {
             std::hint::spin_loop();
         }
 
-        NodePtr::from_raw(self.value.load(Ordering::SeqCst))
+        NodePtr::from_raw(self.value.load(Ordering::Acquire))
     }
 
     pub fn write(&self) -> WriteGuard<'_> {
         while self
             .write_locked
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
             .is_err()
         {
             std::hint::spin_loop();
