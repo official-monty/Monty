@@ -33,7 +33,7 @@ mod net {
         hasher.update(data);
         let result = hasher.finalize();
         // Convert the hash to a hexadecimal string and take the first 12 characters
-        format!("{:x}", result)[..12].to_string()
+        format!("{result:x}")[..12].to_string()
     }
 
     /// Get the full path in the OS's temporary directory for the given data.
@@ -44,7 +44,7 @@ mod net {
         fs::create_dir_all(&temp_dir)
             .expect("Failed to create 'Monty' directory in the temp folder");
         let hash_prefix = compute_short_sha(data);
-        temp_dir.join(format!("nn-{}.network", hash_prefix))
+        temp_dir.join(format!("nn-{hash_prefix}.network"))
     }
 
     /// Extract the first 12 characters of the SHA-256 prefix from the filename.

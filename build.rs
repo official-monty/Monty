@@ -24,10 +24,10 @@ fn get_name() {
     let current_date = chrono::Utc::now().format("%Y%m%d").to_string();
 
     // Compose the final build label
-    let formatted_name = format!("Monty-dev-{}-{}", current_date, git_commit_hash);
+    let formatted_name = format!("Monty-dev-{current_date}-{git_commit_hash}");
 
     // Export it for the rest of the build
-    println!("cargo:rustc-env=FORMATTED_NAME={}", formatted_name);
+    println!("cargo:rustc-env=FORMATTED_NAME={formatted_name}");
 }
 
 #[cfg(feature = "embed")]
