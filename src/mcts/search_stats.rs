@@ -22,6 +22,10 @@ impl SearchStats {
         }
     }
 
+    pub fn threads(&self) -> usize {
+        self.per_thread.len()
+    }
+
     #[inline]
     pub fn add_iter(&self, tid: usize, depth: usize, main: bool) {
         let stats = &self.per_thread[tid];
