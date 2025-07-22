@@ -35,11 +35,15 @@ impl PolicyNetwork {
             *r = i16::from(b);
         }
 
+        let mut feats = [0usize; 256];
+        let mut count = 0;
+
         pos.map_features(|feat| {
-            for (r, &w) in l1.0.iter_mut().zip(self.l1.weights[feat].0.iter()) {
-                *r += i16::from(w);
-            }
+            feats[count] = feat;
+            count += 1;
         });
+
+        l1.add_multi_i8(&feats[..count], &self.l1.weights);
 
         let mut res = Accumulator([0; L1 / 2]);
 
