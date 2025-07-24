@@ -7,6 +7,8 @@ use crate::{
 
 use std::{
     io, process,
+    fs::File,
+    io::BufRead,
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
 };
@@ -82,6 +84,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                 bench(depth, policy, value, &params);
             }
             "perft" => run_perft(&commands, &pos),
+            "see" => run_see(),
             "quit" => std::process::exit(0),
             "eval" => {
                 println!("cp: {}", pos.get_value(value, &params));
@@ -423,6 +426,242 @@ fn run_perft(commands: &[&str], pos: &ChessState) {
         time / 1000,
         count as f32 / time as f32
     );
+}
+
+fn run_see() {
+    let file = File::open("see.epd").expect("see.epd missing");
+    let mut total = 0;
+    let mut fails = 0;
+    for line in std::io::BufReader::new(file).lines() {
+        let line = line.unwrap();
+        if line.trim().is_empty() {
+            continue;
+        }
+        let parts: Vec<&str> = line.split(';').collect();
+        if parts.len() < 3 {
+            continue;
+        }
+        let fen = parts[0].trim();
+        let san = parts[1].trim();
+        let comment = parts.get(3).map(|s| s.trim()).unwrap_or("");
+        let expected = if !comment.is_empty() {
+            eval_comment(comment)
+        } else {
+            parts[2].trim().parse().unwrap_or(0)
+        };
+        let pos = ChessState::from_fen(fen);
+        if let Some(mov) = parse_san(&pos, san) {
+            let score = see_score(&pos.board(), &mov);
+            if score != expected {
+                println!("FAIL: {fen} {san} got {score} expected {expected}");
+                fails += 1;
+            }
+        } else {
+            println!("Could not parse move {san} in {fen}");
+            fails += 1;
+        }
+        total += 1;
+    }
+    println!("{fails}/{total} fails");
+}
+
+fn see_score(board: &crate::chess::Board, mov: &Move) -> i32 {
+    let mut low = -20000;
+    let mut high = 20000;
+    while low < high {
+        let mid = (low + high + 1) / 2;
+        if board.see(mov, mid) {
+            low = mid;
+        } else {
+            high = mid - 1;
+        }
+    }
+    low
+}
+
+fn char_to_piece(c: char) -> usize {
+    match c {
+        'P' => crate::chess::consts::Piece::PAWN,
+        'N' => crate::chess::consts::Piece::KNIGHT,
+        'B' => crate::chess::consts::Piece::BISHOP,
+        'R' => crate::chess::consts::Piece::ROOK,
+        'Q' => crate::chess::consts::Piece::QUEEN,
+        'K' => crate::chess::consts::Piece::KING,
+        _ => 0,
+    }
+}
+
+fn piece_value(c: char) -> i32 {
+    use crate::chess::consts::SEE_VALS;
+    SEE_VALS[char_to_piece(c)]
+}
+
+fn eval_comment(expr: &str) -> i32 {
+    fn parse_expr(chars: &[char], idx: &mut usize) -> i32 {
+        let mut total = parse_term(chars, idx);
+        while *idx < chars.len() {
+            match chars[*idx] {
+                '+' => {
+                    *idx += 1;
+                    total += parse_term(chars, idx);
+                }
+                '-' => {
+                    *idx += 1;
+                    total -= parse_term(chars, idx);
+                }
+                ')' => break,
+                _ => break,
+            }
+        }
+        total
+    }
+
+    fn parse_term(chars: &[char], idx: &mut usize) -> i32 {
+        while *idx < chars.len() && chars[*idx] == ' ' {
+            *idx += 1;
+        }
+        let mut sign = 1;
+        while *idx < chars.len() && (chars[*idx] == '+' || chars[*idx] == '-') {
+            if chars[*idx] == '-' {
+                sign = -sign;
+            }
+            *idx += 1;
+        }
+
+        if *idx < chars.len() && chars[*idx] == '(' {
+            *idx += 1;
+            let val = parse_expr(chars, idx);
+            if *idx < chars.len() && chars[*idx] == ')' {
+                *idx += 1;
+            }
+            return sign * val;
+        }
+
+        let ch = chars[*idx];
+        *idx += 1;
+        sign * piece_value(ch)
+    }
+
+    let tokens: Vec<char> = expr.chars().filter(|c| !c.is_whitespace()).collect();
+    let mut idx = 0;
+    parse_expr(&tokens, &mut idx)
+}
+
+fn parse_san(pos: &ChessState, san: &str) -> Option<Move> {
+    use crate::chess::consts::Flag;
+    let mut s = san.trim_end_matches(['+', '#'].as_ref());
+
+    if s == "O-O" || s == "0-0" {
+        let mut m = None;
+        pos.map_legal_moves(|mv| {
+            if m.is_none() && mv.flag() == Flag::KS {
+                m = Some(mv);
+            }
+        });
+        return m;
+    }
+    if s == "O-O-O" || s == "0-0-0" {
+        let mut m = None;
+        pos.map_legal_moves(|mv| {
+            if m.is_none() && mv.flag() == Flag::QS {
+                m = Some(mv);
+            }
+        });
+        return m;
+    }
+
+    let mut promo = None;
+    if let Some(eq) = s.find('=') {
+        promo = s[eq + 1..].chars().next();
+        s = &s[..eq];
+    }
+
+    if s.len() < 2 {
+        return None;
+    }
+    let dest_str = &s[s.len() - 2..];
+    let dest = {
+        let bytes = dest_str.as_bytes();
+        (bytes[0] - b'a') as u16 + ((bytes[1] - b'1') as u16) * 8
+    };
+    let mut rest = &s[..s.len() - 2];
+
+    let capture = rest.ends_with('x');
+    if capture {
+        rest = &rest[..rest.len() - 1];
+    }
+
+    let mut chars = rest.chars();
+    let mut piece = 'P';
+    let mut from_file: Option<char> = None;
+    let mut from_rank: Option<char> = None;
+
+    if let Some(c) = chars.next() {
+        if "NBRQK".contains(c) {
+            piece = c;
+            if let Some(c2) = chars.next() {
+                if c2.is_ascii_digit() {
+                    from_rank = Some(c2);
+                } else {
+                    from_file = Some(c2);
+                }
+                if let Some(c3) = chars.next() {
+                    if c3.is_ascii_digit() {
+                        from_rank = Some(c3);
+                    } else {
+                        from_file = Some(c3);
+                    }
+                }
+            }
+        } else {
+            piece = 'P';
+            from_file = Some(c);
+            if let Some(c2) = chars.next() {
+                if c2.is_ascii_digit() {
+                    from_rank = Some(c2);
+                }
+            }
+        }
+    }
+
+    let mut found = None;
+    pos.map_legal_moves(|mv| {
+        if found.is_some() {
+            return;
+        }
+        if mv.to() != dest {
+            return;
+        }
+        if capture && !mv.is_capture() && !mv.is_en_passant() {
+            return;
+        }
+        if let Some(p) = promo {
+            if !mv.is_promo() || char_to_piece(p) != mv.promo_pc() {
+                return;
+            }
+        } else if mv.is_promo() {
+            return;
+        }
+
+        let pc = pos.board().get_pc(1u64 << mv.src());
+        if char_to_piece(piece) != pc {
+            return;
+        }
+        let file = (mv.src() & 7) as u8 + b'a';
+        let rank = (mv.src() / 8) as u8 + b'1';
+        if let Some(f) = from_file {
+            if file != f as u8 {
+                return;
+            }
+        }
+        if let Some(r) = from_rank {
+            if rank != r as u8 {
+                return;
+            }
+        }
+        found = Some(mv);
+    });
+    found
 }
 
 fn handle_search_input(abort: &AtomicBool) -> Option<String> {
