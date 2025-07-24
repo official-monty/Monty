@@ -320,70 +320,70 @@ impl Board {
         score
     }
 
-    pub fn see(&self, mov: &Move, threshold: i32) -> bool {
-        let sq = usize::from(mov.to());
-        assert!(sq < 64, "wha");
-        let mut next = if mov.is_promo() {
-            mov.promo_pc()
+    fn see_rec(board: Board, to: u16, castling: &Castling) -> i32 {
+        let mut moves = Vec::new();
+        board.map_legal_captures(castling, |mv| {
+            if mv.to() == to {
+                moves.push(mv);
+            }
+        });
+
+        if moves.is_empty() {
+            return 0;
+        }
+
+        let mut best = i32::MIN;
+
+        for mv in moves {
+            let captured = if mv.is_en_passant() {
+                Piece::PAWN
+            } else {
+                board.get_pc(1 << to)
+            };
+
+            let mut tmp = board;
+            tmp.make(mv, castling);
+
+            let mut gain = SEE_VALS[captured];
+            if mv.is_promo() {
+                gain += SEE_VALS[mv.promo_pc()] - SEE_VALS[Piece::PAWN];
+            }
+
+            let score = gain - Board::see_rec(tmp, to, castling);
+            if score > best {
+                best = score;
+            }
+        }
+
+        if best < 0 {
+            0
         } else {
-            self.get_pc(1 << mov.src())
+            best
+        }
+    }
+
+    pub fn see_score(&self, mov: &Move) -> i32 {
+        let castling = Castling::from_raw(self, [[0; 2]; 2]);
+
+        let captured = if mov.is_en_passant() {
+            Piece::PAWN
+        } else {
+            self.get_pc(1 << mov.to())
         };
-        let mut score = self.gain(mov) - threshold - SEE_VALS[next];
 
-        if score >= 0 {
-            return true;
+        let mut gain = SEE_VALS[captured];
+        if mov.is_promo() {
+            gain += SEE_VALS[mov.promo_pc()] - SEE_VALS[Piece::PAWN];
         }
 
-        let mut occ = (self.bb[Side::WHITE] | self.bb[Side::BLACK]) ^ (1 << mov.src()) ^ (1 << sq);
-        if mov.is_en_passant() {
-            occ ^= 1 << (sq ^ 8);
-        }
+        let mut board = *self;
+        board.make(*mov, &castling);
 
-        let bishops = self.bb[Piece::BISHOP] | self.bb[Piece::QUEEN];
-        let rooks = self.bb[Piece::ROOK] | self.bb[Piece::QUEEN];
-        let mut us = usize::from(!self.stm);
-        let mut attackers = (Attacks::knight(sq) & self.bb[Piece::KNIGHT])
-            | (Attacks::king(sq) & self.bb[Piece::KING])
-            | (Attacks::pawn(sq, Side::WHITE) & self.bb[Piece::PAWN] & self.bb[Side::BLACK])
-            | (Attacks::pawn(sq, Side::BLACK) & self.bb[Piece::PAWN] & self.bb[Side::WHITE])
-            | (Attacks::rook(sq, occ) & rooks)
-            | (Attacks::bishop(sq, occ) & bishops);
+        gain - Board::see_rec(board, mov.to(), &castling)
+    }
 
-        loop {
-            let our_attackers = attackers & self.bb[us];
-            if our_attackers == 0 {
-                break;
-            }
-
-            for pc in Piece::PAWN..=Piece::KING {
-                let board = our_attackers & self.bb[pc];
-                if board > 0 {
-                    occ ^= board & board.wrapping_neg();
-                    next = pc;
-                    break;
-                }
-            }
-
-            if [Piece::PAWN, Piece::BISHOP, Piece::QUEEN].contains(&next) {
-                attackers |= Attacks::bishop(sq, occ) & bishops;
-            }
-            if [Piece::ROOK, Piece::QUEEN].contains(&next) {
-                attackers |= Attacks::rook(sq, occ) & rooks;
-            }
-
-            attackers &= occ;
-            score = -score - 1 - SEE_VALS[next];
-            us ^= 1;
-
-            if score >= 0 {
-                if next == Piece::KING && attackers & self.bb[us] > 0 {
-                    us ^= 1;
-                }
-                break;
-            }
-        }
-
-        self.stm != (us == 1)
+    pub fn see(&self, mov: &Move, threshold: i32) -> bool {
+        self.see_score(mov) >= threshold
     }
 
     // MODIFY POSITION
