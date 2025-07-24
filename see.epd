@@ -16,7 +16,7 @@
 8/4kp2/2npp3/1Nn5/1p2P1P1/7q/1PP1B3/4KR1r b - -; Rxf1+; 0;
 2r2r1k/6bp/p7/2q2p1Q/3PpP2/1B6/P5PP/2RR3K b - -; Qxc1; 100; R - Q + R
 r2qk1nr/pp2ppbp/2b3p1/2p1p3/8/2N2N2/PPPP1PPP/R1BQR1K1 w kq -; Nxe5; 100; P
-6r1/4kq2/b2p1p2/p1pPb3/p1P2B1Q/2P4P/2B1R1P1/6K1 w - -; Bxe5; 0;
+6r1/4kq2/b2p1p2/p1pPb3/p1P2B1Q/2P4P/2B1R1P1/6K1 w - -; Bxe5; 100; R - B - P
 3q2nk/pb1r1p2/np6/3P2Pp/2p1P3/2R4B/PQ3P1P/3R2K1 w - h6; gxh6; 0;
 3q2nk/pb1r1p2/np6/3P2Pp/2p1P3/2R1B2B/PQ3P1P/3R2K1 w - h6; gxh6; 100; P
 2r4r/1P4pk/p2p1b1p/7n/BB3p2/2R2p2/P1P2P2/4RK2 w - -; Rxc8; 500; R
@@ -57,7 +57,7 @@ r4k2/p2P2pp/8/1pb5/1Nn1P1n1/6Q1/PPP4P/R3K1NR w KQ -; d8=Q; -100; (Q - P) - Q
 5k2/p2P2pp/1b6/1p6/1Nn1P1n1/8/PPP4P/R2QK1NR w KQ -; d8=Q; 200; (Q - P) - Q + B
 4kbnr/p1P1pppp/b7/4q3/7n/8/PP1PPPPP/RNBQKBNR w KQk -; c8=Q; -100; (Q - P) - Q
 4kbnr/p1P1pppp/b7/4q3/7n/8/PPQPPPPP/RNB1KBNR w KQk -; c8=Q; 200; (Q - P) - Q + B
-4kbnr/p1P1pppp/b7/4q3/7n/8/PPQPPPPP/RNB1KBNR w KQk -; c8=Q; 200; (Q - P)
+4kbnr/p1P1pppp/b7/4q3/7n/8/PPQPPPPP/RNB1KBNR w KQk -; c8=Q; 200; (B - P)
 4kbnr/p1P4p/b1q5/5pP1/4n3/5Q2/PP1PPP1P/RNB1KBNR w KQk f6; gxf6; 0; P - P
 4kbnr/p1P4p/b1q5/5pP1/4n3/5Q2/PP1PPP1P/RNB1KBNR w KQk f6; gxf6;	0; P - P
 4kbnr/p1P4p/b1q5/5pP1/4n2Q/8/PP1PPP1P/RNB1KBNR w KQk f6; gxf6; 0; P - P
@@ -68,7 +68,7 @@ rnbqk2r/pp3ppp/2p1pn2/3p4/3P4/N1P1BN2/PPB1PPPb/R2Q1RK1 w kq -; Kxh2; 300; B
 3n3r/2P5/8/1k6/8/8/3Q4/4K3 w - -; Qxd8; 300; N
 3n3r/2P5/8/1k6/8/8/3Q4/4K3 w - -; cxd8=Q; 700; (N + Q - P) - Q + R
 r2n3r/2P1P3/4N3/1k6/8/8/8/4K3 w - -; Nxd8; 300; N
-8/8/8/1k6/6b1/4N3/2p3K1/3n4 w - -; Nxd1; 0; N - N
+8/8/8/1k6/6b1/4N3/2p3K1/3n4 w - -; Nxd1; -800; -(Q - P)
 8/8/1k6/8/8/2N1N3/2p1p1K1/3n4 w - -; Nxd1; -800; N - (N + Q - P)
 8/8/1k6/8/8/2N1N3/4p1K1/3n4 w - -; Ncxd1; 100; N - (N + Q - P) + Q 
 r1bqk1nr/pppp1ppp/2n5/1B2p3/1b2P3/5N2/PPPP1PPP/RNBQK2R w KQkq -; O-O; 0;
