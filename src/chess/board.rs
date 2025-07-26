@@ -323,7 +323,7 @@ impl Board {
     fn see_rec(board: Board, to: u16, castling: &Castling) -> i32 {
         let mut moves = Vec::new();
         board.map_legal_captures(castling, |mv| {
-            if mv.to() == to {
+            if mv.to() == to || mv.is_en_passant() {
                 moves.push(mv);
             }
         });
