@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicI32, Ordering};
 use crate::chess::Board;
 
 /// Parameters for correction history.
-const CORRHIST_SIZE: usize = 1 << 18; // 256k entries
-const CORRHIST_WEIGHT_SCALE: i32 = 16;
+const CORRHIST_SIZE: usize = 1 << 16; // 64k entries
+const CORRHIST_WEIGHT_SCALE: i32 = 4;
 
 pub struct CorrectionHistory {
     table: Vec<AtomicI32>,
