@@ -3,6 +3,7 @@ use crate::{
     mcts::{Limits, MctsParams, SearchHelpers, Searcher, REPORT_ITERS},
     networks::{PolicyNetwork, ValueNetwork},
     tree::Tree,
+    correction_history::CorrectionHistory,
 };
 
 use std::{
@@ -17,6 +18,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
     let mut params = MctsParams::default();
     let mut hash_mb = 64;
     let mut tree = Tree::new_mb(hash_mb, 1);
+    let corr = CorrectionHistory::new();
     let mut report_moves = false;
     let mut threads = 1;
     let mut move_overhead = 400;
@@ -67,6 +69,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                     report_moves,
                     policy,
                     value,
+                    &corr,
                     threads,
                     move_overhead,
                     &mut stored_message,
@@ -84,8 +87,8 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
             "perft" => run_perft(&commands, &pos),
             "quit" => std::process::exit(0),
             "eval" => {
-                println!("cp: {}", pos.get_value(value, &params));
-                println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl(value, &params));
+                println!("cp: {}", pos.get_value_corr(value, &params, &corr));
+                println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl_corr(value, &params, &corr));
             }
             "policy" => {
                 let mut max = f32::NEG_INFINITY;
@@ -130,6 +133,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
 pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork, params: &MctsParams) {
     let mut total_nodes = 0;
     let mut time = 0.0;
+    let corr = CorrectionHistory::new();
 
     let bench_fens = [
         "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
@@ -201,7 +205,7 @@ pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork, params:
         let abort = AtomicBool::new(false);
         let pos = ChessState::from_fen(fen);
         tree.set_root_position(&pos);
-        let searcher = Searcher::new(&tree, params, policy, value, &abort);
+        let searcher = Searcher::new(&tree, params, policy, value, &corr, &abort);
         let timer = Instant::now();
         searcher.search(1, limits, false, &mut total_nodes);
         time += timer.elapsed().as_secs_f32();
@@ -327,6 +331,7 @@ fn go(
     report_moves: bool,
     policy: &PolicyNetwork,
     value: &ValueNetwork,
+    corr: &CorrectionHistory,
     threads: usize,
     move_overhead: usize,
     stored_message: &mut Option<String>,
@@ -399,7 +404,7 @@ fn go(
 
     std::thread::scope(|s| {
         s.spawn(|| {
-            let searcher = Searcher::new(tree, params, policy, value, &abort);
+            let searcher = Searcher::new(tree, params, policy, value, &corr, &abort);
             let (mov, _) = searcher.search(threads, limits, true, &mut 0);
             println!("bestmove {}", pos.conv_mov_to_str(mov));
 

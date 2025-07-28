@@ -4,6 +4,7 @@ use monty::{
     chess::{ChessState, GameState},
     mcts::{Limits, MctsParams, Searcher},
     networks::{PolicyNetwork, ValueNetwork},
+    correction_history::CorrectionHistory,
     tree::Tree,
 };
 use montyformat::{MontyFormat, MontyValueFormat, SearchData};
@@ -98,6 +99,7 @@ impl<'a> DatagenThread<'a> {
         let mut result = 0.5;
 
         let mut tree = Tree::new_mb(8, 1);
+        let corr = CorrectionHistory::new();
 
         let pos = position.board();
 
@@ -132,7 +134,7 @@ impl<'a> DatagenThread<'a> {
 
             let abort = AtomicBool::new(false);
             tree.set_root_position(&position);
-            let searcher = Searcher::new(&tree, &self.params, policy, value, &abort);
+            let searcher = Searcher::new(&tree, &self.params, policy, value, &corr, &abort);
 
             let (bm, score) = searcher.search(1, limits, false, &mut 0);
 

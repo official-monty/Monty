@@ -149,7 +149,11 @@ impl ChessState {
         self.board.piece(piece).count_ones() as i32
     }
 
-    pub fn get_value(&self, value: &ValueNetwork, _params: &MctsParams) -> i32 {
+    pub fn get_value(
+        &self,
+        value: &ValueNetwork,
+        _params: &MctsParams,
+    ) -> i32 {
         const K: f32 = 400.0;
         let (win, draw, _) = value.eval(&self.board);
 
@@ -174,8 +178,27 @@ impl ChessState {
         cp
     }
 
+    pub fn get_value_corr(
+        &self,
+        value: &ValueNetwork,
+        params: &MctsParams,
+        corr: &crate::correction_history::CorrectionHistory,
+    ) -> i32 {
+        let base = self.get_value(value, params);
+        corr.apply(&self.board, base)
+    }
+
     pub fn get_value_wdl(&self, value: &ValueNetwork, params: &MctsParams) -> f32 {
         1.0 / (1.0 + (-(self.get_value(value, params) as f32) / 400.0).exp())
+    }
+
+    pub fn get_value_wdl_corr(
+        &self,
+        value: &ValueNetwork,
+        params: &MctsParams,
+        corr: &crate::correction_history::CorrectionHistory,
+    ) -> f32 {
+        1.0 / (1.0 + (-(self.get_value_corr(value, params, corr) as f32) / 400.0).exp())
     }
 
     pub fn perft(&self, depth: usize) -> u64 {

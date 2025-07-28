@@ -34,6 +34,7 @@ pub struct Searcher<'a> {
     params: &'a MctsParams,
     policy: &'a PolicyNetwork,
     value: &'a ValueNetwork,
+    corr: &'a crate::correction_history::CorrectionHistory,
     abort: &'a AtomicBool,
 }
 
@@ -43,6 +44,7 @@ impl<'a> Searcher<'a> {
         params: &'a MctsParams,
         policy: &'a PolicyNetwork,
         value: &'a ValueNetwork,
+        corr: &'a crate::correction_history::CorrectionHistory,
         abort: &'a AtomicBool,
     ) -> Self {
         Self {
@@ -50,6 +52,7 @@ impl<'a> Searcher<'a> {
             params,
             policy,
             value,
+            corr,
             abort,
         }
     }
@@ -245,6 +248,9 @@ impl<'a> Searcher<'a> {
         let pos = self.tree.root_position();
         let node = self.tree.root_node();
 
+        let static_eval = pos.get_value_wdl_corr(self.value, self.params, self.corr);
+        let static_cp = Searcher::get_cp(static_eval);
+
         // the root node is added to an empty tree, **and not counted** towards the
         // total node count, in order for `go nodes 1` to give the expected result
         if self.tree.is_empty() {
@@ -329,6 +335,11 @@ impl<'a> Searcher<'a> {
         }
 
         let (_, mov, q) = self.get_best_action(self.tree.root_node());
+
+        let final_cp = Searcher::get_cp(q);
+        let depth = search_stats.seldepth();
+        self.corr.update(&pos.board(), depth, final_cp as i32 - static_cp as i32);
+
         (mov, q)
     }
 
