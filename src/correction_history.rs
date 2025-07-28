@@ -4,7 +4,6 @@ use crate::chess::Board;
 
 /// Parameters for correction history.
 const CORRHIST_SIZE: usize = 1 << 18; // 256k entries
-const CORRHIST_GRAIN: i32 = 16; // scaling factor
 const CORRHIST_WEIGHT_SCALE: i32 = 16;
 const CORRHIST_MAX: i32 = 3200;
 
@@ -33,7 +32,7 @@ impl CorrectionHistory {
 
     /// Return the current correction in centipawns for the board
     pub fn get(&self, board: &Board) -> i32 {
-        self.table[self.index(board)].load(Ordering::Relaxed) / CORRHIST_GRAIN
+        self.table[self.index(board)].load(Ordering::Relaxed)
     }
 
     /// Adjust a static evaluation with correction history
@@ -45,7 +44,7 @@ impl CorrectionHistory {
     pub fn update(&self, board: &Board, diff: i32) {
         let idx = self.index(board);
         let entry = self.table[idx].load(Ordering::Relaxed);
-        let value = (entry * (CORRHIST_WEIGHT_SCALE - 1) + diff * CORRHIST_GRAIN)
+        let value = (entry * (CORRHIST_WEIGHT_SCALE - 1) + diff)
             / CORRHIST_WEIGHT_SCALE;
         let clamped = value.clamp(-CORRHIST_MAX, CORRHIST_MAX);
         self.table[idx].store(clamped, Ordering::Relaxed);

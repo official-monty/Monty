@@ -337,7 +337,6 @@ impl<'a> Searcher<'a> {
         let (_, mov, q) = self.get_best_action(self.tree.root_node());
 
         let final_cp = Searcher::get_cp(q);
-        let depth = search_stats.seldepth();
         self.corr
             .update(&pos.board(), final_cp as i32 - static_cp as i32);
 
