@@ -3,10 +3,10 @@ use std::sync::atomic::{AtomicI32, Ordering};
 use crate::chess::Board;
 
 /// Parameters for correction history.
-const CORRHIST_SIZE: usize = 1 << 18; // 256k entries
-const CORRHIST_GRAIN: i32 = 8; // scaling factor
-const CORRHIST_WEIGHT_SCALE: i32 = 128;
-const CORRHIST_MAX: i32 = 4000; // roughly 4000 centipawns
+const CORRHIST_SIZE: usize = 1 << 20; // 1024k entries
+const CORRHIST_GRAIN: i32 = 16; // scaling factor
+const CORRHIST_WEIGHT_SCALE: i32 = 256;
+const CORRHIST_MAX: i32 = 3200;
 
 pub struct CorrectionHistory {
     table: Vec<AtomicI32>,
@@ -46,7 +46,7 @@ impl CorrectionHistory {
         let idx = self.index(board);
         let entry = self.table[idx].load(Ordering::Relaxed);
         let scaled_diff = diff.saturating_mul(CORRHIST_GRAIN);
-        let new_weight = ((depth * depth + 2 * depth + 1) as i32).min(CORRHIST_WEIGHT_SCALE);
+        let new_weight = ((depth * depth) as i32).min(CORRHIST_WEIGHT_SCALE);
         let value = (entry * (CORRHIST_WEIGHT_SCALE - new_weight) + scaled_diff * new_weight)
             / CORRHIST_WEIGHT_SCALE;
         let clamped = value.clamp(-CORRHIST_MAX, CORRHIST_MAX);
