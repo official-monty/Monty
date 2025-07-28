@@ -5,7 +5,6 @@ use crate::chess::Board;
 /// Parameters for correction history.
 const CORRHIST_SIZE: usize = 1 << 18; // 256k entries
 const CORRHIST_WEIGHT_SCALE: i32 = 16;
-const CORRHIST_MAX: i32 = 3200;
 
 pub struct CorrectionHistory {
     table: Vec<AtomicI32>,
@@ -44,9 +43,7 @@ impl CorrectionHistory {
     pub fn update(&self, board: &Board, diff: i32) {
         let idx = self.index(board);
         let entry = self.table[idx].load(Ordering::Relaxed);
-        let value = (entry * (CORRHIST_WEIGHT_SCALE - 1) + diff)
-            / CORRHIST_WEIGHT_SCALE;
-        let clamped = value.clamp(-CORRHIST_MAX, CORRHIST_MAX);
-        self.table[idx].store(clamped, Ordering::Relaxed);
+        let value = (entry * (CORRHIST_WEIGHT_SCALE - 1) + diff) / CORRHIST_WEIGHT_SCALE;
+        self.table[idx].store(value, Ordering::Relaxed);
     }
 }
