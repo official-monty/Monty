@@ -338,7 +338,8 @@ impl<'a> Searcher<'a> {
 
         let final_cp = Searcher::get_cp(q);
         let depth = search_stats.seldepth();
-        self.corr.update(&pos.board(), depth, final_cp as i32 - static_cp as i32);
+        self.corr
+            .update(&pos.board(), depth, final_cp as i32 - static_cp as i32);
 
         (mov, q)
     }

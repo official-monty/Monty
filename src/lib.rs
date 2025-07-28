@@ -1,9 +1,9 @@
 pub mod chess;
+pub mod correction_history;
 pub mod mcts;
 pub mod networks;
 pub mod tree;
 pub mod uci;
-pub mod correction_history;
 
 use memmap2::Mmap;
 

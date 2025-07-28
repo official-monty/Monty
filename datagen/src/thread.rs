@@ -2,9 +2,9 @@ use crate::{Destination, Rand};
 
 use monty::{
     chess::{ChessState, GameState},
+    correction_history::CorrectionHistory,
     mcts::{Limits, MctsParams, Searcher},
     networks::{PolicyNetwork, ValueNetwork},
-    correction_history::CorrectionHistory,
     tree::Tree,
 };
 use montyformat::{MontyFormat, MontyValueFormat, SearchData};

@@ -12,6 +12,12 @@ pub struct CorrectionHistory {
     table: Vec<AtomicI32>,
 }
 
+impl Default for CorrectionHistory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CorrectionHistory {
     /// Create a new correction history table
     pub fn new() -> Self {

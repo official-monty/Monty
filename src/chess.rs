@@ -149,11 +149,7 @@ impl ChessState {
         self.board.piece(piece).count_ones() as i32
     }
 
-    pub fn get_value(
-        &self,
-        value: &ValueNetwork,
-        _params: &MctsParams,
-    ) -> i32 {
+    pub fn get_value(&self, value: &ValueNetwork, _params: &MctsParams) -> i32 {
         const K: f32 = 400.0;
         let (win, draw, _) = value.eval(&self.board);
 

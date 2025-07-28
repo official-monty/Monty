@@ -1,9 +1,9 @@
 use crate::{
     chess::{ChessState, Move},
+    correction_history::CorrectionHistory,
     mcts::{Limits, MctsParams, SearchHelpers, Searcher, REPORT_ITERS},
     networks::{PolicyNetwork, ValueNetwork},
     tree::Tree,
-    correction_history::CorrectionHistory,
 };
 
 use std::{
@@ -88,7 +88,10 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
             "quit" => std::process::exit(0),
             "eval" => {
                 println!("cp: {}", pos.get_value_corr(value, &params, &corr));
-                println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl_corr(value, &params, &corr));
+                println!(
+                    "wdl: {:.2}%",
+                    100.0 * pos.get_value_wdl_corr(value, &params, &corr)
+                );
             }
             "policy" => {
                 let mut max = f32::NEG_INFINITY;
@@ -404,7 +407,7 @@ fn go(
 
     std::thread::scope(|s| {
         s.spawn(|| {
-            let searcher = Searcher::new(tree, params, policy, value, &corr, &abort);
+            let searcher = Searcher::new(tree, params, policy, value, corr, &abort);
             let (mov, _) = searcher.search(threads, limits, true, &mut 0);
             println!("bestmove {}", pos.conv_mov_to_str(mov));
 
