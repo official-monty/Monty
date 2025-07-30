@@ -309,81 +309,167 @@ impl Board {
         threats
     }
 
-    fn gain(&self, mov: &Move) -> i32 {
-        if mov.is_en_passant() {
-            return SEE_VALS[Piece::PAWN];
-        }
-        let mut score = SEE_VALS[self.get_pc(1 << mov.to())];
-        if mov.is_promo() {
-            score += SEE_VALS[mov.promo_pc()] - SEE_VALS[Piece::PAWN];
-        }
-        score
-    }
-
-    fn see_rec(board: Board, to: u16, castling: &Castling) -> i32 {
-        let mut moves = Vec::new();
-        board.map_legal_captures(castling, |mv| {
-            if mv.to() == to || mv.is_en_passant() {
-                moves.push(mv);
-            }
-        });
-
-        if moves.is_empty() {
-            return 0;
-        }
-
-        let mut best = i32::MIN;
-
-        for mv in moves {
-            let captured = if mv.is_en_passant() {
-                Piece::PAWN
-            } else {
-                board.get_pc(1 << to)
-            };
-
-            let mut tmp = board;
-            tmp.make(mv, castling);
-
-            let mut gain = SEE_VALS[captured];
-            if mv.is_promo() {
-                gain += SEE_VALS[mv.promo_pc()] - SEE_VALS[Piece::PAWN];
-            }
-
-            let score = gain - Board::see_rec(tmp, to, castling);
-            if score > best {
-                best = score;
-            }
-        }
-
-        if best < 0 {
-            0
-        } else {
-            best
-        }
-    }
-
     pub fn see_score(&self, mov: &Move) -> i32 {
-        let castling = Castling::from_raw(self, [[0; 2]; 2]);
-
-        let captured = if mov.is_en_passant() {
-            Piece::PAWN
-        } else {
-            self.get_pc(1 << mov.to())
-        };
-
-        let mut gain = SEE_VALS[captured];
-        if mov.is_promo() {
-            gain += SEE_VALS[mov.promo_pc()] - SEE_VALS[Piece::PAWN];
+        let mut low = -20000;
+        let mut high = 20000;
+        while low < high {
+            let mid = (low + high + 1) / 2;
+            if self.see(mov, mid) {
+                low = mid;
+            } else {
+                high = mid - 1;
+            }
         }
-
-        let mut board = *self;
-        board.make(*mov, &castling);
-
-        gain - Board::see_rec(board, mov.to(), &castling)
+        low
     }
 
     pub fn see(&self, mov: &Move, threshold: i32) -> bool {
-        self.see_score(mov) >= threshold
+        let from = mov.src() as usize;
+        let to = mov.to() as usize;
+        let side = self.stm();
+
+        let moved_pc = self.get_pc(1 << from);
+        let captured_pc = if mov.is_en_passant() {
+            Piece::PAWN
+        } else {
+            self.get_pc(1 << to)
+        };
+
+        let mut score = SEE_VALS[captured_pc] - threshold;
+
+        if mov.is_promo() {
+            let promo_val = SEE_VALS[mov.promo_pc()];
+            score += promo_val - SEE_VALS[Piece::PAWN];
+            if score < 0 {
+                return false;
+            }
+            score -= promo_val;
+            if score >= 0 {
+                return true;
+            }
+        } else {
+            if score < 0 {
+                return false;
+            }
+            score -= SEE_VALS[moved_pc];
+            if score >= 0 {
+                return true;
+            }
+        }
+
+        let mut occ = self.occ();
+        let from_bb = 1u64 << from;
+        let to_bb = 1u64 << to;
+        occ &= !from_bb;
+        occ &= !to_bb;
+        if mov.is_en_passant() {
+            occ &= !(1u64 << (to ^ 8));
+        }
+
+        let mut pieces = self.bb;
+        pieces[moved_pc] &= !from_bb;
+        pieces[side] &= !from_bb;
+
+        if captured_pc != Piece::EMPTY {
+            let cap_sq = if mov.is_en_passant() {
+                (to ^ 8) as usize
+            } else {
+                to
+            };
+            let cap_bb = 1u64 << cap_sq;
+            pieces[captured_pc] &= !cap_bb;
+            pieces[side ^ 1] &= !cap_bb;
+        }
+
+        let pinned_w = self.pinned_for(Side::WHITE);
+        let pinned_b = self.pinned_for(Side::BLACK);
+        let all_pinned = pinned_w | pinned_b;
+
+        let white_allowed = pinned_w & LINE_THROUGH[self.king_sq(Side::WHITE)][to];
+        let black_allowed = pinned_b & LINE_THROUGH[self.king_sq(Side::BLACK)][to];
+        let allowed = !all_pinned | white_allowed | black_allowed;
+
+        let mut stm = side ^ 1;
+
+        let mut attackers = {
+            let queens = pieces[Piece::QUEEN];
+            let rooks = pieces[Piece::ROOK] | queens;
+            let bishops = pieces[Piece::BISHOP] | queens;
+            let knights = pieces[Piece::KNIGHT];
+            let kings = pieces[Piece::KING];
+            let pawns_w = pieces[Piece::PAWN] & pieces[Side::WHITE];
+            let pawns_b = pieces[Piece::PAWN] & pieces[Side::BLACK];
+            ((Attacks::king(to) & kings)
+                | (Attacks::knight(to) & knights)
+                | (Attacks::bishop(to, occ) & bishops)
+                | (Attacks::rook(to, occ) & rooks)
+                | (Attacks::pawn(to, Side::WHITE) & pawns_b)
+                | (Attacks::pawn(to, Side::BLACK) & pawns_w))
+                & allowed
+        };
+
+        fn remove_least(pieces: &mut [u64; 8], mask: u64, occ: &mut u64) -> Option<usize> {
+            const ORDER: [usize; 6] = [
+                Piece::PAWN,
+                Piece::KNIGHT,
+                Piece::BISHOP,
+                Piece::ROOK,
+                Piece::QUEEN,
+                Piece::KING,
+            ];
+
+            for &pc in &ORDER {
+                let bb = pieces[pc] & mask;
+                if bb != 0 {
+                    let bit = bb & bb.wrapping_neg();
+                    pieces[pc] ^= bit;
+                    if pieces[Side::WHITE] & bit != 0 {
+                        pieces[Side::WHITE] ^= bit;
+                    } else {
+                        pieces[Side::BLACK] ^= bit;
+                    }
+                    *occ ^= bit;
+                    return Some(pc);
+                }
+            }
+            None
+        }
+
+        while attackers & pieces[stm] != 0 {
+            let our_attackers = attackers & pieces[stm];
+            let Some(attacker_pc) = remove_least(&mut pieces, our_attackers, &mut occ) else {
+                break;
+            };
+
+            if attacker_pc == Piece::KING && (attackers & pieces[stm ^ 1]) != 0 {
+                break;
+            }
+
+            let queens = pieces[Piece::QUEEN];
+            let rooks = pieces[Piece::ROOK] | queens;
+            let bishops = pieces[Piece::BISHOP] | queens;
+
+            if attacker_pc == Piece::PAWN
+                || attacker_pc == Piece::BISHOP
+                || attacker_pc == Piece::QUEEN
+            {
+                attackers |= Attacks::bishop(to, occ) & bishops;
+            }
+            if attacker_pc == Piece::ROOK || attacker_pc == Piece::QUEEN {
+                attackers |= Attacks::rook(to, occ) & rooks;
+            }
+
+            attackers &= occ;
+
+            score = -score - 1 - SEE_VALS[attacker_pc];
+            stm ^= 1;
+
+            if score >= 0 {
+                break;
+            }
+        }
+
+        stm != side
     }
 
     // MODIFY POSITION
@@ -648,6 +734,31 @@ impl Board {
         let boys = self.boys();
         let kidx = self.king_index();
         let opps = self.opps();
+        let rq = self.piece(Piece::QUEEN) | self.piece(Piece::ROOK);
+        let bq = self.piece(Piece::QUEEN) | self.piece(Piece::BISHOP);
+
+        let mut pinned = 0;
+
+        let mut pinners = Attacks::xray_rook(kidx, occ, boys) & opps & rq;
+        while pinners > 0 {
+            pop_lsb!(sq, pinners);
+            pinned |= IN_BETWEEN[usize::from(sq)][kidx] & boys;
+        }
+
+        pinners = Attacks::xray_bishop(kidx, occ, boys) & opps & bq;
+        while pinners > 0 {
+            pop_lsb!(sq, pinners);
+            pinned |= IN_BETWEEN[usize::from(sq)][kidx] & boys;
+        }
+
+        pinned
+    }
+
+    fn pinned_for(&self, side: usize) -> u64 {
+        let occ = self.occ();
+        let boys = self.bb[side];
+        let kidx = self.king_sq(side);
+        let opps = self.bb[side ^ 1];
         let rq = self.piece(Piece::QUEEN) | self.piece(Piece::ROOK);
         let bq = self.piece(Piece::QUEEN) | self.piece(Piece::BISHOP);
 
