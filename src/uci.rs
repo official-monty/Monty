@@ -85,7 +85,8 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                 bench(depth, policy, value, &params);
             }
             "perft" => run_perft(&commands, &pos),
-            "see" => run_see(),
+            "see" => run_see(false),
+            "seed" => run_see(true),
             "generatesee" => generate_see(),
             "quit" => std::process::exit(0),
             "eval" => {
@@ -430,7 +431,7 @@ fn run_perft(commands: &[&str], pos: &ChessState) {
     );
 }
 
-fn run_see() {
+fn run_see(debug: bool) {
     let file = File::open("see_suite.csv").expect("see_suite.csv missing");
     let mut total = 0;
     let mut fails = 0;
@@ -453,12 +454,16 @@ fn run_see() {
             if let Some(mov) = parse_uci(&pos, mstr) {
                 let score = see_score(&pos.board(), &mov);
                 if score != expected {
-                    println!("FAIL: {fen} {mstr} got {score} expected {expected}");
+                    if debug {
+                        println!("FAIL: {fen} {mstr} got {score} expected {expected}");
+                    }
                     fails += 1;
                 }
                 pos.make_move(mov);
             } else {
-                println!("Could not parse move {mstr} in {fen}");
+                if debug {
+                    println!("Could not parse move {mstr} in {fen}");
+                }
                 fails += 1;
             }
             total += 1;
