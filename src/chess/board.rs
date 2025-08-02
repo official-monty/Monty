@@ -413,9 +413,11 @@ impl Board {
             pieces[side ^ 1] &= !cap_bb;
         }
 
-        // after making the move on the board, check if the opponent's king is in check
-        // this handles discovered checks which prevent the opponent from
-        // recapturing the moved piece if the check is delivered by another piece
+        // after making the move on the board, see if the opponent is in check. If they
+        // are, they might be restricted in how they can recapture: in a double check or
+        // if the checking piece isn't the one on the target square, only king captures
+        // can be considered. We compute this information here and apply it after
+        // generating the attackers.
         let mut pieces_after = pieces;
         let occ_after = occ | to_bb;
         pieces_after[moved_pc] |= to_bb;
@@ -434,12 +436,9 @@ impl Board {
             | (Attacks::pawn(ksq_opp, opp) & pieces_after[Piece::PAWN]);
         checkers &= pieces_after[side];
 
-        if checkers != 0 {
-            let double_check = checkers & (checkers - 1) != 0;
-            if double_check || (checkers & to_bb) == 0 {
-                return SEE_VALS[captured_pc] >= threshold;
-            }
-        }
+        let opp_in_check = checkers != 0;
+        let double_check = checkers & (checkers - 1) != 0;
+        let checker_on_to = (checkers & to_bb) != 0;
 
         let mut stm = side ^ 1;
         let mut attackers = {
@@ -457,6 +456,10 @@ impl Board {
                 | (Attacks::pawn(to, Side::WHITE) & pawns_b)
                 | (Attacks::pawn(to, Side::BLACK) & pawns_w)
         };
+
+        if opp_in_check && (double_check || !checker_on_to) {
+            attackers &= Attacks::king(to);
+        }
 
         #[inline]
         fn recompute_pins(pieces: &[u64; 8], occ: u64, side: usize, ksq: usize) -> u64 {
