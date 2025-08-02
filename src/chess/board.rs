@@ -335,6 +335,13 @@ impl Board {
             self.get_pc(1 << to)
         };
 
+        let from_bb = 1u64 << from;
+        let ksq = self.king_sq(side);
+        let pinned = self.pinned();
+        if (pinned & from_bb) != 0 && (LINE_THROUGH[ksq][to] & from_bb) == 0 {
+            return false;
+        }
+
         let mut score = SEE_VALS[captured_pc] - threshold;
 
         if mov.is_promo() {
@@ -366,7 +373,6 @@ impl Board {
         }
 
         let mut occ = self.occ();
-        let from_bb = 1u64 << from;
         let to_bb = 1u64 << to;
         occ &= !from_bb;
         occ &= !to_bb;
@@ -377,9 +383,18 @@ impl Board {
         if mov.flag() == Flag::DBL {
             let ep_sq = (to ^ 8) as usize;
             let opp = side ^ 1;
-            let ep_attackers = Attacks::pawn(ep_sq, side) & self.bb[Piece::PAWN] & self.bb[opp];
+            let mut ep_attackers = Attacks::pawn(ep_sq, side) & self.bb[Piece::PAWN] & self.bb[opp];
             if ep_attackers != 0 {
-                return threshold <= -SEE_VALS[Piece::PAWN];
+                let mut occ_after = self.occ();
+                occ_after ^= from_bb | (1u64 << to);
+                let mut pieces_after = self.bb;
+                pieces_after[Piece::PAWN] ^= from_bb | (1u64 << to);
+                pieces_after[side] ^= from_bb | (1u64 << to);
+                let pinned_opp = recompute_pins(&pieces_after, occ_after, opp, self.king_sq(opp));
+                ep_attackers &= !pinned_opp | (LINE_THROUGH[self.king_sq(opp)][ep_sq] & pinned_opp);
+                if ep_attackers != 0 {
+                    return threshold <= -SEE_VALS[Piece::PAWN];
+                }
             }
         }
 
