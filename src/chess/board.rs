@@ -353,7 +353,16 @@ impl Board {
             }
             score -= SEE_VALS[moved_pc];
             if score >= 0 {
-                return true;
+                let opp = side ^ 1;
+                let promo_attackers =
+                    self.bb[Piece::PAWN] & self.bb[opp] & Rank::PEN[opp];
+                if (Attacks::pawn(to, opp ^ 1) & promo_attackers) == 0 {
+                    return true;
+                }
+                score -= SEE_VALS[Piece::QUEEN] - SEE_VALS[Piece::PAWN];
+                if score >= 0 {
+                    return true;
+                }
             }
         }
 
@@ -437,9 +446,16 @@ impl Board {
 
         while attackers & pieces[stm] != 0 {
             let our_attackers = attackers & pieces[stm];
-            let Some(attacker_pc) = remove_least(&mut pieces, our_attackers, &mut occ) else {
+            let Some(mut attacker_pc) = remove_least(&mut pieces, our_attackers, &mut occ) else {
                 break;
             };
+
+            if attacker_pc == Piece::PAWN
+                && ((stm == Side::WHITE && to >= 56) || (stm == Side::BLACK && to < 8))
+            {
+                score += SEE_VALS[Piece::QUEEN] - SEE_VALS[Piece::PAWN];
+                attacker_pc = Piece::QUEEN;
+            }
 
             if attacker_pc == Piece::KING && (attackers & pieces[stm ^ 1]) != 0 {
                 break;
@@ -464,7 +480,9 @@ impl Board {
             score = -score - 1 - SEE_VALS[attacker_pc];
             stm ^= 1;
 
-            if score >= 0 {
+            let promo_attackers =
+                attackers & pieces[stm] & pieces[Piece::PAWN] & Rank::PEN[stm];
+            if score >= 0 && promo_attackers == 0 {
                 break;
             }
         }
