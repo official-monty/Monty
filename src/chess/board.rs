@@ -418,7 +418,8 @@ impl Board {
         // recapturing the moved piece if the check is delivered by another piece
         let mut pieces_after = pieces;
         let occ_after = occ | to_bb;
-        pieces_after[moved_pc] |= to_bb;
+        let to_pc = if mov.is_promo() { mov.promo_pc() } else { moved_pc };
+        pieces_after[to_pc] |= to_bb;
         pieces_after[side] |= to_bb;
 
         let opp = side ^ 1;
