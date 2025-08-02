@@ -439,11 +439,7 @@ impl Board {
             // recapture our moved piece because they must resolve the
             // check delivered elsewhere. Return early as the piece on `to`
             // is effectively untouchable.
-            let mut gain = SEE_VALS[captured_pc];
-            if mov.is_promo() {
-                gain += SEE_VALS[mov.promo_pc()] - SEE_VALS[Piece::PAWN];
-            }
-            return gain >= threshold;
+            return SEE_VALS[captured_pc] >= threshold;
         }
 
         let mut stm = side ^ 1;
