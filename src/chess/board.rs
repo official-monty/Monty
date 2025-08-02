@@ -343,10 +343,12 @@ impl Board {
         }
 
         let mut score = SEE_VALS[captured_pc] - threshold;
+        let no_recapture_score: i32;
 
         if mov.is_promo() {
             let promo_val = SEE_VALS[mov.promo_pc()];
             score += promo_val - SEE_VALS[Piece::PAWN];
+            no_recapture_score = score;
             if score < 0 {
                 return false;
             }
@@ -355,6 +357,7 @@ impl Board {
                 return true;
             }
         } else {
+            no_recapture_score = score;
             if score < 0 {
                 return false;
             }
@@ -418,8 +421,7 @@ impl Board {
         // recapturing the moved piece if the check is delivered by another piece
         let mut pieces_after = pieces;
         let occ_after = occ | to_bb;
-        let to_pc = if mov.is_promo() { mov.promo_pc() } else { moved_pc };
-        pieces_after[to_pc] |= to_bb;
+        pieces_after[moved_pc] |= to_bb;
         pieces_after[side] |= to_bb;
 
         let opp = side ^ 1;
@@ -435,16 +437,41 @@ impl Board {
             | (Attacks::pawn(ksq_opp, opp) & pieces_after[Piece::PAWN]);
         checkers &= pieces_after[side];
 
-        if checkers != 0 && (checkers & to_bb) == 0 {
-            // Discovered check from another piece: opponent cannot
-            // recapture our moved piece because they must resolve the
-            // check delivered elsewhere. Return early as the piece on `to`
-            // is effectively untouchable.
-            let mut gain = SEE_VALS[captured_pc];
-            if mov.is_promo() {
-                gain += SEE_VALS[mov.promo_pc()] - SEE_VALS[Piece::PAWN];
+        if checkers != 0 {
+            let double_check = checkers & (checkers - 1) != 0;
+            let other_check = (checkers & !to_bb) != 0;
+            if double_check || other_check {
+                let king_can_capture = (Attacks::king(ksq_opp) & to_bb) != 0 && {
+                    let mut pieces_cap = pieces_after;
+                    pieces_cap[moved_pc] &= !to_bb;
+                    pieces_cap[side] &= !to_bb;
+                    pieces_cap[Piece::KING] ^= (1u64 << ksq_opp) | to_bb;
+                    pieces_cap[opp] ^= (1u64 << ksq_opp) | to_bb;
+                    let occ_cap = (occ_after & !to_bb) | (1u64 << ksq_opp);
+                    let queens = pieces_cap[Piece::QUEEN];
+                    let rooks = pieces_cap[Piece::ROOK] | queens;
+                    let bishops = pieces_cap[Piece::BISHOP] | queens;
+                    let pawns_w = pieces_cap[Piece::PAWN] & pieces_cap[Side::WHITE];
+                    let pawns_b = pieces_cap[Piece::PAWN] & pieces_cap[Side::BLACK];
+                    let pawn_attacks = if opp == Side::WHITE {
+                        Attacks::pawn(to, Side::WHITE) & pawns_b
+                    } else {
+                        Attacks::pawn(to, Side::BLACK) & pawns_w
+                    };
+                    let mut chk = (Attacks::king(to) & pieces_cap[Piece::KING])
+                        | (Attacks::knight(to) & pieces_cap[Piece::KNIGHT])
+                        | (Attacks::bishop(to, occ_cap) & bishops)
+                        | (Attacks::rook(to, occ_cap) & rooks)
+                        | pawn_attacks;
+                    chk &= pieces_cap[side];
+                    chk == 0
+                };
+                if !king_can_capture {
+                    return no_recapture_score >= 0;
+                } else {
+                    return score >= 0;
+                }
             }
-            return gain >= threshold;
         }
 
         let mut stm = side ^ 1;
