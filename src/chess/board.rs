@@ -434,11 +434,12 @@ impl Board {
             | (Attacks::pawn(ksq_opp, opp) & pieces_after[Piece::PAWN]);
         checkers &= pieces_after[side];
 
-        if checkers != 0 {
-            let double_check = checkers & (checkers - 1) != 0;
-            if double_check || (checkers & to_bb) == 0 {
-                return SEE_VALS[captured_pc] >= threshold;
-            }
+        if checkers != 0 && (checkers & to_bb) == 0 {
+            // Discovered check from another piece: opponent cannot
+            // recapture our moved piece because they must resolve the
+            // check delivered elsewhere. Return early as the piece on `to`
+            // is effectively untouchable.
+            return SEE_VALS[captured_pc] >= threshold;
         }
 
         let mut stm = side ^ 1;
