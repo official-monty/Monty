@@ -374,6 +374,15 @@ impl Board {
             occ &= !(1u64 << (to ^ 8));
         }
 
+        if mov.flag() == Flag::DBL {
+            let ep_sq = (to ^ 8) as usize;
+            let opp = side ^ 1;
+            let ep_attackers = Attacks::pawn(ep_sq, side) & self.bb[Piece::PAWN] & self.bb[opp];
+            if ep_attackers != 0 {
+                return threshold <= -SEE_VALS[Piece::PAWN];
+            }
+        }
+
         let mut pieces = self.bb;
         pieces[moved_pc] &= !from_bb;
         pieces[side] &= !from_bb;
