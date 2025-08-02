@@ -413,6 +413,34 @@ impl Board {
             pieces[side ^ 1] &= !cap_bb;
         }
 
+        // after making the move on the board, check if the opponent's king is in check
+        // this handles discovered checks which prevent the opponent from
+        // recapturing the moved piece if the check is delivered by another piece
+        let mut pieces_after = pieces;
+        let occ_after = occ | to_bb;
+        pieces_after[moved_pc] |= to_bb;
+        pieces_after[side] |= to_bb;
+
+        let opp = side ^ 1;
+        let ksq_opp = self.king_sq(opp);
+        let queens_after = pieces_after[Piece::QUEEN];
+        let rooks_after = pieces_after[Piece::ROOK] | queens_after;
+        let bishops_after = pieces_after[Piece::BISHOP] | queens_after;
+
+        let mut checkers = (Attacks::king(ksq_opp) & pieces_after[Piece::KING])
+            | (Attacks::knight(ksq_opp) & pieces_after[Piece::KNIGHT])
+            | (Attacks::bishop(ksq_opp, occ_after) & bishops_after)
+            | (Attacks::rook(ksq_opp, occ_after) & rooks_after)
+            | (Attacks::pawn(ksq_opp, opp) & pieces_after[Piece::PAWN]);
+        checkers &= pieces_after[side];
+
+        if checkers != 0 {
+            let double_check = checkers & (checkers - 1) != 0;
+            if double_check || (checkers & to_bb) == 0 {
+                return SEE_VALS[captured_pc] >= threshold;
+            }
+        }
+
         let mut stm = side ^ 1;
         let mut attackers = {
             let queens = pieces[Piece::QUEEN];
