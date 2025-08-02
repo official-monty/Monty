@@ -390,16 +390,7 @@ impl Board {
             pieces[side ^ 1] &= !cap_bb;
         }
 
-        let pinned_w = self.pinned_for(Side::WHITE);
-        let pinned_b = self.pinned_for(Side::BLACK);
-        let all_pinned = pinned_w | pinned_b;
-
-        let white_allowed = pinned_w & LINE_THROUGH[self.king_sq(Side::WHITE)][to];
-        let black_allowed = pinned_b & LINE_THROUGH[self.king_sq(Side::BLACK)][to];
-        let allowed = !all_pinned | white_allowed | black_allowed;
-
         let mut stm = side ^ 1;
-
         let mut attackers = {
             let queens = pieces[Piece::QUEEN];
             let rooks = pieces[Piece::ROOK] | queens;
@@ -408,14 +399,44 @@ impl Board {
             let kings = pieces[Piece::KING];
             let pawns_w = pieces[Piece::PAWN] & pieces[Side::WHITE];
             let pawns_b = pieces[Piece::PAWN] & pieces[Side::BLACK];
-            ((Attacks::king(to) & kings)
+            (Attacks::king(to) & kings)
                 | (Attacks::knight(to) & knights)
                 | (Attacks::bishop(to, occ) & bishops)
                 | (Attacks::rook(to, occ) & rooks)
                 | (Attacks::pawn(to, Side::WHITE) & pawns_b)
-                | (Attacks::pawn(to, Side::BLACK) & pawns_w))
-                & allowed
+                | (Attacks::pawn(to, Side::BLACK) & pawns_w)
         };
+
+        #[inline]
+        fn recompute_pins(
+            pieces: &[u64; 8],
+            occ: u64,
+            side: usize,
+            ksq: usize,
+        ) -> u64 {
+            let boys = pieces[side];
+            let opps = pieces[side ^ 1];
+            let rq = pieces[Piece::QUEEN] | pieces[Piece::ROOK];
+            let bq = pieces[Piece::QUEEN] | pieces[Piece::BISHOP];
+            let mut pinned = 0u64;
+
+            let mut pinners = Attacks::xray_rook(ksq, occ, boys) & opps & rq;
+            while pinners > 0 {
+                pop_lsb!(sq, pinners);
+                pinned |= IN_BETWEEN[usize::from(sq)][ksq] & boys;
+            }
+
+            pinners = Attacks::xray_bishop(ksq, occ, boys) & opps & bq;
+            while pinners > 0 {
+                pop_lsb!(sq, pinners);
+                pinned |= IN_BETWEEN[usize::from(sq)][ksq] & boys;
+            }
+
+            pinned
+        }
+
+        let mut pinned_w = self.pinned_for(Side::WHITE);
+        let mut pinned_b = self.pinned_for(Side::BLACK);
 
         fn remove_least(pieces: &mut [u64; 8], mask: u64, occ: &mut u64) -> Option<usize> {
             const ORDER: [usize; 6] = [
@@ -445,7 +466,16 @@ impl Board {
         }
 
         while attackers & pieces[stm] != 0 {
-            let our_attackers = attackers & pieces[stm];
+            let allowed = {
+                let all_pinned = pinned_w | pinned_b;
+                let white_allowed =
+                    pinned_w & LINE_THROUGH[self.king_sq(Side::WHITE)][to];
+                let black_allowed =
+                    pinned_b & LINE_THROUGH[self.king_sq(Side::BLACK)][to];
+                !all_pinned | white_allowed | black_allowed
+            };
+
+            let our_attackers = attackers & pieces[stm] & allowed;
             let Some(mut attacker_pc) = remove_least(&mut pieces, our_attackers, &mut occ) else {
                 break;
             };
@@ -479,6 +509,9 @@ impl Board {
 
             score = -score - 1 - SEE_VALS[attacker_pc];
             stm ^= 1;
+
+            pinned_w = recompute_pins(&pieces, occ, Side::WHITE, self.king_sq(Side::WHITE));
+            pinned_b = recompute_pins(&pieces, occ, Side::BLACK, self.king_sq(Side::BLACK));
 
             let promo_attackers =
                 attackers & pieces[stm] & pieces[Piece::PAWN] & Rank::PEN[stm];
