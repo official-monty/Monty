@@ -484,7 +484,7 @@ impl Board {
         let mut pinned_w = recompute_pins(&pieces, occ, Side::WHITE, self.king_sq(Side::WHITE));
         let mut pinned_b = recompute_pins(&pieces, occ, Side::BLACK, self.king_sq(Side::BLACK));
 
-        fn remove_least(pieces: &mut [u64; 8], mask: u64, occ: &mut u64) -> Option<usize> {
+        fn remove_least(pieces: &mut [u64; 8], mask: u64, occ: &mut u64) -> Option<(usize, u64)> {
             const ORDER: [usize; 6] = [
                 Piece::PAWN,
                 Piece::KNIGHT,
@@ -505,7 +505,7 @@ impl Board {
                         pieces[Side::BLACK] ^= bit;
                     }
                     *occ ^= bit;
-                    return Some(pc);
+                    return Some((pc, bit));
                 }
             }
             None
@@ -520,19 +520,56 @@ impl Board {
             };
 
             let our_attackers = attackers & pieces[stm] & allowed;
-            let Some(mut attacker_pc) = remove_least(&mut pieces, our_attackers, &mut occ) else {
+            let Some((mut attacker_pc, from_bit)) =
+                remove_least(&mut pieces, our_attackers, &mut occ)
+            else {
                 break;
             };
+
+            // after hypothetically moving this attacker to `to`, check if it leaves the king in check
+            {
+                let mut pieces_after = pieces;
+                let occ_after = occ | to_bb;
+                pieces_after[attacker_pc] |= to_bb;
+                pieces_after[stm] |= to_bb;
+                let ksq = if attacker_pc == Piece::KING {
+                    to
+                } else {
+                    self.king_sq(stm)
+                };
+
+                let queens = pieces_after[Piece::QUEEN];
+                let rooks = pieces_after[Piece::ROOK] | queens;
+                let bishops = pieces_after[Piece::BISHOP] | queens;
+                let pawns_w = pieces_after[Piece::PAWN] & pieces_after[Side::WHITE];
+                let pawns_b = pieces_after[Piece::PAWN] & pieces_after[Side::BLACK];
+                let pawn_attacks = if stm == Side::WHITE {
+                    Attacks::pawn(ksq, Side::WHITE) & pawns_b
+                } else {
+                    Attacks::pawn(ksq, Side::BLACK) & pawns_w
+                };
+
+                let mut checkers = (Attacks::king(ksq) & pieces_after[Piece::KING])
+                    | (Attacks::knight(ksq) & pieces_after[Piece::KNIGHT])
+                    | (Attacks::bishop(ksq, occ_after) & bishops)
+                    | (Attacks::rook(ksq, occ_after) & rooks)
+                    | pawn_attacks;
+                checkers &= pieces_after[stm ^ 1];
+                if checkers != 0 {
+                    // revert removal and skip this attacker
+                    pieces[attacker_pc] |= from_bit;
+                    pieces[stm] |= from_bit;
+                    occ |= from_bit;
+                    attackers &= !from_bit;
+                    continue;
+                }
+            }
 
             if attacker_pc == Piece::PAWN
                 && ((stm == Side::WHITE && to >= 56) || (stm == Side::BLACK && to < 8))
             {
                 score += SEE_VALS[Piece::QUEEN] - SEE_VALS[Piece::PAWN];
                 attacker_pc = Piece::QUEEN;
-            }
-
-            if attacker_pc == Piece::KING && (attackers & pieces[stm ^ 1]) != 0 {
-                break;
             }
 
             let queens = pieces[Piece::QUEEN];
@@ -550,6 +587,10 @@ impl Board {
             }
 
             attackers &= occ;
+
+            if attacker_pc == Piece::KING && (attackers & pieces[stm ^ 1]) != 0 {
+                break;
+            }
 
             score = -score - 1 - SEE_VALS[attacker_pc];
             stm ^= 1;
