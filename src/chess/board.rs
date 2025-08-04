@@ -568,10 +568,10 @@ impl Board {
                 }
             }
 
+            let capture_val = SEE_VALS[attacker_pc];
             if attacker_pc == Piece::PAWN
                 && ((stm == Side::WHITE && to >= 56) || (stm == Side::BLACK && to < 8))
             {
-                score += SEE_VALS[Piece::QUEEN] - SEE_VALS[Piece::PAWN];
                 attacker_pc = Piece::QUEEN;
             }
 
@@ -595,7 +595,7 @@ impl Board {
                 break;
             }
 
-            score = -score - 1 - SEE_VALS[attacker_pc];
+            score = -score - 1 - capture_val;
             stm ^= 1;
 
             pinned_w = recompute_pins(&pieces, occ, Side::WHITE, self.king_sq(Side::WHITE));
