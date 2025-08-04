@@ -365,10 +365,14 @@ impl Board {
                 if (Attacks::pawn(to, opp ^ 1) & promo_attackers) == 0 {
                     return true;
                 }
-                score -= SEE_VALS[Piece::QUEEN] - SEE_VALS[Piece::PAWN];
-                if score >= 0 {
+                let promo_penalty = SEE_VALS[Piece::QUEEN] - SEE_VALS[Piece::PAWN];
+                if score >= promo_penalty {
                     return true;
                 }
+                // if a pawn can recapture and promote, fall through to full
+                // static exchange evaluation without modifying the score so
+                // that further recaptures (e.g. king capturing the promoted
+                // queen) are considered.
             }
         }
 
