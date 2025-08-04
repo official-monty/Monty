@@ -523,7 +523,7 @@ impl Board {
             };
 
             let our_attackers = attackers & pieces[stm] & allowed;
-            let Some((mut attacker_pc, from_bit)) =
+            let Some((attacker_pc, from_bit)) =
                 remove_least(&mut pieces, our_attackers, &mut occ)
             else {
                 break;
@@ -568,12 +568,8 @@ impl Board {
                 }
             }
 
-            if attacker_pc == Piece::PAWN
-                && ((stm == Side::WHITE && to >= 56) || (stm == Side::BLACK && to < 8))
-            {
-                score += SEE_VALS[Piece::QUEEN] - SEE_VALS[Piece::PAWN];
-                attacker_pc = Piece::QUEEN;
-            }
+            let promotion = attacker_pc == Piece::PAWN
+                && ((stm == Side::WHITE && to >= 56) || (stm == Side::BLACK && to < 8));
 
             let queens = pieces[Piece::QUEEN];
             let rooks = pieces[Piece::ROOK] | queens;
@@ -596,6 +592,9 @@ impl Board {
             }
 
             score = -score - 1 - SEE_VALS[attacker_pc];
+            if promotion {
+                score += SEE_VALS[Piece::QUEEN] - SEE_VALS[Piece::PAWN];
+            }
             stm ^= 1;
 
             pinned_w = recompute_pins(&pieces, occ, Side::WHITE, self.king_sq(Side::WHITE));
