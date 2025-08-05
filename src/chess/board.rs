@@ -360,9 +360,48 @@ impl Board {
             }
             score -= SEE_VALS[moved_pc];
             if score >= 0 {
+                let to_bb = 1u64 << to;
+                let cap_sq = if mov.is_en_passant() { to ^ 8 } else { to };
+                let cap_bb = 1u64 << cap_sq;
+
+                // build board after the capture to check for further attackers
+                let mut occ_after = self.occ();
+                occ_after ^= from_bb;
+                occ_after ^= cap_bb;
+                occ_after |= to_bb;
+                let occ_att = occ_after ^ to_bb;
+
+                let mut pieces_after = self.bb;
+                pieces_after[moved_pc] ^= from_bb;
+                pieces_after[side] ^= from_bb;
+                if captured_pc != Piece::EMPTY {
+                    pieces_after[captured_pc] ^= cap_bb;
+                    pieces_after[side ^ 1] ^= cap_bb;
+                }
+                pieces_after[moved_pc] |= to_bb;
+                pieces_after[side] |= to_bb;
+
                 let opp = side ^ 1;
-                let promo_attackers = self.bb[Piece::PAWN] & self.bb[opp] & Rank::PEN[opp];
-                if (Attacks::pawn(to, opp ^ 1) & promo_attackers) == 0 {
+                let queens = pieces_after[Piece::QUEEN];
+                let rooks = pieces_after[Piece::ROOK] | queens;
+                let bishops = pieces_after[Piece::BISHOP] | queens;
+                let pawns_w = pieces_after[Piece::PAWN] & pieces_after[Side::WHITE];
+                let pawns_b = pieces_after[Piece::PAWN] & pieces_after[Side::BLACK];
+                let mut opp_attackers = (Attacks::king(to) & pieces_after[Piece::KING])
+                    | (Attacks::knight(to) & pieces_after[Piece::KNIGHT])
+                    | (Attacks::bishop(to, occ_att) & bishops)
+                    | (Attacks::rook(to, occ_att) & rooks)
+                    | (Attacks::pawn(to, Side::WHITE) & pawns_b)
+                    | (Attacks::pawn(to, Side::BLACK) & pawns_w);
+                opp_attackers &= pieces_after[opp];
+
+                if opp_attackers == 0 {
+                    return true;
+                }
+
+                let promo_attackers =
+                    pieces_after[Piece::PAWN] & pieces_after[opp] & Rank::PEN[opp];
+                if (Attacks::pawn(to, side) & promo_attackers) == 0 {
                     return true;
                 }
                 let promo_penalty = SEE_VALS[Piece::QUEEN] - SEE_VALS[Piece::PAWN];
@@ -537,8 +576,10 @@ impl Board {
                     let opp = side ^ 1;
                     let bishops = (pieces[Piece::BISHOP] | pieces[Piece::QUEEN]) & pieces[opp];
                     let rooks = (pieces[Piece::ROOK] | pieces[Piece::QUEEN]) & pieces[opp];
+                    let pawns = pieces[Piece::PAWN] & pieces[opp];
                     let opens_xray = (Attacks::bishop(to, occ_after) & bishops) != 0
-                        || (Attacks::rook(to, occ_after) & rooks) != 0;
+                        || (Attacks::rook(to, occ_after) & rooks) != 0
+                        || (Attacks::pawn(to, side) & pawns) != 0;
 
                     if !releases_pin && !opens_xray {
                         // best option: neither releases a pin nor opens an x-ray
