@@ -497,6 +497,7 @@ impl Board {
             occ: &mut u64,
             opp_king: usize,
             opp_pinned: u64,
+            to: usize,
         ) -> Option<(usize, u64)> {
             const ORDER: [usize; 6] = [
                 Piece::PAWN,
@@ -507,24 +508,60 @@ impl Board {
                 Piece::KING,
             ];
 
+            let mut global_fallback: Option<(usize, u64)> = None;
+
             for &pc in &ORDER {
                 let mut bb = pieces[pc] & mask;
-                if bb != 0 {
-                    // prefer moves that do not release pins on the opponent
-                    let mut fallback = 0u64;
-                    while bb != 0 {
-                        let bit = bb & bb.wrapping_neg();
-                        bb ^= bit;
-                        let sq = bit.trailing_zeros() as usize;
-                        if (LINE_THROUGH[opp_king][sq] & opp_pinned) == 0 {
-                            fallback = bit;
-                            break;
+                if bb == 0 {
+                    continue;
+                }
+
+                // prefer moves that do not release pins on the opponent and do not
+                // uncover x-ray attacks on the destination square
+                let mut fallback_no_xray = None;
+
+                while bb != 0 {
+                    let bit = bb & bb.wrapping_neg();
+                    bb ^= bit;
+                    let sq = bit.trailing_zeros() as usize;
+
+                    let releases_pin = (LINE_THROUGH[opp_king][sq] & opp_pinned) != 0;
+
+                    // check if moving this piece reveals a new slider attack on `to`
+                    let occ_after = *occ ^ bit;
+                    let side = if pieces[Side::WHITE] & bit != 0 {
+                        Side::WHITE
+                    } else {
+                        Side::BLACK
+                    };
+                    let opp = side ^ 1;
+                    let bishops = (pieces[Piece::BISHOP] | pieces[Piece::QUEEN]) & pieces[opp];
+                    let rooks = (pieces[Piece::ROOK] | pieces[Piece::QUEEN]) & pieces[opp];
+                    let opens_xray = (Attacks::bishop(to, occ_after) & bishops) != 0
+                        || (Attacks::rook(to, occ_after) & rooks) != 0;
+
+                    if !releases_pin && !opens_xray {
+                        // best option: neither releases a pin nor opens an x-ray
+                        pieces[pc] ^= bit;
+                        if pieces[Side::WHITE] & bit != 0 {
+                            pieces[Side::WHITE] ^= bit;
+                        } else {
+                            pieces[Side::BLACK] ^= bit;
                         }
-                        if fallback == 0 {
-                            fallback = bit;
-                        }
+                        *occ ^= bit;
+                        return Some((pc, bit));
                     }
-                    let bit = fallback;
+
+                    if !opens_xray && fallback_no_xray.is_none() {
+                        fallback_no_xray = Some(bit);
+                    }
+
+                    if global_fallback.is_none() {
+                        global_fallback = Some((pc, bit));
+                    }
+                }
+
+                if let Some(bit) = fallback_no_xray {
                     pieces[pc] ^= bit;
                     if pieces[Side::WHITE] & bit != 0 {
                         pieces[Side::WHITE] ^= bit;
@@ -535,6 +572,18 @@ impl Board {
                     return Some((pc, bit));
                 }
             }
+
+            if let Some((pc, bit)) = global_fallback {
+                pieces[pc] ^= bit;
+                if pieces[Side::WHITE] & bit != 0 {
+                    pieces[Side::WHITE] ^= bit;
+                } else {
+                    pieces[Side::BLACK] ^= bit;
+                }
+                *occ ^= bit;
+                return Some((pc, bit));
+            }
+
             None
         }
 
@@ -547,11 +596,20 @@ impl Board {
             };
 
             let our_attackers = attackers & pieces[stm] & allowed;
-            let opp_pinned = if stm == Side::WHITE { pinned_b } else { pinned_w };
+            let opp_pinned = if stm == Side::WHITE {
+                pinned_b
+            } else {
+                pinned_w
+            };
             let opp_king_sq = self.king_sq(stm ^ 1);
-            let Some((mut attacker_pc, from_bit)) =
-                remove_least(&mut pieces, our_attackers, &mut occ, opp_king_sq, opp_pinned)
-            else {
+            let Some((mut attacker_pc, from_bit)) = remove_least(
+                &mut pieces,
+                our_attackers,
+                &mut occ,
+                opp_king_sq,
+                opp_pinned,
+                to,
+            ) else {
                 break;
             };
 
