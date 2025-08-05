@@ -491,7 +491,13 @@ impl Board {
         let mut pinned_w = recompute_pins(&pieces, occ, Side::WHITE, self.king_sq(Side::WHITE));
         let mut pinned_b = recompute_pins(&pieces, occ, Side::BLACK, self.king_sq(Side::BLACK));
 
-        fn remove_least(pieces: &mut [u64; 8], mask: u64, occ: &mut u64) -> Option<(usize, u64)> {
+        fn remove_least(
+            pieces: &mut [u64; 8],
+            mask: u64,
+            occ: &mut u64,
+            opp_king: usize,
+            opp_pinned: u64,
+        ) -> Option<(usize, u64)> {
             const ORDER: [usize; 6] = [
                 Piece::PAWN,
                 Piece::KNIGHT,
@@ -502,9 +508,23 @@ impl Board {
             ];
 
             for &pc in &ORDER {
-                let bb = pieces[pc] & mask;
+                let mut bb = pieces[pc] & mask;
                 if bb != 0 {
-                    let bit = bb & bb.wrapping_neg();
+                    // prefer moves that do not release pins on the opponent
+                    let mut fallback = 0u64;
+                    while bb != 0 {
+                        let bit = bb & bb.wrapping_neg();
+                        bb ^= bit;
+                        let sq = bit.trailing_zeros() as usize;
+                        if (LINE_THROUGH[opp_king][sq] & opp_pinned) == 0 {
+                            fallback = bit;
+                            break;
+                        }
+                        if fallback == 0 {
+                            fallback = bit;
+                        }
+                    }
+                    let bit = fallback;
                     pieces[pc] ^= bit;
                     if pieces[Side::WHITE] & bit != 0 {
                         pieces[Side::WHITE] ^= bit;
@@ -527,8 +547,10 @@ impl Board {
             };
 
             let our_attackers = attackers & pieces[stm] & allowed;
+            let opp_pinned = if stm == Side::WHITE { pinned_b } else { pinned_w };
+            let opp_king_sq = self.king_sq(stm ^ 1);
             let Some((mut attacker_pc, from_bit)) =
-                remove_least(&mut pieces, our_attackers, &mut occ)
+                remove_least(&mut pieces, our_attackers, &mut occ, opp_king_sq, opp_pinned)
             else {
                 break;
             };
