@@ -426,17 +426,50 @@ impl Board {
         if mov.flag() == Flag::DBL {
             let ep_sq = (to ^ 8) as usize;
             let opp = side ^ 1;
-            let mut ep_attackers = Attacks::pawn(ep_sq, side) & self.bb[Piece::PAWN] & self.bb[opp];
+            let mut ep_attackers =
+                Attacks::pawn(ep_sq, side) & self.bb[Piece::PAWN] & self.bb[opp];
             if ep_attackers != 0 {
                 let mut occ_after = self.occ();
                 occ_after ^= from_bb | (1u64 << to);
                 let mut pieces_after = self.bb;
                 pieces_after[Piece::PAWN] ^= from_bb | (1u64 << to);
                 pieces_after[side] ^= from_bb | (1u64 << to);
-                let pinned_opp = recompute_pins(&pieces_after, occ_after, opp, self.king_sq(opp));
-                ep_attackers &= !pinned_opp | (LINE_THROUGH[self.king_sq(opp)][ep_sq] & pinned_opp);
+                let pinned_opp =
+                    recompute_pins(&pieces_after, occ_after, opp, self.king_sq(opp));
+                ep_attackers &=
+                    !pinned_opp | (LINE_THROUGH[self.king_sq(opp)][ep_sq] & pinned_opp);
                 if ep_attackers != 0 {
-                    return threshold <= -SEE_VALS[Piece::PAWN];
+                    let mut legal = false;
+                    let mut attackers = ep_attackers;
+                    while attackers != 0 {
+                        pop_lsb!(src, attackers);
+                        let from_bit = 1u64 << src;
+                        let mut occ_cap = occ_after ^ from_bit ^ (1u64 << to);
+                        occ_cap |= 1u64 << ep_sq;
+                        let mut pieces_cap = pieces_after;
+                        pieces_cap[Piece::PAWN] ^= from_bit | (1u64 << to) | (1u64 << ep_sq);
+                        pieces_cap[opp] ^= from_bit;
+                        pieces_cap[opp] |= 1u64 << ep_sq;
+                        pieces_cap[side] &= !(1u64 << to);
+
+                        let king_sq = self.king_sq(opp);
+                        let queens = pieces_cap[Piece::QUEEN];
+                        let rooks = pieces_cap[Piece::ROOK] | queens;
+                        let bishops = pieces_cap[Piece::BISHOP] | queens;
+                        let mut checkers = (Attacks::king(king_sq) & pieces_cap[Piece::KING])
+                            | (Attacks::knight(king_sq) & pieces_cap[Piece::KNIGHT])
+                            | (Attacks::bishop(king_sq, occ_cap) & bishops)
+                            | (Attacks::rook(king_sq, occ_cap) & rooks)
+                            | (Attacks::pawn(king_sq, opp) & pieces_cap[Piece::PAWN]);
+                        checkers &= pieces_cap[side];
+                        if checkers == 0 {
+                            legal = true;
+                            break;
+                        }
+                    }
+                    if legal {
+                        return threshold <= -SEE_VALS[Piece::PAWN];
+                    }
                 }
             }
         }
