@@ -577,12 +577,13 @@ impl Board {
                     let bishops = (pieces[Piece::BISHOP] | pieces[Piece::QUEEN]) & pieces[opp];
                     let rooks = (pieces[Piece::ROOK] | pieces[Piece::QUEEN]) & pieces[opp];
                     let pawns = pieces[Piece::PAWN] & pieces[opp];
-                    let existing_xray = (Attacks::bishop(to, *occ) & bishops) != 0
+                    let pawn_attack = (Attacks::pawn(to, side) & pawns) != 0;
+                    let existing_xray = pawn_attack
+                        || (Attacks::bishop(to, *occ) & bishops) != 0
                         || (Attacks::rook(to, *occ) & rooks) != 0;
-                    let opens_xray = !existing_xray && 
-                        ((Attacks::bishop(to, occ_after) & bishops) != 0
-                        || (Attacks::rook(to, occ_after) & rooks) != 0
-                        || (Attacks::pawn(to, side) & pawns) != 0);
+                    let opens_xray = !existing_xray
+                        && ((Attacks::bishop(to, occ_after) & bishops) != 0
+                            || (Attacks::rook(to, occ_after) & rooks) != 0);
 
                     if !releases_pin && !opens_xray {
                         // best option: neither releases a pin nor opens an x-ray
