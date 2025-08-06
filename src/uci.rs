@@ -6,10 +6,11 @@ use crate::{
 };
 
 use std::{
-    io, process,
     fs::File,
+    io,
     io::BufRead,
     io::Write,
+    process,
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
 };
@@ -455,14 +456,16 @@ fn run_see(debug: bool) {
                 let score = see_score(&pos.board(), &mov);
                 if score != expected {
                     if debug {
-                        println!("FAIL: {fen} {mstr} got {score} expected {expected}");
+                        let fen_cur = pos.board().as_fen();
+                        println!("FAIL {total}: {fen_cur} {mstr} got {score} expected {expected}");
                     }
                     fails += 1;
                 }
                 pos.make_move(mov);
             } else {
                 if debug {
-                    println!("Could not parse move {mstr} in {fen}");
+                    let fen_cur = pos.board().as_fen();
+                    println!("Could not parse move {total}: {mstr} in {fen_cur}");
                 }
                 fails += 1;
             }
@@ -498,7 +501,9 @@ fn parse_uci(pos: &ChessState, uci: &str) -> Option<Move> {
 
 fn generate_see() {
     let input = File::open("lichess_db_puzzle.csv").expect("lichess_db_puzzle.csv missing");
-    let mut output = std::io::BufWriter::new(File::create("see_suite.csv").expect("cannot create see_suite.csv"));
+    let mut output = std::io::BufWriter::new(
+        File::create("see_suite.csv").expect("cannot create see_suite.csv"),
+    );
     for line in std::io::BufReader::new(input).lines() {
         let line = line.unwrap();
         if line.starts_with("PuzzleId") || line.trim().is_empty() {
