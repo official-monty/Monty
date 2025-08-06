@@ -618,8 +618,14 @@ impl Board {
                         && ((Attacks::bishop(to, occ_after) & bishops) != 0
                             || (Attacks::rook(to, occ_after) & rooks) != 0);
 
-                    if !releases_pin && !opens_xray {
-                        // best option: neither releases a pin nor opens an x-ray
+                    // If the attacker is a pawn on the promotion rank, prefer it even if
+                    // it releases a pin or opens an x-ray. Such captures are often the
+                    // only legal reply and ignoring them can dramatically skew the SEE.
+                    let promo_pawn = pc == Piece::PAWN && (bit & Rank::PEN[side]) != 0;
+
+                    if (!releases_pin || promo_pawn) && (!opens_xray || promo_pawn) {
+                        // best option: neither releases a pin nor opens an x-ray, or
+                        // we must consider the promotion capture regardless
                         pieces[pc] ^= bit;
                         if pieces[Side::WHITE] & bit != 0 {
                             pieces[Side::WHITE] ^= bit;
@@ -630,7 +636,7 @@ impl Board {
                         return Some((pc, bit));
                     }
 
-                    if !opens_xray && fallback_no_xray.is_none() {
+                    if (!opens_xray || promo_pawn) && fallback_no_xray.is_none() {
                         fallback_no_xray = Some(bit);
                     }
 
