@@ -142,7 +142,7 @@ impl Node {
         self.actions.read()
     }
 
-    pub fn actions_mut(&self) -> WriteGuard {
+    pub fn actions_mut(&self) -> WriteGuard<'_> {
         self.actions.write()
     }
 
