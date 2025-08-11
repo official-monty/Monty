@@ -14,7 +14,8 @@ pub fn perform_one(
 ) -> Option<f32> {
     *depth += 1;
 
-    let hash = pos.hash();
+    let cur_hash = pos.hash();
+    let mut child_hash: Option<u64> = None;
     let tree = searcher.tree;
     let node = &tree[ptr];
 
@@ -25,7 +26,7 @@ pub fn perform_one(
 
         // probe hash table to use in place of network
         if node.state() == GameState::Ongoing {
-            if let Some(entry) = tree.probe_hash(hash) {
+            if let Some(entry) = tree.probe_hash(cur_hash) {
                 entry.q()
             } else {
                 get_utility(searcher, ptr, pos)
@@ -59,6 +60,9 @@ pub fn perform_one(
 
         pos.make_move(mov);
 
+        // capture child hash (value is stored from the side to move at this child)
+        child_hash = Some(pos.hash());
+
         tree[child_ptr].inc_threads();
 
         // acquire lock to avoid issues with desynced setting of
@@ -83,14 +87,17 @@ pub fn perform_one(
         u
     };
 
-    // node scores are stored from the perspective
-    // **of the parent**, as they are usually only
-    // accessed from the parent's POV
+    // store value for the side to move at the visited node in TT
+    if let Some(h) = child_hash {
+        // `u` here is from the current node's perspective, so flip for the child
+        tree.push_hash(h, 1.0 - u);
+    } else {
+        tree.push_hash(cur_hash, u);
+    }
+
+    // flip perspective and backpropagate
     u = 1.0 - u;
-
-    let new_q = node.update(u);
-    tree.push_hash(hash, 1.0 - new_q);
-
+    node.update(u);
     Some(u)
 }
 
