@@ -7,15 +7,15 @@ use super::{
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals, dead_code)]
-pub const PolicyFileDefaultName: &str = "nn-16e3f3873421.network";
+pub const PolicyFileDefaultName: &str = "nn-06e27b5ef6e7.network";
 #[allow(non_upper_case_globals, dead_code)]
-pub const CompressedPolicyName: &str = "nn-4b70c6924179.network";
+pub const CompressedPolicyName: &str = "nn-bef5cb915ecf.network";
 
 const QA: i16 = 128;
 const QB: i16 = 128;
 const FACTOR: i16 = 32;
 
-pub const L1: usize = 6144;
+pub const L1: usize = 16384;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
