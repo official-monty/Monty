@@ -39,7 +39,6 @@ impl<'a> DatagenThread<'a> {
 
     pub fn run(
         &mut self,
-        node_limit: usize,
         output_policy: bool,
         policy: &PolicyNetwork,
         value: &ValueNetwork,
@@ -49,13 +48,12 @@ impl<'a> DatagenThread<'a> {
                 break;
             }
 
-            self.run_game(node_limit, policy, value, output_policy);
+            self.run_game(policy, value, output_policy);
         }
     }
 
     fn run_game(
         &mut self,
-        node_limit: usize,
         policy: &PolicyNetwork,
         value: &ValueNetwork,
         output_policy: bool,
@@ -67,20 +65,6 @@ impl<'a> DatagenThread<'a> {
             ChessState::from_fen(ChessState::STARTPOS)
         };
 
-        // play 8 or 9 random moves
-        for _ in 0..(8 + (self.rng.rand_int() % 2)) {
-            let mut moves = Vec::new();
-            position.map_legal_moves(|mov| moves.push(mov));
-
-            if moves.is_empty() {
-                return;
-            }
-
-            let mov = moves[self.rng.rand_int() as usize % moves.len()];
-
-            position.make_move(mov);
-        }
-
         let mut moves = Vec::new();
         position.map_legal_moves(|mov| moves.push(mov));
 
@@ -89,15 +73,17 @@ impl<'a> DatagenThread<'a> {
         }
 
         let limits = Limits {
-            max_depth: 12,
-            max_nodes: node_limit,
+            max_depth: 64,
+            max_nodes: 100000,
             max_time: None,
             opt_time: None,
+            kld_min_gain: Some(0.000005)
         };
 
         let mut result = 0.5;
 
         let mut tree = Tree::new_mb(8, 1);
+        let mut temp = 0.8;
 
         let pos = position.board();
 
@@ -124,6 +110,9 @@ impl<'a> DatagenThread<'a> {
 
         let mut policy_game = MontyFormat::new(montyformat_position, montyformat_castling);
 
+        let mut total_iters = 0usize;
+        let mut searches = 0;
+
         // play out game
         loop {
             if self.stop.load(Ordering::Relaxed) {
@@ -134,7 +123,15 @@ impl<'a> DatagenThread<'a> {
             tree.set_root_position(&position);
             let searcher = Searcher::new(&tree, &self.params, policy, value, &abort);
 
-            let (bm, score) = searcher.search(1, limits, false, &mut 0);
+            let (bm, score, iters) = searcher.search(1, limits, false, &mut 0, true, temp);
+
+            searches += 1;
+            total_iters += iters;
+
+            temp *= 0.9;
+            if temp <= 0.2 {
+                temp = 0.0;
+            }
 
             let best_move = montyformat::chess::Move::from(u16::from(bm));
 
@@ -202,7 +199,7 @@ impl<'a> DatagenThread<'a> {
         let mut dest = self.dest.lock().unwrap();
 
         if output_policy {
-            dest.push_policy(&policy_game, self.stop);
+            dest.push_policy(&policy_game, self.stop, searches, total_iters);
         } else {
             dest.push(&value_game, self.stop);
         }
