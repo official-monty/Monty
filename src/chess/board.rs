@@ -413,7 +413,7 @@ impl Board {
         }
 
         if mov.flag() == Flag::DBL {
-            let ep_sq = (to ^ 8) as usize;
+            let ep_sq = to ^ 8;
             let opp = side ^ 1;
             let mut ep_attackers = Attacks::pawn(ep_sq, side) & self.bb[Piece::PAWN] & self.bb[opp];
             if ep_attackers != 0 {
@@ -466,7 +466,7 @@ impl Board {
 
         if captured_pc != Piece::EMPTY {
             let cap_sq = if mov.is_en_passant() {
-                (to ^ 8) as usize
+                to ^ 8
             } else {
                 to
             };
@@ -609,7 +609,7 @@ impl Board {
                     // only legal reply and ignoring them can dramatically skew the SEE.
                     let promo_pawn = pc == Piece::PAWN && (bit & Rank::PEN[side]) != 0;
 
-                    if (!releases_pin || promo_pawn) && (!opens_xray || promo_pawn) {
+                    if promo_pawn || (!releases_pin && !opens_xray) {
                         // best option: neither releases a pin nor opens an x-ray, or
                         // we must consider the promotion capture regardless
                         pieces[pc] ^= bit;
