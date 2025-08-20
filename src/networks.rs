@@ -19,4 +19,4 @@ pub use policy::PolicyFileDefaultName;
 pub use value::ValueFileDefaultName;
 
 pub use policy::{PolicyNetwork, UnquantisedPolicyNetwork, L1 as POLICY_L1};
-pub use value::{ValueNetwork};
+pub use value::ValueNetwork;

@@ -44,7 +44,6 @@ impl SearchHelpers {
     ///
     /// Larger value implies more exploration.
     pub fn get_explore_scaling(params: &MctsParams, node: &Node) -> f32 {
-
         let mut scale = Self::base_explore_scaling(params, node);
         let gini = node.gini_impurity();
 

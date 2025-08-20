@@ -16,7 +16,6 @@ pub const CompressedPolicyName: &str = "nn-4b70c6924179.network";
 #[allow(non_upper_case_globals, dead_code)]
 pub const DatagenPolicyFileName: &str = "nn-6764ee301f3e.network";
 
-
 const QA: i16 = 128;
 const QB: i16 = 128;
 const FACTOR: i16 = 32;

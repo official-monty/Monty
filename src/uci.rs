@@ -70,7 +70,8 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                     threads,
                     move_overhead,
                     &mut stored_message,
-                    #[cfg(feature = "datagen")] 1.0,
+                    #[cfg(feature = "datagen")]
+                    1.0,
                 );
             }
             "bench" => {
@@ -194,7 +195,8 @@ pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork, params:
         opt_time: None,
         max_depth: depth,
         max_nodes: 1_000_000,
-        #[cfg(feature = "datagen")] kld_min_gain: None,
+        #[cfg(feature = "datagen")]
+        kld_min_gain: None,
     };
 
     let mut tree = Tree::new_mb(32, 1);
@@ -335,8 +337,7 @@ fn go(
     threads: usize,
     move_overhead: usize,
     stored_message: &mut Option<String>,
-    #[cfg(feature = "datagen")]
-    temp: f32,
+    #[cfg(feature = "datagen")] temp: f32,
 ) {
     let mut max_nodes = i32::MAX as usize;
     let mut max_time = None;
@@ -402,22 +403,25 @@ fn go(
         opt_time,
         max_depth,
         max_nodes,
-        #[cfg(feature = "datagen")] kld_min_gain: None,
+        #[cfg(feature = "datagen")]
+        kld_min_gain: None,
     };
 
     std::thread::scope(|s| {
         s.spawn(|| {
             let searcher = Searcher::new(tree, params, policy, value, &abort);
-            let mov = searcher.search(
-                threads,
-                limits,
-                true,
-                &mut 0,
-                #[cfg(feature = "datagen")]
-                false,
-                #[cfg(feature = "datagen")]
-                temp,
-            ).0;
+            let mov = searcher
+                .search(
+                    threads,
+                    limits,
+                    true,
+                    &mut 0,
+                    #[cfg(feature = "datagen")]
+                    false,
+                    #[cfg(feature = "datagen")]
+                    temp,
+                )
+                .0;
             println!("bestmove {}", pos.conv_mov_to_str(mov));
 
             if report_moves {

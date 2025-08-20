@@ -37,12 +37,7 @@ impl<'a> DatagenThread<'a> {
         }
     }
 
-    pub fn run(
-        &mut self,
-        output_policy: bool,
-        policy: &PolicyNetwork,
-        value: &ValueNetwork,
-    ) {
+    pub fn run(&mut self, output_policy: bool, policy: &PolicyNetwork, value: &ValueNetwork) {
         loop {
             if self.stop.load(Ordering::Relaxed) {
                 break;
@@ -52,12 +47,7 @@ impl<'a> DatagenThread<'a> {
         }
     }
 
-    fn run_game(
-        &mut self,
-        policy: &PolicyNetwork,
-        value: &ValueNetwork,
-        output_policy: bool,
-    ) {
+    fn run_game(&mut self, policy: &PolicyNetwork, value: &ValueNetwork, output_policy: bool) {
         let mut position = if let Some(book) = &self.book {
             let idx = self.rng.rand_int() as usize % book.len();
             ChessState::from_fen(book[idx])
@@ -77,7 +67,7 @@ impl<'a> DatagenThread<'a> {
             max_nodes: 100000,
             max_time: None,
             opt_time: None,
-            kld_min_gain: Some(0.000005)
+            kld_min_gain: Some(0.000005),
         };
 
         let mut result = 0.5;

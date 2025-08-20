@@ -247,5 +247,5 @@ impl Node {
         }
 
         Some(kld_gain / f64::from(new_parent_visits - old_parent_visits))
-    }    
+    }
 }

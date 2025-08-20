@@ -445,7 +445,7 @@ impl Tree {
         if node.num_actions() <= 1 {
             return;
         }
-        
+
         let actions_ptr = node.actions();
 
         let mut rng = rand::thread_rng();
@@ -459,5 +459,3 @@ impl Tree {
         }
     }
 }
-
-

@@ -64,7 +64,7 @@ pub struct Destination {
     games: usize,
     limit: usize,
     searches: usize,
-    iters: usize,    
+    iters: usize,
     results: [usize; 3],
 }
 
@@ -89,7 +89,13 @@ impl Destination {
         }
     }
 
-    pub fn push_policy(&mut self, game: &MontyFormat, stop: &AtomicBool, searches: usize, iters: usize) {
+    pub fn push_policy(
+        &mut self,
+        game: &MontyFormat,
+        stop: &AtomicBool,
+        searches: usize,
+        iters: usize,
+    ) {
         if stop.load(Ordering::Relaxed) {
             return;
         }

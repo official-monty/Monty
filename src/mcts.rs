@@ -36,7 +36,8 @@ pub struct Limits {
     pub opt_time: Option<u128>,
     pub max_depth: usize,
     pub max_nodes: usize,
-    #[cfg(feature = "datagen")] pub kld_min_gain: Option<f64>,
+    #[cfg(feature = "datagen")]
+    pub kld_min_gain: Option<f64>,
 }
 
 pub struct Searcher<'a> {
@@ -88,7 +89,7 @@ impl<'a> Searcher<'a> {
                 best_move,
                 best_move_changes,
                 previous_score,
-                #[cfg(feature = "datagen")] 
+                #[cfg(feature = "datagen")]
                 previous_kld,
                 #[cfg(not(feature = "uci-minimal"))]
                 uci_output,
@@ -276,10 +277,8 @@ impl<'a> Searcher<'a> {
         limits: Limits,
         uci_output: bool,
         update_nodes: &mut usize,
-        #[cfg(feature = "datagen")]
-        use_dirichlet_noise: bool,
-        #[cfg(feature = "datagen")]
-        temp: f32,
+        #[cfg(feature = "datagen")] use_dirichlet_noise: bool,
+        #[cfg(feature = "datagen")] temp: f32,
     ) -> SearchRet {
         let timer = Instant::now();
         #[cfg(not(feature = "uci-minimal"))]
@@ -385,8 +384,8 @@ impl<'a> Searcher<'a> {
 
         #[cfg(not(feature = "datagen"))]
         {
-            let selected_mov = _mov;     
-            (selected_mov, q)   
+            let selected_mov = _mov;
+            (selected_mov, q)
         }
 
         #[cfg(feature = "datagen")]
