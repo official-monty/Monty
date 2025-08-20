@@ -310,8 +310,8 @@ impl Board {
     }
 
     // This has been validated to be nearly fully legal (777/23441654 fails on lichess puzzles, 99.997% legal)
-    // See https://github.com/Viren6/Monty/tree/fully-legal-see-5 and 
-    // https://huggingface.co/datasets/Viren6/SEE 
+    // See https://github.com/Viren6/Monty/tree/fully-legal-see-5 and
+    // https://huggingface.co/datasets/Viren6/SEE
     pub fn see(&self, mov: &Move, threshold: i32) -> bool {
         let from = mov.src() as usize;
         let to = mov.to() as usize;
@@ -415,18 +415,15 @@ impl Board {
         if mov.flag() == Flag::DBL {
             let ep_sq = (to ^ 8) as usize;
             let opp = side ^ 1;
-            let mut ep_attackers =
-                Attacks::pawn(ep_sq, side) & self.bb[Piece::PAWN] & self.bb[opp];
+            let mut ep_attackers = Attacks::pawn(ep_sq, side) & self.bb[Piece::PAWN] & self.bb[opp];
             if ep_attackers != 0 {
                 let mut occ_after = self.occ();
                 occ_after ^= from_bb | (1u64 << to);
                 let mut pieces_after = self.bb;
                 pieces_after[Piece::PAWN] ^= from_bb | (1u64 << to);
                 pieces_after[side] ^= from_bb | (1u64 << to);
-                let pinned_opp =
-                    recompute_pins(&pieces_after, occ_after, opp, self.king_sq(opp));
-                ep_attackers &=
-                    !pinned_opp | (LINE_THROUGH[self.king_sq(opp)][ep_sq] & pinned_opp);
+                let pinned_opp = recompute_pins(&pieces_after, occ_after, opp, self.king_sq(opp));
+                ep_attackers &= !pinned_opp | (LINE_THROUGH[self.king_sq(opp)][ep_sq] & pinned_opp);
                 if ep_attackers != 0 {
                     let mut legal = false;
                     let mut attackers = ep_attackers;

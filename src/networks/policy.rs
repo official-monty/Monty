@@ -1,4 +1,7 @@
-use crate::chess::{consts::{Flag, Piece, Side},  Board, Move};
+use crate::chess::{
+    consts::{Flag, Piece, Side},
+    Board, Move,
+};
 
 use super::{
     accumulator::Accumulator,
@@ -140,7 +143,14 @@ const OFFSETS: [[usize; 65]; 6] = {
     offsets
 };
 
-const DESTINATIONS: [[u64; 6]; 64] = init!(|sq, 64| [PAWN[sq], KNIGHT[sq], bishop(sq), rook(sq), queen(sq), KING[sq]]);
+const DESTINATIONS: [[u64; 6]; 64] = init!(|sq, 64| [
+    PAWN[sq],
+    KNIGHT[sq],
+    bishop(sq),
+    rook(sq),
+    queen(sq),
+    KING[sq]
+]);
 
 const A: u64 = 0x0101_0101_0101_0101;
 const H: u64 = A << 7;
