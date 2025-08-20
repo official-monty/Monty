@@ -309,6 +309,9 @@ impl Board {
         threats
     }
 
+    // This has been validated to be nearly fully legal (777/23441654 fails on lichess puzzles, 99.997% legal)
+    // See https://github.com/Viren6/Monty/tree/fully-legal-see-5 and 
+    // https://huggingface.co/datasets/Viren6/SEE 
     pub fn see(&self, mov: &Move, threshold: i32) -> bool {
         let from = mov.src() as usize;
         let to = mov.to() as usize;
