@@ -465,11 +465,7 @@ impl Board {
         pieces[side] &= !from_bb;
 
         if captured_pc != Piece::EMPTY {
-            let cap_sq = if mov.is_en_passant() {
-                to ^ 8
-            } else {
-                to
-            };
+            let cap_sq = if mov.is_en_passant() { to ^ 8 } else { to };
             let cap_bb = 1u64 << cap_sq;
             pieces[captured_pc] &= !cap_bb;
             pieces[side ^ 1] &= !cap_bb;
