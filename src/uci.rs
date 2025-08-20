@@ -402,13 +402,13 @@ fn go(
         opt_time,
         max_depth,
         max_nodes,
-        kld_min_gain: None,
+        #[cfg(feature = "datagen")] kld_min_gain: None,
     };
 
     std::thread::scope(|s| {
         s.spawn(|| {
             let searcher = Searcher::new(tree, params, policy, value, &abort);
-            let (mov, _, _) = searcher.search(
+            let mov = searcher.search(
                 threads,
                 limits,
                 true,
@@ -417,7 +417,7 @@ fn go(
                 false,
                 #[cfg(feature = "datagen")]
                 temp,
-            );
+            ).0;
             println!("bestmove {}", pos.conv_mov_to_str(mov));
 
             if report_moves {

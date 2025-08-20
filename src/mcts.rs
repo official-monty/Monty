@@ -10,8 +10,11 @@ pub use search_stats::SearchStats;
 use crate::{
     chess::{GameState, Move},
     networks::{PolicyNetwork, ValueNetwork},
-    tree::{Node, NodePtr, Tree},
+    tree::{NodePtr, Tree},
 };
+
+#[cfg(feature = "datagen")]
+use crate::tree::Node;
 
 use std::{
     sync::atomic::{AtomicBool, Ordering},
