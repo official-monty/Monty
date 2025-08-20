@@ -6,6 +6,7 @@
 *.exe
 *.pdb
 *.network
+*.epd
 *.zst
 checkpoints
 data
