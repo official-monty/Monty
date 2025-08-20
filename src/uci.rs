@@ -6,11 +6,7 @@ use crate::{
 };
 
 use std::{
-    fs::File,
-    io,
-    io::BufRead,
-    io::Write,
-    process,
+    io, process,
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
 };
@@ -86,9 +82,6 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                 bench(depth, policy, value, &params);
             }
             "perft" => run_perft(&commands, &pos),
-            "see" => run_see(false),
-            "seed" => run_see(true),
-            "generatesee" => generate_see(),
             "quit" => std::process::exit(0),
             "eval" => {
                 println!("cp: {}", pos.get_value(value, &params));
@@ -430,102 +423,6 @@ fn run_perft(commands: &[&str], pos: &ChessState) {
         time / 1000,
         count as f32 / time as f32
     );
-}
-
-fn run_see(debug: bool) {
-    let file = File::open("see_suite.csv").expect("see_suite.csv missing");
-    let mut total = 0;
-    let mut fails = 0;
-    for line in std::io::BufReader::new(file).lines() {
-        let line = line.unwrap();
-        if line.trim().is_empty() {
-            continue;
-        }
-        let parts: Vec<&str> = line.split(';').collect();
-        if parts.len() < 3 {
-            continue;
-        }
-        let fen = parts[0].trim();
-        let moves: Vec<&str> = parts[1].trim().split_whitespace().collect();
-        let scores: Vec<&str> = parts[2].trim().split_whitespace().collect();
-        let mut pos = ChessState::from_fen(fen);
-
-        for (mstr, expected_str) in moves.iter().zip(scores.iter()) {
-            let expected: i32 = expected_str.parse().unwrap_or(0);
-            if let Some(mov) = parse_uci(&pos, mstr) {
-                let score = see_score(&pos.board(), &mov);
-                if score != expected {
-                    if debug {
-                        let fen_cur = pos.board().as_fen();
-                        println!("FAIL {total}: {fen_cur} {mstr} got {score} expected {expected}");
-                    }
-                    fails += 1;
-                }
-                pos.make_move(mov);
-            } else {
-                if debug {
-                    let fen_cur = pos.board().as_fen();
-                    println!("Could not parse move {total}: {mstr} in {fen_cur}");
-                }
-                fails += 1;
-            }
-            total += 1;
-        }
-    }
-    println!("{fails}/{total} fails");
-}
-
-fn see_score(board: &crate::chess::Board, mov: &Move) -> i32 {
-    let mut low = -20000;
-    let mut high = 20000;
-    while low < high {
-        let mid = (low + high + 1) / 2;
-        if board.see(mov, mid) {
-            low = mid;
-        } else {
-            high = mid - 1;
-        }
-    }
-    low
-}
-
-fn parse_uci(pos: &ChessState, uci: &str) -> Option<Move> {
-    let mut found = None;
-    pos.map_legal_moves(|mv| {
-        if found.is_none() && uci == pos.conv_mov_to_str(mv) {
-            found = Some(mv);
-        }
-    });
-    found
-}
-
-fn generate_see() {
-    let input = File::open("lichess_db_puzzle.csv").expect("lichess_db_puzzle.csv missing");
-    let mut output = std::io::BufWriter::new(
-        File::create("see_suite.csv").expect("cannot create see_suite.csv"),
-    );
-    for line in std::io::BufReader::new(input).lines() {
-        let line = line.unwrap();
-        if line.starts_with("PuzzleId") || line.trim().is_empty() {
-            continue;
-        }
-        let parts: Vec<&str> = line.split(',').collect();
-        if parts.len() < 3 {
-            continue;
-        }
-        let fen = parts[1].trim();
-        let moves_str = parts[2].trim();
-        let mut pos = ChessState::from_fen(fen);
-        let mut scores = Vec::new();
-        for mstr in moves_str.split_whitespace() {
-            if let Some(mv) = parse_uci(&pos, mstr) {
-                let score = see_score(&pos.board(), &mv);
-                scores.push(score.to_string());
-                pos.make_move(mv);
-            }
-        }
-        let _ = writeln!(output, "{fen};{moves_str};{}", scores.join(" "));
-    }
 }
 
 fn handle_search_input(abort: &AtomicBool) -> Option<String> {

@@ -309,20 +309,6 @@ impl Board {
         threats
     }
 
-    pub fn see_score(&self, mov: &Move) -> i32 {
-        let mut low = -20000;
-        let mut high = 20000;
-        while low < high {
-            let mid = (low + high + 1) / 2;
-            if self.see(mov, mid) {
-                low = mid;
-            } else {
-                high = mid - 1;
-            }
-        }
-        low
-    }
-
     pub fn see(&self, mov: &Move, threshold: i32) -> bool {
         let from = mov.src() as usize;
         let to = mov.to() as usize;
