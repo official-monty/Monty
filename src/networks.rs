@@ -18,5 +18,5 @@ pub use policy::PolicyFileDefaultName;
 #[cfg(not(feature = "datagen"))]
 pub use value::ValueFileDefaultName;
 
-pub use policy::{PolicyNetwork, UnquantisedPolicyNetwork, L1 as POLICY_L1};
+pub use policy::{PolicyNetwork, L1 as POLICY_L1};
 pub use value::ValueNetwork;
