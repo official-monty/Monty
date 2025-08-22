@@ -223,4 +223,29 @@ impl Node {
 
         (((q + old_q) / u64::from(1 + old_v)) as f64 / f64::from(QUANT)) as f32
     }
+
+    #[cfg(feature = "datagen")]
+    pub fn kld_gain(new_visit_dist: &[i32], old_visit_dist: &[i32]) -> Option<f64> {
+        let new_parent_visits = new_visit_dist.iter().sum::<i32>();
+        let old_parent_visits = old_visit_dist.iter().sum::<i32>();
+
+        if old_parent_visits == 0 {
+            return None;
+        }
+
+        let mut kld_gain = 0.0;
+
+        for (&new_visits, &old_visits) in new_visit_dist.iter().zip(old_visit_dist.iter()) {
+            if old_visits == 0 {
+                return None;
+            }
+
+            let q = f64::from(new_visits) / f64::from(new_parent_visits);
+            let p = f64::from(old_visits) / f64::from(old_parent_visits);
+
+            kld_gain += p * (p / q).ln();
+        }
+
+        Some(kld_gain / f64::from(new_parent_visits - old_parent_visits))
+    }
 }
