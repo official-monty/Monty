@@ -11,6 +11,8 @@ use super::{
 pub const ValueFileDefaultName: &str = "nn-5601bb8c241d.network";
 #[allow(non_upper_case_globals, dead_code)]
 pub const CompressedValueName: &str = "nn-f004da0ebf25.network";
+#[allow(non_upper_case_globals, dead_code)]
+pub const DatagenValueFileName: &str = "nn-5601bb8c241d.network";
 
 const QA: i16 = 512;
 const QB: i16 = 1024;

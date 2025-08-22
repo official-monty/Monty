@@ -13,11 +13,20 @@ use crate::{
     tree::{NodePtr, Tree},
 };
 
+#[cfg(feature = "datagen")]
+use crate::tree::Node;
+
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     thread,
     time::Instant,
 };
+
+#[cfg(feature = "datagen")]
+pub type SearchRet = (Move, f32, usize);
+
+#[cfg(not(feature = "datagen"))]
+pub type SearchRet = (Move, f32);
 
 pub static REPORT_ITERS: AtomicBool = AtomicBool::new(false);
 
@@ -27,6 +36,8 @@ pub struct Limits {
     pub opt_time: Option<u128>,
     pub max_depth: usize,
     pub max_nodes: usize,
+    #[cfg(feature = "datagen")]
+    pub kld_min_gain: Option<f64>,
 }
 
 pub struct Searcher<'a> {
@@ -64,6 +75,7 @@ impl<'a> Searcher<'a> {
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
+        #[cfg(feature = "datagen")] previous_kld: &mut Vec<i32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
         thread_id: usize,
     ) {
@@ -77,6 +89,8 @@ impl<'a> Searcher<'a> {
                 best_move,
                 best_move_changes,
                 previous_score,
+                #[cfg(feature = "datagen")]
+                previous_kld,
                 #[cfg(not(feature = "uci-minimal"))]
                 uci_output,
             )
@@ -143,12 +157,38 @@ impl<'a> Searcher<'a> {
         best_move: &mut Move,
         best_move_changes: &mut i32,
         previous_score: &mut f32,
+        #[cfg(feature = "datagen")] previous_kld_state: &mut Vec<i32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
     ) -> bool {
         let iters = search_stats.main_iters();
 
         if search_stats.total_iters() >= limits.max_nodes {
             return true;
+        }
+
+        #[cfg(feature = "datagen")]
+        {
+            if let Some(min_gain) = limits.kld_min_gain {
+                let node = &self.tree[self.tree.root_node()];
+                let child_ptr = node.actions();
+
+                // Force i32 element type
+                let mut visit_dist: Vec<i32> = vec![0; node.num_actions()];
+
+                for (action, visits) in visit_dist.iter_mut().enumerate() {
+                    let v = self.tree[child_ptr + action].visits();
+                    // Saturate to i32::MAX (works whether visits() is u32 or usize)
+                    let v_i32 = (v as i64).min(i32::MAX as i64) as i32;
+                    *visits = v_i32;
+                }
+
+                if let Some(kld_gain) = Node::kld_gain(&visit_dist, previous_kld_state) {
+                    if kld_gain < min_gain {
+                        return true;
+                    }
+                }
+                *previous_kld_state = visit_dist;
+            }
         }
 
         if iters % 128 == 0 {
@@ -237,7 +277,9 @@ impl<'a> Searcher<'a> {
         limits: Limits,
         uci_output: bool,
         update_nodes: &mut usize,
-    ) -> (Move, f32) {
+        #[cfg(feature = "datagen")] use_dirichlet_noise: bool,
+        #[cfg(feature = "datagen")] temp: f32,
+    ) -> SearchRet {
         let timer = Instant::now();
         #[cfg(not(feature = "uci-minimal"))]
         let mut timer_last_output = Instant::now();
@@ -280,12 +322,20 @@ impl<'a> Searcher<'a> {
             }
         }
 
+        // add dirichlet noise in datagen
+        #[cfg(feature = "datagen")]
+        if use_dirichlet_noise {
+            self.tree.add_dirichlet_noise_to_node(node, 0.03, 0.25);
+        }
+
         let search_stats = SearchStats::new(threads);
         let stats_ref = &search_stats;
 
         let mut best_move = Move::NULL;
         let mut best_move_changes = 0;
         let mut previous_score = f32::NEG_INFINITY;
+        #[cfg(feature = "datagen")]
+        let mut previous_kld = Vec::new();
 
         // search loop
         while !self.abort.load(Ordering::Relaxed) {
@@ -300,6 +350,8 @@ impl<'a> Searcher<'a> {
                         &mut best_move,
                         &mut best_move_changes,
                         &mut previous_score,
+                        #[cfg(feature = "datagen")]
+                        &mut previous_kld,
                         #[cfg(not(feature = "uci-minimal"))]
                         uci_output,
                         0,
@@ -328,8 +380,19 @@ impl<'a> Searcher<'a> {
             );
         }
 
-        let (_, mov, q) = self.get_best_action(self.tree.root_node());
-        (mov, q)
+        let (_, _mov, q) = self.get_best_action(self.tree.root_node());
+
+        #[cfg(not(feature = "datagen"))]
+        {
+            let selected_mov = _mov;
+            (selected_mov, q)
+        }
+
+        #[cfg(feature = "datagen")]
+        {
+            let selected_mov = self.tree.get_best_child_temp(self.tree.root_node(), temp);
+            (selected_mov, q, search_stats.total_iters())
+        }
     }
 
     fn search_report(

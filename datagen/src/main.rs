@@ -63,6 +63,8 @@ pub struct Destination {
     reusable_buffer: Vec<u8>,
     games: usize,
     limit: usize,
+    searches: usize,
+    iters: usize,
     results: [usize; 3],
 }
 
@@ -87,7 +89,13 @@ impl Destination {
         }
     }
 
-    pub fn push_policy(&mut self, game: &MontyFormat, stop: &AtomicBool) {
+    pub fn push_policy(
+        &mut self,
+        game: &MontyFormat,
+        stop: &AtomicBool,
+        searches: usize,
+        iters: usize,
+    ) {
         if stop.load(Ordering::Relaxed) {
             return;
         }
@@ -95,6 +103,9 @@ impl Destination {
         let result = (game.result * 2.0) as usize;
         self.results[result] += 1;
         self.games += 1;
+
+        self.searches += searches;
+        self.iters += iters;
 
         game.serialise_into_buffer(&mut self.reusable_buffer)
             .unwrap();
@@ -112,6 +123,10 @@ impl Destination {
     }
 
     pub fn report(&self) {
+        if self.searches != 0 {
+            let average_iters = self.iters / self.searches;
+            println!("average iters {average_iters}");
+        }
         println!(
             "finished games {} losses {} draws {} wins {}",
             self.games, self.results[0], self.results[1], self.results[2],
@@ -139,6 +154,8 @@ pub fn run_datagen(
         writer: vout,
         reusable_buffer: Vec::new(),
         games: 0,
+        searches: 0,
+        iters: 0,
         limit: opts.games,
         results: [0; 3],
     };
@@ -158,7 +175,7 @@ pub fn run_datagen(
             let this_dest = dest_mutex.clone();
             s.spawn(move || {
                 let mut thread = DatagenThread::new(params.clone(), stop, this_book, this_dest);
-                thread.run(opts.nodes, opts.policy_data, policy, value);
+                thread.run(opts.policy_data, policy, value);
             });
         }
     });
@@ -182,6 +199,8 @@ pub fn parse_args(args: Args) -> Option<RunOptions> {
     let mut opts = RunOptions::default();
 
     let mut mode = 0;
+
+    //opts.policy_data = true;
 
     for arg in args {
         match arg.as_str() {

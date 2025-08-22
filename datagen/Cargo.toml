@@ -2,8 +2,8 @@
 name = "datagen"
 version = "0.1.0"
 edition = "2021"
-authors = ["Jamie Whiting"]
+authors = ["Jamie Whiting, Viren & The Monty Authors"]
 
 [dependencies]
 monty = { path = "../", features = ["datagen"] }
-montyformat = { git = 'https://github.com/official-monty/montyformat.git', tag = "v0.3.0" }
+montyformat = "0.9.1"

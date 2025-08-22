@@ -72,6 +72,10 @@ impl Default for ChessState {
 
 impl ChessState {
     pub const STARTPOS: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    #[cfg(feature = "datagen")]
+    pub const BENCH_DEPTH: usize = 4;
+
+    #[cfg(not(feature = "datagen"))]
     pub const BENCH_DEPTH: usize = 6;
 
     pub fn board(&self) -> Board {
