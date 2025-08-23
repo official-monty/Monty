@@ -69,7 +69,13 @@ pub struct Destination {
 }
 
 impl Destination {
-    pub fn push(&mut self, game: &MontyValueFormat, stop: &AtomicBool) {
+    pub fn push(
+        &mut self,
+        game: &MontyValueFormat,
+        stop: &AtomicBool,
+        searches: usize,
+        iters: usize,
+    ) {
         if stop.load(Ordering::Relaxed) {
             return;
         }
@@ -77,6 +83,11 @@ impl Destination {
         let result = (2.0 * game.result) as usize;
         self.results[result] += 1;
         self.games += 1;
+
+        // accumulate stats so report() can print the average iters
+        self.searches += searches;
+        self.iters += iters;
+
         game.serialise_into(&mut self.writer).unwrap();
 
         if self.games >= self.limit {
@@ -84,7 +95,7 @@ impl Destination {
             return;
         }
 
-        if self.games % 32 == 0 {
+        if self.games % 64 == 0 {
             self.report();
         }
     }
@@ -117,7 +128,7 @@ impl Destination {
             return;
         }
 
-        if self.games % 32 == 0 {
+        if self.games % 64 == 0 {
             self.report();
         }
     }
@@ -200,7 +211,9 @@ pub fn parse_args(args: Args) -> Option<RunOptions> {
 
     let mut mode = 0;
 
-    //opts.policy_data = true;
+    if cfg!(feature = "policy") {
+        opts.policy_data = true;
+    }
 
     for arg in args {
         match arg.as_str() {

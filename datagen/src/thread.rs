@@ -191,7 +191,7 @@ impl<'a> DatagenThread<'a> {
         if output_policy {
             dest.push_policy(&policy_game, self.stop, searches, total_iters);
         } else {
-            dest.push(&value_game, self.stop);
+            dest.push(&value_game, self.stop, searches, total_iters);
         }
     }
 }

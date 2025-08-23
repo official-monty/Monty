@@ -17,6 +17,8 @@ raw = []
 datagen = ["rand", "rand_distr"]
 uci-minimal = []
 tunable = []
+value = []
+policy = []
 
 [workspace]
 members = ["datagen"]
