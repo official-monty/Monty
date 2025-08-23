@@ -437,7 +437,6 @@ impl Tree {
 
     #[cfg(feature = "datagen")]
     pub fn add_dirichlet_noise_to_node(&self, ptr: NodePtr, alpha: f32, prop: f32) {
-        use rand::prelude::*;
         use rand_distr::{Distribution, Gamma};
 
         let node = &self[ptr];
