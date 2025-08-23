@@ -408,8 +408,8 @@ impl Tree {
             return self[child_ptr + self.get_best_child(ptr)].parent_move();
         }
 
-        let mut rng = rand::thread_rng();
-        let dist = Uniform::new(0.0, 1.0);
+        let mut rng = rand::rng();
+        let dist = Uniform::new(0.0, 1.0).unwrap();
         let rand = dist.sample(&mut rng);
 
         let mut total = 0.0;
@@ -437,8 +437,7 @@ impl Tree {
 
     #[cfg(feature = "datagen")]
     pub fn add_dirichlet_noise_to_node(&self, ptr: NodePtr, alpha: f32, prop: f32) {
-        use rand::prelude::*;
-        use rand_distr::Dirichlet;
+        use rand_distr::{Distribution, Gamma};
 
         let node = &self[ptr];
 
@@ -448,14 +447,25 @@ impl Tree {
 
         let actions_ptr = node.actions();
 
-        let mut rng = rand::thread_rng();
-        let dist = Dirichlet::new(&vec![alpha; node.num_actions()]).unwrap();
-        let samples = dist.sample(&mut rng);
+        let mut rng = rand::rng();
+        let k = node.num_actions();
 
-        for (action, &noise) in samples.iter().enumerate() {
+        // Symmetric Dirichlet via Gamma(alpha, 1) samples
+        let gamma = Gamma::<f32>::new(alpha, 1.0).unwrap();
+        let mut sum = 0.0;
+        let mut noise = Vec::with_capacity(k);
+        for _ in 0..k {
+            let x = gamma.sample(&mut rng);
+            sum += x;
+            noise.push(x);
+        }
+        // Guard against pathological underflow
+        let inv_sum = if sum > 0.0 { 1.0 / sum } else { 1.0 / k as f32 };
+
+        for (action, x) in noise.into_iter().enumerate() {
             let child = &self[actions_ptr + action];
-            let policy = (1.0 - prop) * child.policy() + prop * noise;
-            child.set_policy(policy);
+            let mixed = (1.0 - prop) * child.policy() + prop * (x * inv_sum);
+            child.set_policy(mixed);
         }
     }
 }
