@@ -325,7 +325,20 @@ impl<'a> Searcher<'a> {
         // add dirichlet noise in datagen
         #[cfg(feature = "datagen")]
         if use_dirichlet_noise {
-            self.tree.add_dirichlet_noise_to_node(node, 0.03, 0.25);
+            let epsilon = 0.03;
+            let alpha = {
+                #[cfg(feature = "policy")]
+                {
+                    0.05
+                }
+
+                #[cfg(feature = "value")]
+                {
+                    0.25
+                }
+            };
+
+            self.tree.add_dirichlet_noise_to_node(node, epsilon, alpha);
         }
 
         let search_stats = SearchStats::new(threads);

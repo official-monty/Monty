@@ -40,5 +40,8 @@ montytest:
 noembed:
 	$(INVOKE) --bin monty $(LINK)
 
-gen:
-	$(INVOKE) --package datagen --bin datagen $(LINK)
+gen-value:
+	$(INVOKE) --package datagen --bin datagen --features value $(LINK)
+
+gen-policy:
+	$(INVOKE) --package datagen --bin datagen --features policy $(LINK)

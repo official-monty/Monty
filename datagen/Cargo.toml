@@ -7,3 +7,8 @@ authors = ["Jamie Whiting, Viren & The Monty Authors"]
 [dependencies]
 monty = { path = "../", features = ["datagen"] }
 montyformat = "0.9.1"
+
+[features]
+default = ["monty/value"]
+value   = ["monty/value"]
+policy  = ["monty/policy"]
