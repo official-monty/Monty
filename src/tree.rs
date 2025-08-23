@@ -408,8 +408,8 @@ impl Tree {
             return self[child_ptr + self.get_best_child(ptr)].parent_move();
         }
 
-        let mut rng = rand::thread_rng();
-        let dist = Uniform::new(0.0, 1.0);
+        let mut rng = rand::rng();
+        let dist = Uniform::new(0.0, 1.0).unwrap();
         let rand = dist.sample(&mut rng);
 
         let mut total = 0.0;
@@ -448,7 +448,7 @@ impl Tree {
 
         let actions_ptr = node.actions();
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let dist = Dirichlet::new(&vec![alpha; node.num_actions()]).unwrap();
         let samples = dist.sample(&mut rng);
 
