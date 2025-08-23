@@ -41,7 +41,7 @@ noembed:
 	$(INVOKE) --bin monty $(LINK)
 
 gen-value:
-	$(INVOKE) --package datagen --bin datagen --features value
+	$(INVOKE) --package datagen --bin datagen --features value $(LINK)
 
 gen-policy:
-	$(INVOKE) --package datagen --bin datagen --features policy
+	$(INVOKE) --package datagen --bin datagen --features policy $(LINK)
