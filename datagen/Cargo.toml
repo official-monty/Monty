@@ -9,6 +9,6 @@ monty = { path = "../", features = ["datagen"] }
 montyformat = "0.9.1"
 
 [features]
-default = []
+default = ["monty/value"]
 value   = ["monty/value"]
 policy  = ["monty/policy"]
