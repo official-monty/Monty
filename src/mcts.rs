@@ -326,17 +326,7 @@ impl<'a> Searcher<'a> {
         #[cfg(feature = "datagen")]
         if use_dirichlet_noise {
             let epsilon = 0.03;
-            let alpha = {
-                #[cfg(feature = "policy")]
-                {
-                    0.05
-                }
-
-                #[cfg(feature = "value")]
-                {
-                    0.25
-                }
-            };
+            let alpha: f32 = if cfg!(feature = "policy") { 0.05 } else { 0.25 };
 
             self.tree.add_dirichlet_noise_to_node(node, epsilon, alpha);
         }
