@@ -8,7 +8,7 @@ use super::{
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals, dead_code)]
-pub const ValueFileDefaultName: &str = "nn-5601bb8c241d.network";
+pub const ValueFileDefaultName: &str = "sb800-fixed-threats.network";
 #[allow(non_upper_case_globals, dead_code)]
 pub const CompressedValueName: &str = "nn-f004da0ebf25.network";
 #[allow(non_upper_case_globals, dead_code)]
@@ -20,7 +20,7 @@ const FACTOR: i16 = 32;
 
 const L1: usize = 3072;
 
-#[repr(C)]
+#[repr(C, align(64))]
 pub struct ValueNetwork {
     pst: [Accumulator<f32, 3>; threats::TOTAL],
     l1: Layer<i16, { threats::TOTAL }, L1>,
