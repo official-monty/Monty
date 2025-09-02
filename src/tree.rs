@@ -14,13 +14,10 @@ use std::{
 };
 
 use crate::{
-    chess::{ChessState, GameState},
+    chess::{ChessState, GameState, Move},
     mcts::{MctsParams, SearchHelpers},
     networks::PolicyNetwork,
 };
-
-#[cfg(feature = "datagen")]
-use crate::chess::Move;
 
 pub struct Tree {
     root: ChessState,
@@ -205,14 +202,20 @@ impl Tree {
             item.write((mov, policy));
         }
 
+        let slice: &mut [(Move, f32)] = unsafe {
+            &mut *(&mut moves[..count] as *mut [MaybeUninit<(Move, f32)>]
+                as *mut [(Move, f32)])
+        };
+
+        slice.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
         let mut sum_of_squares = 0.0;
 
-        for (action, item) in moves.iter().take(count).enumerate() {
-            let (mov, policy) = unsafe { item.assume_init() };
+        for (action, (mov, policy)) in slice.iter().enumerate() {
             let ptr = new_ptr + action;
             let policy = policy / total;
 
-            self[ptr].set_new(mov, policy);
+            self[ptr].set_new(*mov, policy);
             sum_of_squares += policy * policy;
         }
 
@@ -378,13 +381,23 @@ impl Tree {
         self.get_best_child_by_key(ptr, |n| n.visits() as f32)
     }
 
-    pub fn get_best_child_by_key<F: FnMut(&Node) -> f32>(&self, ptr: NodePtr, mut key: F) -> usize {
+    pub fn get_best_child_by_key<F: FnMut(&Node) -> f32>(&self, ptr: NodePtr, key: F) -> usize {
+        let limit = self[ptr].num_actions();
+        self.get_best_child_by_key_lim(ptr, limit, key)
+    }
+
+    pub fn get_best_child_by_key_lim<F: FnMut(&Node) -> f32>(
+        &self,
+        ptr: NodePtr,
+        limit: usize,
+        mut key: F,
+    ) -> usize {
         let mut best_child = usize::MAX;
         let mut best_score = f32::NEG_INFINITY;
 
         let first_child_ptr = self[ptr].actions();
 
-        for action in 0..self[ptr].num_actions() {
+        for action in 0..limit.min(self[ptr].num_actions()) {
             let score = key(&self[first_child_ptr + action]);
 
             if score > best_score {
