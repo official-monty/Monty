@@ -193,19 +193,15 @@ impl Tree {
 
         let pst = SearchHelpers::get_pst(depth, self[node_ptr].q(), params);
 
-        let mut total = 0.0;
-
-        for item in moves.iter_mut().take(count) {
-            let (mov, mut policy) = unsafe { item.assume_init() };
-            policy = ((policy - max) / pst).exp();
-            total += policy;
-            item.write((mov, policy));
-        }
-
-        let slice: &mut [(Move, f32)] = unsafe {
-            &mut *(&mut moves[..count] as *mut [MaybeUninit<(Move, f32)>]
-                as *mut [(Move, f32)])
+        let slice = unsafe {
+            std::slice::from_raw_parts_mut(moves.as_mut_ptr() as *mut (Move, f32), count)
         };
+
+        let mut total = 0.0;
+        for (_, policy) in slice.iter_mut() {
+            *policy = ((*policy - max) / pst).exp();
+            total += *policy;
+        }
 
         slice.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
