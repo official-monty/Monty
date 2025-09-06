@@ -8,22 +8,21 @@ use super::{
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals, dead_code)]
-pub const ValueFileDefaultName: &str = "nn-7bf8d51714b5.network";
+pub const ValueFileDefaultName: &str = "nn-58274aa39e13.network";
 #[allow(non_upper_case_globals, dead_code)]
-pub const CompressedValueName: &str = "nn-f39ae0a13058.network";
+pub const CompressedValueName: &str = "nn-fa1a8afd872c.network";
 #[allow(non_upper_case_globals, dead_code)]
 pub const DatagenValueFileName: &str = "nn-5601bb8c241d.network";
 
-const QA: i16 = 512;
+const QA: i16 = 128;
 const QB: i16 = 1024;
-const FACTOR: i16 = 32;
 
 const L1: usize = 3072;
 
 #[repr(C, align(64))]
 pub struct ValueNetwork {
     pst: [Accumulator<f32, 3>; threats::TOTAL],
-    l1: Layer<i16, { threats::TOTAL }, L1>,
+    l1: Layer<i8, { threats::TOTAL }, L1>,
     l2: TransposedLayer<i16, { L1 / 2 }, 16>,
     l3: Layer<f32, 16, 128>,
     l4: Layer<f32, 128, 3>,
@@ -41,9 +40,13 @@ impl ValueNetwork {
             count += 1;
         });
 
-        let mut l2 = self.l1.biases;
+        let mut l2 = Accumulator([0; L1]);
 
-        l2.add_multi(&feats[..count], &self.l1.weights);
+        for (r, &b) in l2.0.iter_mut().zip(self.l1.biases.0.iter()) {
+            *r = i16::from(b);
+        }
+
+        l2.add_multi_i8(&feats[..count], &self.l1.weights);
 
         let mut act = [0; L1 / 2];
 
@@ -51,9 +54,9 @@ impl ValueNetwork {
             .iter_mut()
             .zip(l2.0.iter().take(L1 / 2).zip(l2.0.iter().skip(L1 / 2)))
         {
-            let i = i32::from(i).clamp(0, i32::from(QA));
-            let j = i32::from(j).clamp(0, i32::from(QA));
-            *a = ((i * j) / i32::from(QA / FACTOR)) as i16;
+            let i = i.clamp(0, QA);
+            let j = j.clamp(0, QA);
+            *a = i * j;
         }
 
         let mut fwd = [0; 16];
@@ -67,7 +70,7 @@ impl ValueNetwork {
         let mut l3 = Accumulator([0.0; 16]);
 
         for (r, (&f, &b)) in l3.0.iter_mut().zip(fwd.iter().zip(self.l2.biases.0.iter())) {
-            *r = (f as f32 / f32::from(QA * FACTOR) + f32::from(b)) / f32::from(QB);
+            *r = (f as f32 / f32::from(QA * QA) + f32::from(b)) / f32::from(QB);
         }
 
         let l4 = self.l3.forward::<SCReLU>(&l3);
