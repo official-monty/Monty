@@ -10,7 +10,7 @@ use super::{
 #[allow(non_upper_case_globals, dead_code)]
 pub const ValueFileDefaultName: &str = "nn-58274aa39e13.network";
 #[allow(non_upper_case_globals, dead_code)]
-pub const CompressedValueName: &str = "nn-f004da0ebf25.network";
+pub const CompressedValueName: &str = "nn-fa1a8afd872c.network";
 #[allow(non_upper_case_globals, dead_code)]
 pub const DatagenValueFileName: &str = "nn-5601bb8c241d.network";
 
