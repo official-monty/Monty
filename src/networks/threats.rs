@@ -10,7 +10,7 @@ pub fn map_features<F: FnMut(usize)>(pos: &Board, mut f: F) {
     let mut bbs = pos.bbs();
 
     // flip to stm perspective
-    if pos.stm() == Side::WHITE {
+    if pos.stm() == Side::BLACK {
         bbs.swap(0, 1);
         for bb in bbs.iter_mut() {
             *bb = bb.swap_bytes()
@@ -108,7 +108,7 @@ const fn offset_mapping<const N: usize>(a: [usize; N]) -> [usize; 12] {
     let mut i = 0;
     while i < N {
         res[a[i] - 2] = i;
-        res[a[i] + 4] = i;
+        res[a[i] + 4] = i + N;
         i += 1;
     }
 
@@ -124,10 +124,12 @@ fn map_pawn_threat(src: usize, dest: usize, target: usize, enemy: bool) -> Optio
     if MAP[target] == usize::MAX || (enemy && dest > src && target_is(target, Piece::PAWN)) {
         None
     } else {
+        let up = usize::from(dest > src);
         let diff = dest.abs_diff(src);
-        let attack = if diff == 7 { 0 } else { 1 } + 2 * (src % 8) - 1;
+        let id = if diff == [9, 7][up] { 0 } else { 1 };
+        let attack = 2 * (src % 8) + id - 1;
         let threat =
-            ValueOffsets::PAWN + MAP[target] * ValueIndices::PAWN + (src / 8) * 14 + attack;
+            ValueOffsets::PAWN + MAP[target] * ValueIndices::PAWN + (src / 8 - 1) * 14 + attack;
 
         assert!(threat < ValueOffsets::KNIGHT, "{threat}");
 
