@@ -180,5 +180,8 @@ make_mcts_params! {
     tm_bmv4: f32 = 2.561, 0.1, 8.0, 0.4, 0.002;
     tm_bmv5: f32 = 0.634, 0.1, 1.0, 0.055, 0.002;
     tm_bmv6: f32 = 1.894, 0.1, 3.0, 0.15, 0.002;
+    policy_top_p: f32 = 0.7, 0.1, 1.0, 0.05, 0.002;
+    min_policy_actions: i32 = 6, 1, 32, 1, 0.002;
+    visit_threshold_power: i32 = 3, 0, 8, 1, 0.002;
     virtual_loss_weight: f64 = 2.5, 1.0, 5.0, 0.25, 0.002;
 }
