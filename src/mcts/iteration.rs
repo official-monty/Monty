@@ -130,7 +130,7 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
     let mut thresh = 1u32 << (searcher.params.visit_threshold_power() as u32);
     while node.visits() >= thresh && limit < node.num_actions() {
         limit += 2;
-        thresh <<= 1;
+        thresh = thresh.checked_shl(1).unwrap_or(u32::MAX);
     }
     limit = limit.min(node.num_actions());
 
