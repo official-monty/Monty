@@ -127,7 +127,7 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
         k += 1;
     }
     let mut limit = k.max(6);
-    let mut thresh = 8;
+    let mut thresh = 1 << 3; //8
     while node.visits() >= thresh && limit < node.num_actions() {
         limit += 2;
         thresh <<= 1;
