@@ -52,6 +52,7 @@ pub fn perform_one(
         tree.fetch_children(ptr, thread_id)?;
 
         // select action to take via PUCT
+        let stm = pos.stm();
         let action = pick_action(searcher, ptr, node);
 
         let child_ptr = node.actions() + action;
@@ -81,6 +82,10 @@ pub fn perform_one(
         tree[child_ptr].dec_threads();
 
         let u = maybe_u?;
+
+        if tree[child_ptr].state() == GameState::Ongoing {
+            tree.update_butterfly(stm, mov, u);
+        }
 
         tree.propogate_proven_mates(ptr, tree[child_ptr].state());
 

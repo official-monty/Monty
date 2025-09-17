@@ -287,6 +287,8 @@ impl<'a> Searcher<'a> {
         let pos = self.tree.root_position();
         let node = self.tree.root_node();
 
+        self.tree.clear_butterfly_table();
+
         // the root node is added to an empty tree, **and not counted** towards the
         // total node count, in order for `go nodes 1` to give the expected result
         if self.tree.is_empty() {
