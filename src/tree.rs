@@ -43,8 +43,9 @@ impl ButterflyTable {
         &self.data[idx]
     }
 
-    fn policy_bonus(&self, side: usize, mov: Move) -> f32 {
-        f32::from(self.entry(side, mov).load(Ordering::Relaxed)) / 16384.0
+    fn policy_bonus(&self, side: usize, mov: Move, params: &MctsParams) -> f32 {
+        let divisor = params.butterfly_policy_divisor().max(1) as f32;
+        f32::from(self.entry(side, mov).load(Ordering::Relaxed)) / divisor
     }
 
     fn clear(&self) {
@@ -53,7 +54,7 @@ impl ButterflyTable {
         }
     }
 
-    fn update(&self, side: usize, mov: Move, score: f32) {
+    fn update(&self, side: usize, mov: Move, score: f32, params: &MctsParams) {
         if !score.is_finite() {
             return;
         }
@@ -64,7 +65,7 @@ impl ButterflyTable {
 
         let mut current = cell.load(Ordering::Relaxed);
         loop {
-            let delta = scale_bonus(current, cp);
+            let delta = scale_bonus(current, cp, params.butterfly_reduction_factor());
             let new = current.saturating_add(delta);
             match cell.compare_exchange(current, new, Ordering::Relaxed, Ordering::Relaxed) {
                 Ok(_) => break,
@@ -74,9 +75,10 @@ impl ButterflyTable {
     }
 }
 
-fn scale_bonus(score: i16, bonus: i32) -> i16 {
+fn scale_bonus(score: i16, bonus: i32, reduction_factor: i32) -> i16 {
     let bonus = bonus.clamp(i16::MIN as i32, i16::MAX as i32);
-    let reduction = i32::from(score) * bonus.abs() / 8192;
+    let reduction_factor = reduction_factor.max(1);
+    let reduction = i32::from(score) * bonus.abs() / reduction_factor;
     let adjusted = bonus - reduction;
     adjusted.clamp(i16::MIN as i32, i16::MAX as i32) as i16
 }
@@ -250,7 +252,7 @@ impl Tree {
         let stm = pos.stm();
 
         pos.map_moves_with_policies(policy, |mov, policy| {
-            let adjusted = policy + self.butterfly.policy_bonus(stm, mov);
+            let adjusted = policy + self.butterfly.policy_bonus(stm, mov, params);
             moves[count].write((mov, adjusted));
             count += 1;
             max = max.max(adjusted);
@@ -310,7 +312,8 @@ impl Tree {
         let stm = pos.stm();
         for action in 0..num_actions {
             let mov = self[actions_ptr + action].parent_move();
-            let policy = pos.get_policy(mov, &hl, policy) + self.butterfly.policy_bonus(stm, mov);
+            let policy =
+                pos.get_policy(mov, &hl, policy) + self.butterfly.policy_bonus(stm, mov, params);
 
             policies.push(policy);
             max = max.max(policy);
@@ -337,8 +340,8 @@ impl Tree {
         self[node_ptr].set_gini_impurity(gini_impurity);
     }
 
-    pub fn update_butterfly(&self, side: usize, mov: Move, score: f32) {
-        self.butterfly.update(side, mov, score);
+    pub fn update_butterfly(&self, side: usize, mov: Move, score: f32, params: &MctsParams) {
+        self.butterfly.update(side, mov, score, params);
     }
 
     pub fn clear_butterfly_table(&self) {
