@@ -10,7 +10,7 @@ pub use node::{Node, NodePtr};
 use std::{
     mem::MaybeUninit,
     ops::Index,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, AtomicI16, Ordering},
 };
 
 use crate::{
@@ -19,11 +19,76 @@ use crate::{
     networks::PolicyNetwork,
 };
 
+const NUM_SIDES: usize = 2;
+const NUM_SQUARES: usize = 64;
+
+struct ButterflyTable {
+    data: Vec<AtomicI16>,
+}
+
+impl ButterflyTable {
+    fn new() -> Self {
+        let capacity = NUM_SIDES * NUM_SQUARES * NUM_SQUARES;
+        let mut data = Vec::with_capacity(capacity);
+        data.extend((0..capacity).map(|_| AtomicI16::new(0)));
+        Self { data }
+    }
+
+    fn index(side: usize, from: u16, to: u16) -> usize {
+        side * NUM_SQUARES * NUM_SQUARES + usize::from(from) * NUM_SQUARES + usize::from(to)
+    }
+
+    fn entry(&self, side: usize, mov: Move) -> &AtomicI16 {
+        let idx = Self::index(side, mov.src(), mov.to());
+        &self.data[idx]
+    }
+
+    fn policy_bonus(&self, side: usize, mov: Move, params: &MctsParams) -> f32 {
+        let divisor = params.butterfly_policy_divisor().max(1) as f32;
+        f32::from(self.entry(side, mov).load(Ordering::Relaxed)) / divisor
+    }
+
+    fn clear(&self) {
+        for entry in &self.data {
+            entry.store(0, Ordering::Relaxed);
+        }
+    }
+
+    fn update(&self, side: usize, mov: Move, score: f32, params: &MctsParams) {
+        if !score.is_finite() {
+            return;
+        }
+
+        let score = score.clamp(0.001, 0.999);
+        let cp = (-400.0 * ((1.0 / score) - 1.0).ln()).round() as i32;
+        let cell = self.entry(side, mov);
+
+        let mut current = cell.load(Ordering::Relaxed);
+        loop {
+            let delta = scale_bonus(current, cp, params.butterfly_reduction_factor());
+            let new = current.saturating_add(delta);
+            match cell.compare_exchange(current, new, Ordering::Relaxed, Ordering::Relaxed) {
+                Ok(_) => break,
+                Err(actual) => current = actual,
+            }
+        }
+    }
+}
+
+fn scale_bonus(score: i16, bonus: i32, reduction_factor: i32) -> i16 {
+    let bonus = bonus.clamp(i16::MIN as i32, i16::MAX as i32);
+    let reduction_factor = reduction_factor.max(1);
+    let reduction = i32::from(score) * bonus.abs() / reduction_factor;
+    let adjusted = bonus - reduction;
+    adjusted.clamp(i16::MIN as i32, i16::MAX as i32) as i16
+}
+
 pub struct Tree {
     root: ChessState,
     tree: [TreeHalf; 2],
     half: AtomicBool,
     hash: HashTable,
+    butterfly: ButterflyTable,
 }
 
 impl Index<NodePtr> for Tree {
@@ -55,6 +120,7 @@ impl Tree {
             ],
             half: AtomicBool::new(false),
             hash: HashTable::new(hash_cap / 4, threads),
+            butterfly: ButterflyTable::new(),
         }
     }
 
@@ -153,6 +219,7 @@ impl Tree {
         self.root = ChessState::default();
         self.clear_halves();
         self.hash.clear(threads);
+        self.butterfly.clear();
     }
 
     pub fn is_empty(&self) -> bool {
@@ -182,11 +249,13 @@ impl Tree {
         let mut max = f32::NEG_INFINITY;
         let mut moves = [const { MaybeUninit::uninit() }; 256];
         let mut count = 0;
+        let stm = pos.stm();
 
         pos.map_moves_with_policies(policy, |mov, policy| {
-            moves[count].write((mov, policy));
+            let adjusted = policy + self.butterfly.policy_bonus(stm, mov, params);
+            moves[count].write((mov, adjusted));
             count += 1;
-            max = max.max(policy);
+            max = max.max(adjusted);
         });
 
         let new_ptr = self.tree[self.half()].reserve_nodes_thread(count, thread_id)?;
@@ -240,9 +309,11 @@ impl Tree {
         let mut max = f32::NEG_INFINITY;
         let mut policies = Vec::new();
 
+        let stm = pos.stm();
         for action in 0..num_actions {
             let mov = self[actions_ptr + action].parent_move();
-            let policy = pos.get_policy(mov, &hl, policy);
+            let policy =
+                pos.get_policy(mov, &hl, policy) + self.butterfly.policy_bonus(stm, mov, params);
 
             policies.push(policy);
             max = max.max(policy);
@@ -267,6 +338,14 @@ impl Tree {
 
         let gini_impurity = (1.0 - sum_of_squares).clamp(0.0, 1.0);
         self[node_ptr].set_gini_impurity(gini_impurity);
+    }
+
+    pub fn update_butterfly(&self, side: usize, mov: Move, score: f32, params: &MctsParams) {
+        self.butterfly.update(side, mov, score, params);
+    }
+
+    pub fn clear_butterfly_table(&self) {
+        self.butterfly.clear();
     }
 
     pub fn propogate_proven_mates(&self, ptr: NodePtr, child_state: GameState) {

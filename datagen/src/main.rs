@@ -50,7 +50,7 @@ pub fn to_slice_with_lifetime<T, U>(slice: &[T]) -> &[U] {
     let tgt_size = std::mem::size_of::<U>();
 
     assert!(
-        src_size % tgt_size == 0,
+        src_size.is_multiple_of(tgt_size),
         "Target type size does not divide slice size!"
     );
 
@@ -95,7 +95,7 @@ impl Destination {
             return;
         }
 
-        if self.games % 64 == 0 {
+        if self.games.is_multiple_of(64) {
             self.report();
         }
     }
@@ -128,7 +128,7 @@ impl Destination {
             return;
         }
 
-        if self.games % 64 == 0 {
+        if self.games.is_multiple_of(64) {
             self.report();
         }
     }
