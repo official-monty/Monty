@@ -102,7 +102,7 @@ pub fn perform_one(
 
     // flip perspective and backpropagate
     u = 1.0 - u;
-    node.update(u);
+    tree.update_node_stats(ptr, u, thread_id);
     Some(u)
 }
 
