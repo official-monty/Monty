@@ -49,14 +49,14 @@ impl Add<usize> for NodePtr {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct NodeStatsDelta {
-    pub(crate) visits: u32,
-    pub(crate) sum_q: u64,
-    pub(crate) sum_sq_q: u64,
+pub struct NodeStatsDelta {
+    pub visits: u32,
+    pub sum_q: u64,
+    pub sum_sq_q: u64,
 }
 
 impl NodeStatsDelta {
-    pub(crate) fn from_value(q: f32) -> Self {
+    pub fn from_value(q: f32) -> Self {
         let q = (f64::from(q) * f64::from(QUANT)) as u64;
         Self {
             visits: 1,
@@ -65,7 +65,7 @@ impl NodeStatsDelta {
         }
     }
 
-    pub(crate) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.visits == 0 && self.sum_q == 0 && self.sum_sq_q == 0
     }
 }
@@ -249,7 +249,7 @@ impl Node {
         self.apply_delta(NodeStatsDelta::from_value(q));
     }
 
-    pub(crate) fn apply_delta(&self, delta: NodeStatsDelta) {
+    pub fn apply_delta(&self, delta: NodeStatsDelta) {
         if delta.is_empty() {
             return;
         }
