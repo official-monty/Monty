@@ -86,6 +86,7 @@ impl RootAccumulator {
             return;
         }
 
+        // This is to prevent a 4 Elo loss in datagen conditions
         if root.visits() < ROOT_ACCUM_EAGER_LIMIT {
             root.apply_delta(delta);
             return;
