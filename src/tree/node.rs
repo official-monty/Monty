@@ -1,5 +1,5 @@
 use std::{
-    ops::Add,
+    ops::{Add, AddAssign},
     sync::atomic::{AtomicU16, AtomicU32, AtomicU64, AtomicU8, Ordering},
 };
 
@@ -45,6 +45,36 @@ impl Add<usize> for NodePtr {
 
     fn add(self, rhs: usize) -> Self::Output {
         Self(self.0 + rhs as u32)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct NodeStatsDelta {
+    pub(crate) visits: u32,
+    pub(crate) sum_q: u64,
+    pub(crate) sum_sq_q: u64,
+}
+
+impl NodeStatsDelta {
+    pub(crate) fn from_value(q: f32) -> Self {
+        let q = (f64::from(q) * f64::from(QUANT)) as u64;
+        Self {
+            visits: 1,
+            sum_q: q,
+            sum_sq_q: q * q,
+        }
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.visits == 0 && self.sum_q == 0 && self.sum_sq_q == 0
+    }
+}
+
+impl AddAssign for NodeStatsDelta {
+    fn add_assign(&mut self, rhs: Self) {
+        self.visits = self.visits.saturating_add(rhs.visits);
+        self.sum_q = self.sum_q.saturating_add(rhs.sum_q);
+        self.sum_sq_q = self.sum_sq_q.saturating_add(rhs.sum_sq_q);
     }
 }
 
@@ -215,13 +245,26 @@ impl Node {
         self.threads.store(0, Ordering::Relaxed);
     }
 
-    pub fn update(&self, q: f32) -> f32 {
-        let q = (f64::from(q) * f64::from(QUANT)) as u64;
-        let old_v = self.visits.fetch_add(1, Ordering::Relaxed);
-        let old_q = self.sum_q.fetch_add(q, Ordering::Relaxed);
-        self.sum_sq_q.fetch_add(q * q, Ordering::Relaxed);
+    pub fn update(&self, q: f32) {
+        self.apply_delta(NodeStatsDelta::from_value(q));
+    }
 
-        (((q + old_q) / u64::from(1 + old_v)) as f64 / f64::from(QUANT)) as f32
+    pub(crate) fn apply_delta(&self, delta: NodeStatsDelta) {
+        if delta.is_empty() {
+            return;
+        }
+
+        if delta.visits > 0 {
+            self.visits.fetch_add(delta.visits, Ordering::Relaxed);
+        }
+
+        if delta.sum_q > 0 {
+            self.sum_q.fetch_add(delta.sum_q, Ordering::Relaxed);
+        }
+
+        if delta.sum_sq_q > 0 {
+            self.sum_sq_q.fetch_add(delta.sum_sq_q, Ordering::Relaxed);
+        }
     }
 
     #[cfg(feature = "datagen")]

@@ -299,7 +299,7 @@ impl<'a> Searcher<'a> {
                 .expand_node(ptr, pos, self.params, self.policy, 1, 0);
 
             let root_eval = pos.get_value_wdl(self.value, self.params);
-            self.tree[ptr].update(1.0 - root_eval);
+            self.tree.update_node_stats(ptr, 1.0 - root_eval, 0);
         }
         // relabel preexisting root policies with root PST value
         else if self.tree[node].has_children() {
@@ -370,6 +370,8 @@ impl<'a> Searcher<'a> {
                 self.tree.flip(true, threads);
             }
         }
+
+        self.tree.flush_root_accumulator();
 
         *update_nodes += search_stats.total_nodes();
 
