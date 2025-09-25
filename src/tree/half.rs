@@ -69,10 +69,10 @@ impl TreeHalf {
             end = start + block;
             self.next[thread].store(next + num, Ordering::Relaxed);
             self.end[thread].store(end, Ordering::Relaxed);
-            Some(NodePtr::new(self.half, start as u32))
+            Some(NodePtr::new(self.half, start))
         } else {
             self.next[thread].store(next + num, Ordering::Relaxed);
-            Some(NodePtr::new(self.half, next as u32))
+            Some(NodePtr::new(self.half, next))
         }
     }
 

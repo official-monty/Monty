@@ -211,11 +211,13 @@ impl Tree {
         let bytes = mb * 1024 * 1024;
 
         const _: () = assert!(
-            std::mem::size_of::<Node>() == 40,
+            std::mem::size_of::<Node>() == 48,
             "You must reconsider this allocation!"
         );
 
-        Self::new(bytes / 42, bytes / 42 / 16, threads)
+        let node_bytes = std::mem::size_of::<Node>() + 2;
+
+        Self::new(bytes / node_bytes, bytes / node_bytes / 16, threads)
     }
 
     fn new(tree_cap: usize, hash_cap: usize, threads: usize) -> Self {

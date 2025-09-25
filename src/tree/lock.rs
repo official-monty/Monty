@@ -1,10 +1,10 @@
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use super::NodePtr;
 
 #[derive(Debug)]
 pub struct CustomLock {
-    value: AtomicU32,
+    value: AtomicU64,
     write_locked: AtomicBool,
 }
 
@@ -35,7 +35,7 @@ impl WriteGuard<'_> {
 impl CustomLock {
     pub fn new(val: NodePtr) -> Self {
         Self {
-            value: AtomicU32::new(val.inner()),
+            value: AtomicU64::new(val.inner()),
             write_locked: AtomicBool::new(false),
         }
     }

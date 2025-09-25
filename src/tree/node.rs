@@ -1,4 +1,5 @@
 use std::{
+    convert::TryFrom,
     ops::{Add, AddAssign},
     sync::atomic::{AtomicU16, AtomicU32, AtomicU64, AtomicU8, Ordering},
 };
@@ -10,32 +11,38 @@ use super::lock::{CustomLock, WriteGuard};
 const QUANT: i32 = 16384 * 4;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct NodePtr(u32);
+pub struct NodePtr(u64);
 
 impl NodePtr {
-    pub const NULL: Self = Self(u32::MAX);
+    const HALF_MASK: u64 = 1u64 << 63;
+    const IDX_MASK: u64 = Self::HALF_MASK - 1;
+
+    pub const NULL: Self = Self(u64::MAX);
 
     pub fn is_null(self) -> bool {
         self == Self::NULL
     }
 
-    pub fn new(half: bool, idx: u32) -> Self {
-        Self((u32::from(half) << 31) | idx)
+    pub fn new(half: bool, idx: usize) -> Self {
+        let idx = u64::try_from(idx).expect("node index exceeds 64-bit address space");
+        debug_assert!(idx <= Self::IDX_MASK);
+
+        Self((u64::from(half) << 63) | (idx & Self::IDX_MASK))
     }
 
     pub fn half(self) -> bool {
-        self.0 & (1 << 31) > 0
+        self.0 & Self::HALF_MASK > 0
     }
 
     pub fn idx(self) -> usize {
-        (self.0 & 0x7FFFFFFF) as usize
+        (self.0 & Self::IDX_MASK) as usize
     }
 
-    pub fn inner(self) -> u32 {
+    pub fn inner(self) -> u64 {
         self.0
     }
 
-    pub fn from_raw(inner: u32) -> Self {
+    pub fn from_raw(inner: u64) -> Self {
         Self(inner)
     }
 }
@@ -44,7 +51,7 @@ impl Add<usize> for NodePtr {
     type Output = NodePtr;
 
     fn add(self, rhs: usize) -> Self::Output {
-        Self(self.0 + rhs as u32)
+        Self(self.0 + rhs as u64)
     }
 }
 
