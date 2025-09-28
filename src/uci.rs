@@ -339,7 +339,7 @@ fn go(
     stored_message: &mut Option<String>,
     #[cfg(feature = "datagen")] temp: f32,
 ) {
-    let mut max_nodes = i32::MAX as usize;
+    let mut max_nodes = usize::MAX;
     let mut max_time = None;
     let mut max_depth = 256;
 
