@@ -8,16 +8,16 @@ use super::{
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals, dead_code)]
-pub const ValueFileDefaultName: &str = "nn-58274aa39e13.network";
+pub const ValueFileDefaultName: &str = "nn-09da29a4b6ed.network";
 #[allow(non_upper_case_globals, dead_code)]
-pub const CompressedValueName: &str = "nn-fa1a8afd872c.network";
+pub const CompressedValueName: &str = "nn-c1dd869bed55.network";
 #[allow(non_upper_case_globals, dead_code)]
 pub const DatagenValueFileName: &str = "nn-5601bb8c241d.network";
 
 const QA: i16 = 128;
 const QB: i16 = 1024;
 
-const L1: usize = 3072;
+const L1: usize = 8192;
 
 #[repr(C, align(64))]
 pub struct ValueNetwork {
