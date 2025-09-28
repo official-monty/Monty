@@ -23,8 +23,8 @@ use crate::{
 
 const NUM_SIDES: usize = 2;
 const NUM_SQUARES: usize = 64;
-const ROOT_ACCUM_THRESHOLD: u32 = 32;
-const ROOT_ACCUM_EAGER_LIMIT: u32 = 256;
+const ROOT_ACCUM_THRESHOLD: u64 = 32;
+const ROOT_ACCUM_EAGER_LIMIT: u64 = 256;
 
 #[repr(align(64))]
 struct RootAccumulatorEntry {

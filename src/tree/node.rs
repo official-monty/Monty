@@ -1,7 +1,7 @@
 use std::{
     convert::TryFrom,
     ops::{Add, AddAssign},
-    sync::atomic::{AtomicU16, AtomicU32, AtomicU64, AtomicU8, Ordering},
+    sync::atomic::{AtomicU16, AtomicU64, AtomicU8, Ordering},
 };
 
 use crate::chess::{GameState, Move};
@@ -57,7 +57,7 @@ impl Add<usize> for NodePtr {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct NodeStatsDelta {
-    pub visits: u32,
+    pub visits: u64,
     pub sum_q: u64,
     pub sum_sq_q: u64,
 }
@@ -93,7 +93,7 @@ pub struct Node {
     threads: AtomicU16,
     mov: AtomicU16,
     policy: AtomicU16,
-    visits: AtomicU32,
+    visits: AtomicU64,
     sum_q: AtomicU64,
     sum_sq_q: AtomicU64,
     gini_impurity: AtomicU8,
@@ -108,7 +108,7 @@ impl Node {
             threads: AtomicU16::new(0),
             mov: AtomicU16::new(0),
             policy: AtomicU16::new(0),
-            visits: AtomicU32::new(0),
+            visits: AtomicU64::new(0),
             sum_q: AtomicU64::new(0),
             sum_sq_q: AtomicU64::new(0),
             gini_impurity: AtomicU8::new(0),
@@ -137,7 +137,7 @@ impl Node {
         self.threads.load(Ordering::Relaxed)
     }
 
-    pub fn visits(&self) -> u32 {
+    pub fn visits(&self) -> u64 {
         self.visits.load(Ordering::Relaxed)
     }
 
@@ -150,7 +150,7 @@ impl Node {
 
         let sum_q = self.sum_q.load(Ordering::Relaxed);
 
-        (sum_q / u64::from(visits)) as f64 / f64::from(QUANT)
+        (sum_q / visits) as f64 / f64::from(QUANT)
     }
 
     pub fn q(&self) -> f32 {
@@ -160,7 +160,7 @@ impl Node {
     pub fn sq_q(&self) -> f64 {
         let sum_sq_q = self.sum_sq_q.load(Ordering::Relaxed);
         let visits = self.visits.load(Ordering::Relaxed);
-        (sum_sq_q / u64::from(visits)) as f64 / f64::from(QUANT).powi(2)
+        (sum_sq_q / visits) as f64 / f64::from(QUANT).powi(2)
     }
 
     pub fn var(&self) -> f32 {
