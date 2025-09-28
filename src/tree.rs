@@ -211,7 +211,7 @@ impl Tree {
         let bytes = mb * 1024 * 1024;
 
         const _: () = assert!(
-            std::mem::size_of::<Node>() == 48,
+            std::mem::size_of::<Node>() == 56,
             "You must reconsider this allocation!"
         );
 

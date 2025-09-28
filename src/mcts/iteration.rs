@@ -147,7 +147,7 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
             // virtual loss
             let threads = f64::from(child.threads());
             if threads > 0.0 {
-                let visits = f64::from(child.visits());
+                let visits = child.visits() as f64;
                 let q2 = f64::from(q) * visits
                     / (visits + 1.0 + searcher.params.virtual_loss_weight() * (threads - 1.0));
                 q = q2 as f32;
