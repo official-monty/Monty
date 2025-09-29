@@ -56,6 +56,7 @@ impl Add<usize> for NodePtr {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
+#[repr(align(64))]
 pub struct NodeStatsDelta {
     pub visits: u64,
     pub sum_q: u64,
@@ -86,6 +87,7 @@ impl AddAssign for NodeStatsDelta {
 }
 
 #[derive(Debug)]
+#[repr(align(64))]
 pub struct Node {
     actions: CustomLock,
     num_actions: AtomicU8,
