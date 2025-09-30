@@ -9,10 +9,9 @@ use node::NodeStatsDelta;
 pub use node::{Node, NodePtr};
 
 use std::{
-    cell::UnsafeCell,
     mem::MaybeUninit,
     ops::Index,
-    sync::atomic::{AtomicBool, AtomicI16, Ordering},
+    sync::atomic::{AtomicBool, AtomicI16, AtomicU64, Ordering},
 };
 
 use crate::{
@@ -28,40 +27,55 @@ const ROOT_ACCUM_EAGER_LIMIT: u64 = 256;
 
 #[repr(align(64))]
 struct RootAccumulatorEntry {
-    pending: UnsafeCell<NodeStatsDelta>,
+    visits: AtomicU64,
+    sum_q: AtomicU64,
+    sum_sq_q: AtomicU64,
 }
-
-unsafe impl Sync for RootAccumulatorEntry {}
 
 impl RootAccumulatorEntry {
     fn new() -> Self {
         Self {
-            pending: UnsafeCell::new(NodeStatsDelta::default()),
+            visits: AtomicU64::new(0),
+            sum_q: AtomicU64::new(0),
+            sum_sq_q: AtomicU64::new(0),
         }
     }
 
-    unsafe fn add(&self, delta: NodeStatsDelta) -> Option<NodeStatsDelta> {
-        let pending = &mut *self.pending.get();
-        *pending += delta;
+    fn add(&self, delta: NodeStatsDelta) -> Option<NodeStatsDelta> {
+        if delta.is_empty() {
+            return None;
+        }
 
-        if pending.visits >= ROOT_ACCUM_THRESHOLD {
-            let flush = *pending;
-            *pending = NodeStatsDelta::default();
-            Some(flush)
+        let visits_added = delta.visits;
+        let previous_visits = self.visits.fetch_add(visits_added, Ordering::AcqRel);
+        self.sum_q.fetch_add(delta.sum_q, Ordering::AcqRel);
+        self.sum_sq_q.fetch_add(delta.sum_sq_q, Ordering::AcqRel);
+
+        let new_total = previous_visits.saturating_add(visits_added);
+        if new_total >= ROOT_ACCUM_THRESHOLD {
+            let flush = self.take();
+            if flush.is_empty() {
+                None
+            } else {
+                Some(flush)
+            }
         } else {
             None
         }
     }
 
-    unsafe fn take(&self) -> NodeStatsDelta {
-        let pending = &mut *self.pending.get();
-        let flush = *pending;
-        *pending = NodeStatsDelta::default();
-        flush
+    fn take(&self) -> NodeStatsDelta {
+        NodeStatsDelta {
+            visits: self.visits.swap(0, Ordering::AcqRel),
+            sum_q: self.sum_q.swap(0, Ordering::AcqRel),
+            sum_sq_q: self.sum_sq_q.swap(0, Ordering::AcqRel),
+        }
     }
 
-    unsafe fn reset(&self) {
-        *self.pending.get() = NodeStatsDelta::default();
+    fn reset(&self) {
+        self.visits.store(0, Ordering::Relaxed);
+        self.sum_q.store(0, Ordering::Relaxed);
+        self.sum_sq_q.store(0, Ordering::Relaxed);
     }
 }
 
@@ -92,10 +106,8 @@ impl RootAccumulator {
             return;
         }
 
-        unsafe {
-            if let Some(flush) = self.entries[thread_id].add(delta) {
-                root.apply_delta(flush);
-            }
+        if let Some(flush) = self.entries[thread_id].add(delta) {
+            root.apply_delta(flush);
         }
     }
 
@@ -104,12 +116,10 @@ impl RootAccumulator {
             return;
         }
 
-        unsafe {
-            let pending = self.entries[thread_id].take();
+        let pending = self.entries[thread_id].take();
 
-            if !pending.is_empty() {
-                root.apply_delta(pending);
-            }
+        if !pending.is_empty() {
+            root.apply_delta(pending);
         }
     }
 
@@ -121,9 +131,7 @@ impl RootAccumulator {
 
     fn reset(&self) {
         for entry in &self.entries {
-            unsafe {
-                entry.reset();
-            }
+            entry.reset();
         }
     }
 }
