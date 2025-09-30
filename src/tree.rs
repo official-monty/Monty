@@ -9,6 +9,7 @@ use node::NodeStatsDelta;
 pub use node::{Node, NodePtr};
 
 use std::{
+    array,
     mem::MaybeUninit,
     ops::Index,
     sync::atomic::{AtomicBool, AtomicI16, AtomicU64, Ordering},
@@ -24,6 +25,9 @@ const NUM_SIDES: usize = 2;
 const NUM_SQUARES: usize = 64;
 const ROOT_ACCUM_THRESHOLD: u64 = 32;
 const ROOT_ACCUM_EAGER_LIMIT: u64 = 256;
+const NODE_BATCH_THRESHOLD: u64 = 16384;
+const MAX_BATCHED_NODES: usize = 32;
+const BATCH_SLOT_RESERVED: u64 = u64::MAX - 1;
 
 #[repr(align(64))]
 struct RootAccumulatorEntry {
@@ -79,59 +83,142 @@ impl RootAccumulatorEntry {
     }
 }
 
+impl Default for RootAccumulatorEntry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 struct RootAccumulator {
-    entries: Vec<RootAccumulatorEntry>,
+    nodes: [AtomicU64; MAX_BATCHED_NODES],
+    entries: Vec<[RootAccumulatorEntry; MAX_BATCHED_NODES]>,
 }
 
 impl RootAccumulator {
     fn new(threads: usize) -> Self {
-        Self {
-            entries: (0..threads).map(|_| RootAccumulatorEntry::new()).collect(),
+        let nodes = array::from_fn(|_| AtomicU64::new(NodePtr::NULL.inner()));
+        let mut entries = Vec::with_capacity(threads);
+        for _ in 0..threads {
+            entries.push(array::from_fn(|_| RootAccumulatorEntry::new()));
         }
+
+        Self { nodes, entries }
     }
 
-    fn add(&self, root: &Node, delta: NodeStatsDelta, thread_id: usize) {
+    fn add(&self, ptr: NodePtr, node: &Node, delta: NodeStatsDelta, thread_id: usize) {
         if delta.is_empty() {
             return;
         }
 
         if thread_id >= self.entries.len() {
-            root.apply_delta(delta);
+            node.apply_delta(delta);
             return;
         }
 
-        // This is to prevent a 4 Elo loss in datagen conditions
-        if root.visits() < ROOT_ACCUM_EAGER_LIMIT {
-            root.apply_delta(delta);
+        if ptr.idx() != 0 && node.visits() < NODE_BATCH_THRESHOLD {
+            node.apply_delta(delta);
             return;
         }
 
-        if let Some(flush) = self.entries[thread_id].add(delta) {
-            root.apply_delta(flush);
+        let Some(slot) = self.slot_for(ptr) else {
+            node.apply_delta(delta);
+            return;
+        };
+
+        if slot == 0 && node.visits() < ROOT_ACCUM_EAGER_LIMIT {
+            node.apply_delta(delta);
+            return;
+        }
+
+        if let Some(flush) = self.entries[thread_id][slot].add(delta) {
+            node.apply_delta(flush);
         }
     }
 
-    fn flush_thread(&self, root: &Node, thread_id: usize) {
+    fn slot_for(&self, ptr: NodePtr) -> Option<usize> {
+        let inner = ptr.inner();
+
+        for (idx, slot) in self.nodes.iter().enumerate() {
+            let current = slot.load(Ordering::Acquire);
+
+            if current == inner {
+                return Some(idx);
+            }
+
+            if current == NodePtr::NULL.inner() {
+                if slot
+                    .compare_exchange(
+                        NodePtr::NULL.inner(),
+                        BATCH_SLOT_RESERVED,
+                        Ordering::AcqRel,
+                        Ordering::Relaxed,
+                    )
+                    .is_ok()
+                {
+                    self.clear_slot(idx);
+                    slot.store(inner, Ordering::Release);
+                    return Some(idx);
+                }
+            }
+        }
+
+        None
+    }
+
+    fn clear_slot(&self, slot: usize) {
+        for thread_entries in &self.entries {
+            thread_entries[slot].reset();
+        }
+    }
+
+    fn flush_thread<F>(&self, apply: &mut F, thread_id: usize)
+    where
+        F: FnMut(NodePtr, NodeStatsDelta),
+    {
         if thread_id >= self.entries.len() {
             return;
         }
 
-        let pending = self.entries[thread_id].take();
+        for slot in 0..MAX_BATCHED_NODES {
+            let pending = self.entries[thread_id][slot].take();
 
-        if !pending.is_empty() {
-            root.apply_delta(pending);
+            if pending.is_empty() {
+                continue;
+            }
+
+            let raw = self.nodes[slot].load(Ordering::Acquire);
+
+            if raw == NodePtr::NULL.inner() || raw == BATCH_SLOT_RESERVED {
+                continue;
+            }
+
+            apply(NodePtr::from_raw(raw), pending);
         }
     }
 
-    fn flush_all(&self, root: &Node) {
+    fn flush_all<F>(&self, mut apply: F)
+    where
+        F: FnMut(NodePtr, NodeStatsDelta),
+    {
         for thread_id in 0..self.entries.len() {
-            self.flush_thread(root, thread_id);
+            self.flush_thread(&mut apply, thread_id);
         }
     }
 
-    fn reset(&self) {
-        for entry in &self.entries {
-            entry.reset();
+    fn reset(&self, root: NodePtr) {
+        for (idx, slot) in self.nodes.iter().enumerate() {
+            let value = if idx == 0 {
+                root.inner()
+            } else {
+                NodePtr::NULL.inner()
+            };
+            slot.store(value, Ordering::Relaxed);
+        }
+
+        for thread_entries in &self.entries {
+            for entry in thread_entries {
+                entry.reset();
+            }
         }
     }
 }
@@ -229,7 +316,7 @@ impl Tree {
     }
 
     fn new(tree_cap: usize, hash_cap: usize, threads: usize) -> Self {
-        Self {
+        let tree = Self {
             root: ChessState::default(),
             tree: [
                 TreeHalf::new(tree_cap / 2, false, threads),
@@ -239,7 +326,11 @@ impl Tree {
             hash: HashTable::new(hash_cap / 4, threads),
             butterfly: ButterflyTable::new(),
             root_accumulator: RootAccumulator::new(threads),
-        }
+        };
+
+        tree.reset_root_accumulator();
+
+        tree
     }
 
     pub fn root_position(&self) -> &ChessState {
@@ -280,7 +371,8 @@ impl Tree {
     pub fn flip(&self, copy_across: bool, threads: usize) {
         let old_root_ptr = self.root_node();
 
-        self.root_accumulator.flush_all(&self[old_root_ptr]);
+        self.root_accumulator
+            .flush_all(|ptr, delta| self[ptr].apply_delta(delta));
 
         let old = usize::from(self.half.fetch_xor(true, Ordering::Relaxed));
         self.tree[old].clear_ptrs(threads);
@@ -333,21 +425,17 @@ impl Tree {
     }
 
     pub fn update_node_stats(&self, ptr: NodePtr, value: f32, thread_id: usize) {
-        if ptr == self.root_node() {
-            let delta = NodeStatsDelta::from_value(value);
-            self.root_accumulator.add(&self[ptr], delta, thread_id);
-        } else {
-            self[ptr].update(value);
-        }
+        let delta = NodeStatsDelta::from_value(value);
+        self.root_accumulator.add(ptr, &self[ptr], delta, thread_id);
     }
 
     pub fn flush_root_accumulator(&self) {
-        let root = self.root_node();
-        self.root_accumulator.flush_all(&self[root]);
+        self.root_accumulator
+            .flush_all(|ptr, delta| self[ptr].apply_delta(delta));
     }
 
     fn reset_root_accumulator(&self) {
-        self.root_accumulator.reset();
+        self.root_accumulator.reset(self.root_node());
     }
 
     fn clear_halves(&self) {
@@ -360,7 +448,7 @@ impl Tree {
         self.clear_halves();
         self.hash.clear(threads);
         self.butterfly.clear();
-        self.root_accumulator.reset();
+        self.root_accumulator.reset(self.root_node());
     }
 
     pub fn is_empty(&self) -> bool {
