@@ -642,7 +642,7 @@ impl Tree {
 
         for i in 0..node.num_actions() {
             let child = &self[child_ptr + i];
-            distribution[i] = f64::from(child.visits()).powf(t);
+            distribution[i] = (child.visits() as f64).powf(t);
             total += distribution[i];
         }
 
