@@ -23,8 +23,8 @@ use crate::{
 
 const NUM_SIDES: usize = 2;
 const NUM_SQUARES: usize = 64;
-const ROOT_ACCUM_THRESHOLD: u32 = 32;
-const ROOT_ACCUM_EAGER_LIMIT: u32 = 256;
+const ROOT_ACCUM_THRESHOLD: u64 = 32;
+const ROOT_ACCUM_EAGER_LIMIT: u64 = 256;
 
 #[repr(align(64))]
 struct RootAccumulatorEntry {
@@ -211,11 +211,13 @@ impl Tree {
         let bytes = mb * 1024 * 1024;
 
         const _: () = assert!(
-            std::mem::size_of::<Node>() == 40,
+            std::mem::size_of::<Node>() == 64,
             "You must reconsider this allocation!"
         );
 
-        Self::new(bytes / 42, bytes / 42 / 16, threads)
+        let node_bytes = std::mem::size_of::<Node>() + 2;
+
+        Self::new(bytes / node_bytes, bytes / node_bytes / 16, threads)
     }
 
     fn new(tree_cap: usize, hash_cap: usize, threads: usize) -> Self {
@@ -640,7 +642,7 @@ impl Tree {
 
         for i in 0..node.num_actions() {
             let child = &self[child_ptr + i];
-            distribution[i] = f64::from(child.visits()).powf(t);
+            distribution[i] = (child.visits() as f64).powf(t);
             total += distribution[i];
         }
 

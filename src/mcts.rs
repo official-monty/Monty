@@ -177,7 +177,7 @@ impl<'a> Searcher<'a> {
 
                 for (action, visits) in visit_dist.iter_mut().enumerate() {
                     let v = self.tree[child_ptr + action].visits();
-                    // Saturate to i32::MAX (works whether visits() is u32 or usize)
+                    // Saturate to i32::MAX (works whether visits() is u64, or usize)
                     let v_i32 = (v as i64).min(i32::MAX as i64) as i32;
                     *visits = v_i32;
                 }
