@@ -145,14 +145,16 @@ impl RootAccumulator {
                 return Some(idx);
             }
 
-            if current == NodePtr::NULL.inner() && slot
+            if current == NodePtr::NULL.inner()
+                && slot
                     .compare_exchange(
                         NodePtr::NULL.inner(),
                         BATCH_SLOT_RESERVED,
                         Ordering::AcqRel,
                         Ordering::Relaxed,
                     )
-                    .is_ok() {
+                    .is_ok()
+            {
                 self.clear_slot(idx);
                 slot.store(inner, Ordering::Release);
                 return Some(idx);
