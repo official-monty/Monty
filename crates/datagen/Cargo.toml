@@ -5,8 +5,8 @@ edition = "2021"
 authors = ["Jamie Whiting, Viren & The Monty Authors"]
 
 [dependencies]
-monty = { path = "../", features = ["datagen"] }
-montyformat = "0.9.2"
+montyformat = { workspace = true }
+monty = { workspace = true, features = ["datagen"] }
 
 [features]
 default = []

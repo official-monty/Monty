@@ -91,16 +91,6 @@ impl Attacks {
     pub const fn black_pawn_setwise(pawns: u64) -> u64 {
         ((pawns & !File::A) >> 9) | ((pawns & !File::H) >> 7)
     }
-
-    pub const ALL_DESTINATIONS: [u64; 64] = init!(|sq, 64| {
-        let rank = sq / 8;
-        let file = sq % 8;
-
-        let rooks = (0xFF << (rank * 8)) ^ (File::A << file);
-        let bishops = DIAGS[file + rank].swap_bytes() ^ DIAGS[7 + file - rank];
-
-        rooks | bishops | KNIGHT[sq] | KING[sq]
-    });
 }
 
 pub struct File;
@@ -157,19 +147,19 @@ static LOOKUP: Lookup = Lookup {
     file: FILE,
 };
 
-const PAWN: [[u64; 64]; 2] = [
+pub const PAWN: [[u64; 64]; 2] = [
     init!(|sq, 64| (((1 << sq) & !File::A) << 7) | (((1 << sq) & !File::H) << 9)),
     init!(|sq, 64| (((1 << sq) & !File::A) >> 9) | (((1 << sq) & !File::H) >> 7)),
 ];
 
-const KNIGHT: [u64; 64] = init!(|sq, 64| {
+pub const KNIGHT: [u64; 64] = init!(|sq, 64| {
     let n = 1 << sq;
     let h1 = ((n >> 1) & 0x7f7f_7f7f_7f7f_7f7f) | ((n << 1) & 0xfefe_fefe_fefe_fefe);
     let h2 = ((n >> 2) & 0x3f3f_3f3f_3f3f_3f3f) | ((n << 2) & 0xfcfc_fcfc_fcfc_fcfc);
     (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8)
 });
 
-const KING: [u64; 64] = init!(|sq, 64| {
+pub const KING: [u64; 64] = init!(|sq, 64| {
     let mut k = 1 << sq;
     k |= (k << 8) | (k >> 8);
     k |= ((k & !File::A) >> 1) | ((k & !File::H) << 1);

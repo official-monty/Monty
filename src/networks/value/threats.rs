@@ -1,12 +1,14 @@
-use crate::chess::{
-    consts::{Piece, Side, ValueAttacks, ValueIndices, ValueOffsets},
-    Attacks, Board,
+use montyformat::chess::{
+    consts::{Piece, Side},
+    Attacks, Position,
 };
+
+use crate::networks::value::attacks::{ValueAttacks, ValueIndices, ValueOffsets};
 
 const TOTAL_THREATS: usize = 2 * ValueOffsets::END;
 pub const TOTAL: usize = TOTAL_THREATS + 768;
 
-pub fn map_features<F: FnMut(usize)>(pos: &Board, mut f: F) {
+pub fn map_features<F: FnMut(usize)>(pos: &Position, mut f: F) {
     let mut bbs = pos.bbs();
 
     // flip to stm perspective

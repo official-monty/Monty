@@ -77,6 +77,7 @@ impl<'a> DatagenThread<'a> {
 
         let pos = position.board();
 
+        #[allow(deprecated)]
         let montyformat_position = montyformat::chess::Position::from_raw(
             pos.bbs(),
             pos.stm() > 0,
