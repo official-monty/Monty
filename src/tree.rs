@@ -348,40 +348,45 @@ impl Tree {
         self.tree[self.half()].reserve_nodes_thread(1, 0)
     }
 
-    fn copy_node_across(&self, from: NodePtr, to: NodePtr) {
+    fn copy_node_across(&self, from: NodePtr, to: NodePtr, clear_ptr: bool) {
         if from == to {
             return;
         }
 
-        let f = self[from].actions_mut();
-        let t = self[to].actions_mut();
+        let from_actions = self[from].actions_mut();
+        let to_actions = self[to].actions_mut();
+        let from_actions_ptr = from_actions.val();
 
         self[to].copy_from(&self[from]);
-        self[to].set_num_actions(self[from].num_actions());
-        t.store(f.val());
+        if clear_ptr && from_actions_ptr.half() == self.half.load(Ordering::Relaxed) {
+            self[to].set_num_actions(0);
+            to_actions.store(NodePtr::NULL);
+        } else {
+            self[to].set_num_actions(self[from].num_actions());
+            to_actions.store(from_actions_ptr);
+        }
     }
 
     fn copy_across(&self, from: NodePtr, num: usize, to: NodePtr) {
         for i in 0..num {
-            self.copy_node_across(from + i, to + i);
+            self.copy_node_across(from + i, to + i, true);
         }
     }
 
-    pub fn flip(&self, copy_across: bool, threads: usize) {
+    pub fn flip(&self, copy_across: bool) {
         let old_root_ptr = self.root_node();
 
         self.root_accumulator
             .flush_all(|ptr, delta| self[ptr].apply_delta(delta));
 
         let old = usize::from(self.half.fetch_xor(true, Ordering::Relaxed));
-        self.tree[old].clear_ptrs(threads);
         self.tree[old ^ 1].clear();
 
         if copy_across {
             let new_root_ptr = self.tree[self.half()].reserve_nodes_thread(1, 0).unwrap();
             self[new_root_ptr].clear();
 
-            self.copy_node_across(old_root_ptr, new_root_ptr);
+            self.copy_node_across(old_root_ptr, new_root_ptr, true);
         }
 
         self.reset_root_accumulator();
@@ -632,7 +637,7 @@ impl Tree {
 
             if root != self.root_node() {
                 self[self.root_node()].clear();
-                self.copy_node_across(root, self.root_node());
+                self.copy_node_across(root, self.root_node(), false);
             }
 
             println!("info string found subtree");
