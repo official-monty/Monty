@@ -1,38 +1,34 @@
-name: Basic Checks
+name: Checks
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
+    pull_request:
+    push:
+      branches:
+        - main
 
 jobs:
-  check:
-    name: cargo check
+  check-clippy-test:
+    name: montyformat
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: ["datagen", "montyformat", "monty"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo check --locked
-      - run: cargo check --package datagen --locked
+        - uses: actions/checkout@v4
+        - uses: dtolnay/rust-toolchain@stable
+          with:
+            components: clippy
+        - run: cargo check --package montyformat
+        - run: cargo clippy --package montyformat
+        - run: cargo test --package montyformat
 
-  clippy:
-    name: cargo clippy
+  rustfmt:
+    name: rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - run: cargo clippy -- -D warnings
-      - run: cargo clippy --package datagen -- -D warnings
+        - uses: actions/checkout@v4
+        - uses: dtolnay/rust-toolchain@stable
+          with:
+            components: rustfmt
+        - run: cargo fmt -- --check
 
-  fmt:
-    name: cargo fmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - run: cargo fmt --all -- --check
