@@ -12,15 +12,18 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: ["datagen", "montyformat", "monty"]
+        package: ["datagen", "montyformat", "monty", "train-value"]
     steps:
         - uses: actions/checkout@v4
         - uses: dtolnay/rust-toolchain@stable
           with:
             components: clippy
-        - run: cargo check --package ${{ matrix.package }}
-        - run: cargo clippy --package ${{ matrix.package }}
-        - run: cargo test --package ${{ matrix.package }}
+        - name: Set feature flags for "train-value"
+          if: 
+          run: echo "FEATURE_FLAGS=--features cpu --no-default-features" >> $GITHUB_ENV
+        - run: cargo check --package ${{ matrix.package }} $FEATURE_FLAGS
+        - run: cargo clippy --package ${{ matrix.package }} $FEATURE_FLAGS
+        - run: cargo test --package ${{ matrix.package }} $FEATURE_FLAGS
 
   rustfmt:
     name: rustfmt
