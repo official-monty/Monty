@@ -1,8 +1,11 @@
 [package]
 name = "datagen"
 version = "0.1.0"
-edition = "2021"
-authors = ["Jamie Whiting, Viren & The Monty Authors"]
+edition = { workspace = true }
+authors = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
 
 [dependencies]
 montyformat = { workspace = true }
