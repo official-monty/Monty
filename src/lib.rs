@@ -79,7 +79,7 @@ pub unsafe fn read_into_struct_unchecked<'a, T>(path: &str) -> MappedWeights<'a,
     let ptr = mmap.as_ptr() as *const T;
 
     // Check if the pointer is properly aligned
-    if (ptr as usize) % std::mem::align_of::<T>() != 0 {
+    if !(ptr as usize).is_multiple_of(std::mem::align_of::<T>()) {
         panic!("Memory is not properly aligned for the type");
     }
 

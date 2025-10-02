@@ -217,6 +217,7 @@ version = "1.0.0"
 dependencies = [
  "chrono",
  "memmap2",
+ "montyformat",
  "once_cell",
  "rand",
  "rand_distr",
@@ -226,9 +227,7 @@ dependencies = [
 
 [[package]]
 name = "montyformat"
-version = "0.9.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4caf9c718f831a8568f030576e6a6e6aa487ed5f8732ddb0ba79e9a3ea0421ca"
+version = "0.10.0"
 
 [[package]]
 name = "num-traits"

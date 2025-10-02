@@ -1,6 +1,6 @@
 use super::{
-    board::Board,
     consts::{Piece, Right, Side},
+    position::Position,
 };
 
 #[derive(Clone, Copy)]
@@ -37,7 +37,7 @@ impl Castling {
         self.rook_files
     }
 
-    pub fn from_raw(pos: &Board, mut rook_files: [[u8; 2]; 2]) -> Self {
+    pub fn from_raw(pos: &Position, mut rook_files: [[u8; 2]; 2]) -> Self {
         if rook_files == [[0; 2]; 2] {
             rook_files = [[0, 7]; 2];
         }
@@ -61,7 +61,7 @@ impl Castling {
         ret
     }
 
-    pub fn parse(&mut self, pos: &Board, rights_str: &str) -> u8 {
+    pub fn parse(&mut self, pos: &Position, rights_str: &str) -> u8 {
         let mut kings = [4, 4];
 
         self.chess960 = false;
@@ -96,7 +96,13 @@ impl Castling {
         rights
     }
 
-    fn parse_castle(&mut self, pos: &Board, side: usize, kings: &mut [usize; 2], ch: char) -> u8 {
+    fn parse_castle(
+        &mut self,
+        pos: &Position,
+        side: usize,
+        kings: &mut [usize; 2],
+        ch: char,
+    ) -> u8 {
         self.chess960 = true;
 
         let wkc = (pos.piece(side) & pos.piece(Piece::KING)).trailing_zeros() as u8 & 7;

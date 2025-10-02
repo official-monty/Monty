@@ -1,4 +1,4 @@
-use crate::pop_lsb;
+use crate::bitloop;
 
 use super::{consts::Flag, frc::Castling};
 
@@ -82,9 +82,6 @@ impl Move {
 }
 
 #[inline]
-pub fn serialise<F: FnMut(Move)>(f: &mut F, mut attacks: u64, from: u16, flag: u16) {
-    while attacks > 0 {
-        pop_lsb!(to, attacks);
-        f(Move::new(from, to, flag));
-    }
+pub fn serialise<F: FnMut(Move)>(f: &mut F, attacks: u64, from: u16, flag: u16) {
+    bitloop!(|attacks, to| f(Move::new(from, to, flag)));
 }

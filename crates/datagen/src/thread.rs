@@ -75,30 +75,17 @@ impl<'a> DatagenThread<'a> {
         let mut tree = Tree::new_mb(8, 1);
         let mut temp = 0.8;
 
-        let pos = position.board();
-
-        let montyformat_position = montyformat::chess::Position::from_raw(
-            pos.bbs(),
-            pos.stm() > 0,
-            pos.enp_sq(),
-            pos.rights(),
-            pos.halfm(),
-            pos.fullm(),
-        );
-
-        let montyformat_castling = montyformat::chess::Castling::from_raw(
-            &montyformat_position,
-            position.castling().rook_files(),
-        );
+        let startpos = position.board();
+        let castling = position.castling();
 
         let mut value_game = MontyValueFormat {
-            startpos: montyformat_position,
-            castling: montyformat_castling,
+            startpos,
+            castling,
             result: 0.5,
             moves: Vec::new(),
         };
 
-        let mut policy_game = MontyFormat::new(montyformat_position, montyformat_castling);
+        let mut policy_game = MontyFormat::new(startpos, castling);
 
         let mut total_iters = 0usize;
         let mut searches = 0;
@@ -113,7 +100,7 @@ impl<'a> DatagenThread<'a> {
             tree.set_root_position(&position);
             let searcher = Searcher::new(&tree, &self.params, policy, value, &abort);
 
-            let (bm, score, iters) = searcher.search(1, limits, false, &mut 0, true, temp);
+            let (best_move, score, iters) = searcher.search(1, limits, false, &mut 0, true, temp);
 
             searches += 1;
             total_iters += iters;
@@ -122,8 +109,6 @@ impl<'a> DatagenThread<'a> {
             if temp <= 0.2 {
                 temp = 0.0;
             }
-
-            let best_move = montyformat::chess::Move::from(u16::from(bm));
 
             value_game.push(position.stm(), best_move, score);
 
@@ -139,7 +124,7 @@ impl<'a> DatagenThread<'a> {
 
                 for action in 0..tree[tree.root_node()].num_actions() {
                     let node = &tree[actions + action];
-                    let mov = montyformat::chess::Move::from(u16::from(node.parent_move()));
+                    let mov = node.parent_move();
                     let visits = node.visits().min(u32::MAX as u64) as u32;
                     dist.push((mov, visits));
                 }
@@ -153,7 +138,7 @@ impl<'a> DatagenThread<'a> {
 
             policy_game.push(search_data);
 
-            position.make_move(bm);
+            position.make_move(best_move);
 
             let game_state = position.game_state();
             match game_state {

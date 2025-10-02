@@ -1,10 +1,9 @@
-use crate::chess::Board;
+pub mod attacks;
+pub mod threats;
 
-use super::{
-    activation::SCReLU,
-    layer::{Layer, TransposedLayer},
-    threats, Accumulator,
-};
+use montyformat::chess::Position;
+
+use super::common::{Accumulator, Layer, SCReLU, TransposedLayer};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals, dead_code)]
@@ -29,7 +28,7 @@ pub struct ValueNetwork {
 }
 
 impl ValueNetwork {
-    pub fn eval(&self, board: &Board) -> (f32, f32, f32) {
+    pub fn eval(&self, board: &Position) -> (f32, f32, f32) {
         let mut pst = Accumulator([0.0; 3]);
 
         let mut count = 0;

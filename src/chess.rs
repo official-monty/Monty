@@ -1,65 +1,13 @@
-mod attacks;
-mod board;
-pub mod consts;
-mod frc;
-mod moves;
-
 use crate::{
     mcts::MctsParams,
     networks::{Accumulator, PolicyNetwork, ValueNetwork, POLICY_L1},
 };
 
-pub use self::{attacks::Attacks, board::Board, frc::Castling, moves::Move};
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub enum GameState {
-    #[default]
-    Ongoing,
-    Lost(u8),
-    Draw,
-    Won(u8),
-}
-
-impl From<GameState> for u16 {
-    fn from(value: GameState) -> Self {
-        match value {
-            GameState::Ongoing => 0,
-            GameState::Draw => 1 << 8,
-            GameState::Lost(x) => (2 << 8) ^ u16::from(x),
-            GameState::Won(x) => (3 << 8) ^ u16::from(x),
-        }
-    }
-}
-
-impl From<u16> for GameState {
-    fn from(value: u16) -> Self {
-        let discr = value >> 8;
-        let x = value as u8;
-
-        match discr {
-            0 => GameState::Ongoing,
-            1 => GameState::Draw,
-            2 => GameState::Lost(x),
-            3 => GameState::Won(x),
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl std::fmt::Display for GameState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GameState::Ongoing => write!(f, "O"),
-            GameState::Lost(n) => write!(f, "L{n}"),
-            GameState::Won(n) => write!(f, "W{n}"),
-            GameState::Draw => write!(f, "D"),
-        }
-    }
-}
+pub use montyformat::chess::{Attacks, Castling, GameState, Move, Position};
 
 #[derive(Clone)]
 pub struct ChessState {
-    board: Board,
+    board: Position,
     castling: Castling,
     stack: Vec<u64>,
 }
@@ -78,7 +26,7 @@ impl ChessState {
     #[cfg(not(feature = "datagen"))]
     pub const BENCH_DEPTH: usize = 6;
 
-    pub fn board(&self) -> Board {
+    pub fn board(&self) -> Position {
         self.board
     }
 
@@ -92,7 +40,7 @@ impl ChessState {
 
     pub fn from_fen(fen: &str) -> Self {
         let mut castling = Castling::default();
-        let board = Board::parse_fen(fen, &mut castling);
+        let board = Position::parse_fen(fen, &mut castling);
 
         Self {
             board,
@@ -162,7 +110,7 @@ impl ChessState {
 
         #[cfg(not(feature = "datagen"))]
         {
-            use consts::Piece;
+            use montyformat::chess::consts::Piece;
 
             let mut mat = self.piece_count(Piece::KNIGHT) * _params.knight_value()
                 + self.piece_count(Piece::BISHOP) * _params.bishop_value()
@@ -258,7 +206,11 @@ impl ChessState {
     }
 }
 
-fn perft<const ROOT: bool, const BULK: bool>(pos: &Board, depth: u8, castling: &Castling) -> u64 {
+fn perft<const ROOT: bool, const BULK: bool>(
+    pos: &Position,
+    depth: u8,
+    castling: &Castling,
+) -> u64 {
     let mut count = 0;
 
     if BULK && !ROOT && depth == 1 {
