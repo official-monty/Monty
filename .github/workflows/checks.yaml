@@ -8,7 +8,7 @@ on:
 
 jobs:
   check-clippy-test:
-    name: montyformat
+    name: check-clippy-test
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -18,9 +18,9 @@ jobs:
         - uses: dtolnay/rust-toolchain@stable
           with:
             components: clippy
-        - run: cargo check --package montyformat
-        - run: cargo clippy --package montyformat
-        - run: cargo test --package montyformat
+        - run: cargo check --package ${{ matrix.package }}
+        - run: cargo clippy --package ${{ matrix.package }}
+        - run: cargo test --package ${{ matrix.package }}
 
   rustfmt:
     name: rustfmt
