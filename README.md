@@ -6,11 +6,8 @@
 </div>
 
 ## Compiling
-To compile, run
-```
-make
-```
-The required networks will be downloaded automatically (and validated).
+To compile, run `make`. The required networks will be downloaded automatically (and validated).
+This requires `make` and a recent enough rust version (see the [MSRV](Cargo.toml)) installed via `rustup` (the official way).
 
 ## Development & Project Structure
 
@@ -33,14 +30,6 @@ There are a number of other crates found in [crates/](crates/):
     - Intended to be ran on montytest, there is no need to run it locally (unless testing changes)
 - [`train-value`](crates/train-value/)
     - Uses [bullet](https://github.com/jw1912/bullet)
-
-#### Contributing Advice
-
-Most search patches should be concerned with one of the following files:
-- [src/mcts/helpers.rs](src/mcts/helpers.rs)
-    - Calculations of CPUCT, policy softmax temperature, etc
-- [src/mcts/iteration.rs](src/mcts/helpers.rs)
-    - Core MCTS iteration function
 
 ## Terms of use
 
