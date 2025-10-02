@@ -45,7 +45,7 @@ authors = ["Jamie Whiting, Viren & The Monty Authors"]
 license = "AGPL-3.0"
 readme = "README.md"
 repository = "https://github.com/official-monty/Monty"
-rust-version = "1.83"
+rust-version = "1.87"
 edition = "2021"
 
 [workspace.dependencies]
