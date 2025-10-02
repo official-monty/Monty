@@ -22,11 +22,11 @@ jobs:
           if: matrix.package == 'train-value'
           run: echo "FEATURE_FLAGS=--features cpu --no-default-features" >> $GITHUB_ENV
         - name: cargo check
-         run: cargo check --package ${{ matrix.package }} $FEATURE_FLAGS
+          run: cargo check --package ${{ matrix.package }} $FEATURE_FLAGS
         - name: cargo clippy
-         run: cargo clippy --package ${{ matrix.package }} $FEATURE_FLAGS
+          run: cargo clippy --package ${{ matrix.package }} $FEATURE_FLAGS
         - name: cargo test
-         run: cargo test --package ${{ matrix.package }} $FEATURE_FLAGS
+          run: cargo test --package ${{ matrix.package }} $FEATURE_FLAGS
 
   rustfmt:
     name: rustfmt
