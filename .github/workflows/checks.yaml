@@ -1,10 +1,10 @@
 name: Checks
 
 on:
-    pull_request:
     push:
       branches:
         - master
+    pull_request:
 
 jobs:
   check-clippy-test:
