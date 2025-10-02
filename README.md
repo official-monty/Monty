@@ -12,29 +12,35 @@ make
 ```
 The required networks will be downloaded automatically (and validated).
 
-## Development
+## Development & Project Structure
+
+#### Testing
 
 Development of Monty is facilitated by [montytest](https://tests.montychess.org/tests).
-If you want to contribute, it is recommended to look in the [mcts](src/mcts.rs) module
-and its submodules.
-
 Functional patches are required to pass on montytest, with an STC followed by an LTC test.
+Nonfunctional patches may be required to pass non-regression test(s) if there are any concerns.
 
-Monty's networks are trained using [montytrain](https://github.com/official-monty/montytrain),
-which itself is built on top of [bullet](https://github.com/jw1912/bullet).
+#### Source Code
 
-Monty produces data in the formats found in [montyformat](https://github.com/official-monty/montyformat).
+The main engine code is found in [src/](src/), containing all the search code and network inference code.
 
-## ELO History
+There are a number of other crates found in [crates/](crates/):
+- [`montyformat`](crates/montyformat/)
+    - Core chess implementation
+    - Policy/value data formats
+    - All other crates depend on this
+- [`datagen`](crates/datagen/)
+    - Intended to be ran on montytest, there is no need to run it locally (unless testing changes)
+- [`train-value`](crates/train-value/)
+    - Uses [bullet](https://github.com/jw1912/bullet)
 
-<div align="center">
+#### Contributing Advice
 
-| Version | Release Date | CCRL 40/15 | CCRL Blitz | CCRL FRC |
-| :-: | :-: | :-: | :-: | :-: |
-| [1.0.0](https://github.com/jw1912/monty/releases/tag/v1.0.0) | 28th May 2024 | - | 3076 | 3107 |
-| [0.1.0](https://github.com/jw1912/monty/releases/tag/v0.1.0) | 26th March 2024 | - | - | 2974 |
-
-</div>
+Most search patches should be concerned with one of the following files:
+- [src/mcts/helpers.rs](src/mcts/helpers.rs)
+    - Calculations of CPUCT, policy softmax temperature, etc
+- [src/mcts/iteration.rs](src/mcts/helpers.rs)
+    - Core MCTS iteration function
 
 ## Terms of use
 
