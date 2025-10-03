@@ -1,0 +1,15 @@
+[package]
+name = "train-policy"
+version = "0.1.0"
+edition = { workspace = true }
+authors = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+default-run = "train-policy"
+
+[dependencies]
+acyclib = { package = "acyclib", git = 'https://github.com/jw1912/bullet', rev = "0891eca1fa3316db0d009df7146f85eab04407c2" }
+bullet_cuda_backend = { package = "bullet_cuda_backend", git = 'https://github.com/jw1912/bullet', rev = "0891eca1fa3316db0d009df7146f85eab04407c2" }
+montyformat = { workspace = true }
+monty = { workspace = true }

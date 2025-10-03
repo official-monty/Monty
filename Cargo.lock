@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "acyclib"
 version = "0.3.0"
-source = "git+https://github.com/jw1912/bullet?rev=36837b4788312dd123b59826230f357d12b68fd2#36837b4788312dd123b59826230f357d12b68fd2"
+source = "git+https://github.com/jw1912/bullet?rev=0891eca1fa3316db0d009df7146f85eab04407c2#0891eca1fa3316db0d009df7146f85eab04407c2"
 dependencies = [
  "parking_lot",
  "rand",
@@ -63,7 +63,7 @@ dependencies = [
 [[package]]
 name = "bullet_cuda_backend"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/bullet?rev=36837b4788312dd123b59826230f357d12b68fd2#36837b4788312dd123b59826230f357d12b68fd2"
+source = "git+https://github.com/jw1912/bullet?rev=0891eca1fa3316db0d009df7146f85eab04407c2#0891eca1fa3316db0d009df7146f85eab04407c2"
 dependencies = [
  "acyclib",
  "cudarc",
@@ -73,7 +73,7 @@ dependencies = [
 [[package]]
 name = "bullet_hip_backend"
 version = "0.1.0"
-source = "git+https://github.com/jw1912/bullet?rev=36837b4788312dd123b59826230f357d12b68fd2#36837b4788312dd123b59826230f357d12b68fd2"
+source = "git+https://github.com/jw1912/bullet?rev=0891eca1fa3316db0d009df7146f85eab04407c2#0891eca1fa3316db0d009df7146f85eab04407c2"
 dependencies = [
  "acyclib",
  "cc",
@@ -82,7 +82,7 @@ dependencies = [
 [[package]]
 name = "bullet_lib"
 version = "1.0.0"
-source = "git+https://github.com/jw1912/bullet?rev=36837b4788312dd123b59826230f357d12b68fd2#36837b4788312dd123b59826230f357d12b68fd2"
+source = "git+https://github.com/jw1912/bullet?rev=0891eca1fa3316db0d009df7146f85eab04407c2#0891eca1fa3316db0d009df7146f85eab04407c2"
 dependencies = [
  "acyclib",
  "bullet_cuda_backend",
@@ -634,6 +634,16 @@ name = "toml_write"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
+
+[[package]]
+name = "train-policy"
+version = "0.1.0"
+dependencies = [
+ "acyclib",
+ "bullet_cuda_backend",
+ "monty",
+ "montyformat 0.10.0",
+]
 
 [[package]]
 name = "train-value"
