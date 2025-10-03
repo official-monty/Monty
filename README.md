@@ -30,6 +30,8 @@ There are a number of other crates found in [crates/](crates/):
     - Intended to be ran on montytest, there is no need to run it locally (unless testing changes)
 - [`train-value`](crates/train-value/)
     - Uses [bullet](https://github.com/jw1912/bullet)
+- [`train-policy`](crates/train-policy/)
+    - Uses [bullet](https://github.com/jw1912/bullet) & extends it with custom operations
 
 ## Terms of use
 

@@ -1,6 +1,6 @@
-mod inputs;
-mod outputs;
-mod see;
+pub mod inputs;
+pub mod outputs;
+pub mod see;
 
 use montyformat::chess::{Move, Position};
 
@@ -24,10 +24,12 @@ pub const L1: usize = 16384;
 #[cfg(feature = "datagen")]
 pub const L1: usize = 16384;
 
+pub const INPUT_SIZE: usize = 3072;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct PolicyNetwork {
-    l1: Layer<i8, { 768 * 4 }, L1>,
+    l1: Layer<i8, INPUT_SIZE, L1>,
     l2: TransposedLayer<i8, { L1 / 2 }, { outputs::NUM_MOVES_INDICES }>,
 }
 

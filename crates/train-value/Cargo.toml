@@ -15,6 +15,6 @@ cuda = ["bullet_lib/cuda"]
 hip = ["bullet_lib/hip"]
 
 [dependencies]
-bullet_lib = { package = "bullet_lib", git = 'https://github.com/jw1912/bullet', default-features = false, rev = "36837b4788312dd123b59826230f357d12b68fd2" }
+bullet_lib = { package = "bullet_lib", git = 'https://github.com/jw1912/bullet', default-features = false, rev = "0891eca1fa3316db0d009df7146f85eab04407c2" }
 montyformat = { workspace = true }
-monty = { workspace = true, features = ["datagen"] }
+monty = { workspace = true }

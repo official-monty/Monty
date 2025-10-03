@@ -5,10 +5,11 @@
 *.binpack
 *.exe
 *.pdb
+*.bin
 *.network
 *.epd
 *.zst
-checkpoints
-data
+/checkpoints
+/data
 nets
 monty
