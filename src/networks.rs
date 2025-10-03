@@ -1,6 +1,6 @@
-mod common;
-mod policy;
-mod value;
+pub mod common;
+pub mod policy;
+pub mod value;
 
 pub use common::Accumulator;
 

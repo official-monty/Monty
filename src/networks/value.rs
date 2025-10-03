@@ -33,7 +33,7 @@ impl ValueNetwork {
 
         let mut count = 0;
         let mut feats = [0; 160];
-        threats::map_features(board, |feat| {
+        threats::map_features(board.bbs(), board.stm(), |feat| {
             feats[count] = feat;
             pst.add(&self.pst[feat]);
             count += 1;

@@ -1,0 +1,20 @@
+[package]
+name = "train-value"
+version = "0.1.0"
+edition = { workspace = true }
+authors = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+default-run = "train-value"
+
+[features]
+default = ["cuda"]
+cpu = ["bullet_lib/cpu"]
+cuda = ["bullet_lib/cuda"]
+hip = ["bullet_lib/hip"]
+
+[dependencies]
+bullet_lib = { package = "bullet_lib", git = 'https://github.com/jw1912/bullet', default-features = false, rev = "36837b4788312dd123b59826230f357d12b68fd2" }
+montyformat = { workspace = true }
+monty = { workspace = true, features = ["datagen"] }
