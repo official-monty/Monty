@@ -1,0 +1,9 @@
+[package]
+name = "montyformat"
+version = "0.10.0"
+description = "Chess implementation & compressed data formats for Monty"
+rust-version = "1.83"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }

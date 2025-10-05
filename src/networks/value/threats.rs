@@ -1,16 +1,16 @@
-use crate::chess::{
-    consts::{Piece, Side, ValueAttacks, ValueIndices, ValueOffsets},
-    Attacks, Board,
+use montyformat::chess::{
+    consts::{Piece, Side},
+    Attacks,
 };
+
+use crate::networks::value::attacks::{ValueAttacks, ValueIndices, ValueOffsets};
 
 const TOTAL_THREATS: usize = 2 * ValueOffsets::END;
 pub const TOTAL: usize = TOTAL_THREATS + 768;
 
-pub fn map_features<F: FnMut(usize)>(pos: &Board, mut f: F) {
-    let mut bbs = pos.bbs();
-
+pub fn map_features<F: FnMut(usize)>(mut bbs: [u64; 8], stm: usize, mut f: F) {
     // flip to stm perspective
-    if pos.stm() == Side::BLACK {
+    if stm == Side::BLACK {
         bbs.swap(0, 1);
         for bb in bbs.iter_mut() {
             *bb = bb.swap_bytes()

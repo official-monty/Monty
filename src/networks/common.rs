@@ -1,7 +1,5 @@
 use std::ops::{AddAssign, Mul};
 
-use super::activation::Activation;
-
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Accumulator<T: Copy, const N: usize>(pub [T; N]);
@@ -144,4 +142,43 @@ impl<const N: usize> Accumulator<f32, N> {
 
         res
     }
+}
+
+pub trait Activation {
+    fn activate(x: f32) -> f32;
+}
+
+pub struct SCReLU;
+impl Activation for SCReLU {
+    #[inline]
+    fn activate(x: f32) -> f32 {
+        x.clamp(0.0, 1.0).powi(2)
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Layer<T: Copy, const M: usize, const N: usize> {
+    pub weights: [Accumulator<T, N>; M],
+    pub biases: Accumulator<T, N>,
+}
+
+impl<const M: usize, const N: usize> Layer<f32, M, N> {
+    pub fn forward<T: Activation>(&self, inputs: &Accumulator<f32, M>) -> Accumulator<f32, N> {
+        let mut fwd = self.biases;
+
+        for (i, d) in inputs.0.iter().zip(self.weights.iter()) {
+            let act = T::activate(*i);
+            fwd.madd(act, d);
+        }
+
+        fwd
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct TransposedLayer<T: Copy, const M: usize, const N: usize> {
+    pub weights: [Accumulator<T, M>; N],
+    pub biases: Accumulator<T, N>,
 }

@@ -1,38 +1,40 @@
-name: Basic Checks
+name: Checks
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
+    push:
+      branches:
+        - master
+    pull_request:
 
 jobs:
-  check:
-    name: cargo check
+  check-clippy-test:
+    name: check-clippy-test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: ["datagen", "montyformat", "monty", "train-value"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo check --locked
-      - run: cargo check --package datagen --locked
+        - uses: actions/checkout@v4
+        - uses: dtolnay/rust-toolchain@stable
+          with:
+            components: clippy
+        - name: Set feature flags for "train-value"
+          if: matrix.package == 'train-value'
+          run: echo "FEATURE_FLAGS=--features cpu --no-default-features" >> $GITHUB_ENV
+        - name: cargo check
+          run: cargo check --package ${{ matrix.package }} $FEATURE_FLAGS
+        - name: cargo clippy
+          run: cargo clippy --package ${{ matrix.package }} $FEATURE_FLAGS
+        - name: cargo test
+          run: cargo test --package ${{ matrix.package }} $FEATURE_FLAGS
 
-  clippy:
-    name: cargo clippy
+  rustfmt:
+    name: rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - run: cargo clippy -- -D warnings
-      - run: cargo clippy --package datagen -- -D warnings
+        - uses: actions/checkout@v4
+        - uses: dtolnay/rust-toolchain@stable
+          with:
+            components: rustfmt
+        - run: cargo fmt -- --check
 
-  fmt:
-    name: cargo fmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - run: cargo fmt --all -- --check

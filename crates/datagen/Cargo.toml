@@ -1,0 +1,17 @@
+[package]
+name = "datagen"
+version = "0.1.0"
+edition = { workspace = true }
+authors = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[dependencies]
+montyformat = { workspace = true }
+monty = { workspace = true, features = ["datagen"] }
+
+[features]
+default = []
+value   = ["monty/value"]
+policy  = ["monty/policy"]

@@ -1,11 +1,8 @@
-mod accumulator;
-mod activation;
-mod layer;
-mod policy;
-mod threats;
-mod value;
+pub mod common;
+pub mod policy;
+pub mod value;
 
-pub use accumulator::Accumulator;
+pub use common::Accumulator;
 
 // Choose the file name type based on the feature
 #[cfg(feature = "datagen")]
