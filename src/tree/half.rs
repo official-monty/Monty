@@ -84,6 +84,20 @@ impl TreeHalf {
         }
     }
 
+    pub fn clear_cross_links(&self, target_half: bool) {
+        let limit = self.used.load(Ordering::Relaxed).min(self.nodes.len());
+
+        for node in &self.nodes[..limit] {
+            let actions = node.actions();
+
+            if actions.is_null() || actions.half() != target_half {
+                continue;
+            }
+
+            node.clear_actions();
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.used.load(Ordering::Relaxed) == 0
     }

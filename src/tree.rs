@@ -361,6 +361,9 @@ impl Tree {
         if clear_ptr && from_actions_ptr.half() == self.half.load(Ordering::Relaxed) {
             self[to].set_num_actions(0);
             to_actions.store(NodePtr::NULL);
+
+            self[from].set_num_actions(0);
+            from_actions.store(NodePtr::NULL);
         } else {
             self[to].set_num_actions(self[from].num_actions());
             to_actions.store(from_actions_ptr);
@@ -381,6 +384,7 @@ impl Tree {
 
         let old = usize::from(self.half.fetch_xor(true, Ordering::Relaxed));
         self.tree[old ^ 1].clear();
+        self.tree[old].clear_cross_links(self.half.load(Ordering::Relaxed));
 
         if copy_across {
             let new_root_ptr = self.tree[self.half()].reserve_nodes_thread(1, 0).unwrap();
