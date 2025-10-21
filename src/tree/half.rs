@@ -149,7 +149,7 @@ impl TreeHalf {
     pub fn is_full(&self) -> bool {
         self.used() >= self.nodes.len()
     }
-    
+
     pub fn register_cross_link(&self, node: NodePtr, target: NodePtr) {
         debug_assert_eq!(node.half(), self.half);
 
