@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{
+    atomic::{AtomicU64, AtomicUsize, Ordering},
+    Mutex,
+};
 
 use super::{Node, NodePtr};
 use crate::chess::GameState;
@@ -11,6 +14,9 @@ pub struct TreeHalf {
     next: Vec<AtomicUsize>,
     end: Vec<AtomicUsize>,
     half: bool,
+    cross_links: Mutex<Vec<usize>>,
+    cross_link_marks: Vec<AtomicU64>,
+    cross_link_epoch: AtomicU64,
 }
 
 impl std::ops::Index<NodePtr> for TreeHalf {
@@ -23,12 +29,18 @@ impl std::ops::Index<NodePtr> for TreeHalf {
 
 impl TreeHalf {
     pub fn new(size: usize, half: bool, threads: usize) -> Self {
+        let cross_links = Mutex::new(Vec::new());
+        let cross_link_marks = (0..size).map(|_| AtomicU64::new(0)).collect();
+
         let mut res = Self {
             nodes: Vec::new(),
             used: AtomicUsize::new(0),
             next: (0..threads).map(|_| AtomicUsize::new(0)).collect(),
             end: (0..threads).map(|_| AtomicUsize::new(0)).collect(),
             half,
+            cross_links,
+            cross_link_marks,
+            cross_link_epoch: AtomicU64::new(1),
         };
 
         res.nodes.reserve_exact(size);
@@ -82,19 +94,47 @@ impl TreeHalf {
             n.store(0, Ordering::Relaxed);
             e.store(0, Ordering::Relaxed);
         }
+
+        self.cross_link_epoch.fetch_add(1, Ordering::Relaxed);
+        self.cross_links.lock().unwrap().clear();
     }
 
     pub fn clear_cross_links(&self, target_half: bool) {
-        let limit = self.used.load(Ordering::Relaxed).min(self.nodes.len());
+        let epoch = self.cross_link_epoch.load(Ordering::Relaxed);
+        let mut links = self.cross_links.lock().unwrap();
+        let mut idx = 0;
+        let mut to_clear = Vec::new();
 
-        for node in &self.nodes[..limit] {
-            let actions = node.actions();
-
-            if actions.is_null() || actions.half() != target_half {
+        while idx < links.len() {
+            let node_idx = links[idx];
+            if self.cross_link_marks[node_idx].load(Ordering::Relaxed) != epoch {
+                links.swap_remove(idx);
                 continue;
             }
 
-            node.clear_actions();
+            let node_ptr = NodePtr::new(self.half, node_idx);
+            let actions = self[node_ptr].actions();
+
+            if actions.is_null() || actions.half() == self.half {
+                self.cross_link_marks[node_idx].store(0, Ordering::Relaxed);
+                links.swap_remove(idx);
+                continue;
+            }
+
+            if actions.half() != target_half {
+                idx += 1;
+                continue;
+            }
+
+            self.cross_link_marks[node_idx].store(0, Ordering::Relaxed);
+            to_clear.push(node_ptr);
+            links.swap_remove(idx);
+        }
+
+        drop(links);
+
+        for node_ptr in to_clear {
+            self[node_ptr].clear_actions();
         }
     }
 
@@ -108,5 +148,19 @@ impl TreeHalf {
 
     pub fn is_full(&self) -> bool {
         self.used() >= self.nodes.len()
+    }
+
+    pub fn register_cross_link(&self, node: NodePtr, target: NodePtr) {
+        debug_assert_eq!(node.half(), self.half);
+
+        if target.is_null() || target.half() == self.half {
+            self.cross_link_marks[node.idx()].store(0, Ordering::Relaxed);
+            return;
+        }
+
+        let epoch = self.cross_link_epoch.load(Ordering::Relaxed);
+        if self.cross_link_marks[node.idx()].swap(epoch, Ordering::Relaxed) != epoch {
+            self.cross_links.lock().unwrap().push(node.idx());
+        }
     }
 }

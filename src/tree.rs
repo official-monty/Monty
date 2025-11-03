@@ -361,12 +361,15 @@ impl Tree {
         if clear_ptr && from_actions_ptr.half() == self.half.load(Ordering::Relaxed) {
             self[to].set_num_actions(0);
             to_actions.store(NodePtr::NULL);
+            self.tree[usize::from(to.half())].register_cross_link(to, NodePtr::NULL);
 
             self[from].set_num_actions(0);
             from_actions.store(NodePtr::NULL);
+            self.tree[usize::from(from.half())].register_cross_link(from, NodePtr::NULL);
         } else {
             self[to].set_num_actions(self[from].num_actions());
             to_actions.store(from_actions_ptr);
+            self.tree[usize::from(to.half())].register_cross_link(to, from_actions_ptr);
         }
     }
 
@@ -415,6 +418,7 @@ impl Tree {
             self.copy_across(first_child_ptr, num_children, new_ptr);
 
             most_recent_ptr.store(new_ptr);
+            self.tree[usize::from(parent_ptr.half())].register_cross_link(parent_ptr, new_ptr);
         }
 
         Some(())
@@ -526,6 +530,7 @@ impl Tree {
 
         actions_ptr.store(new_ptr);
         node.set_num_actions(count);
+        self.tree[self.half()].register_cross_link(node_ptr, new_ptr);
 
         Some(())
     }
