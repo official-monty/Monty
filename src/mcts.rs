@@ -256,7 +256,7 @@ impl<'a> Searcher<'a> {
         }
 
         #[cfg(not(feature = "uci-minimal"))]
-        if uci_output && iters.is_multiple_of(8192) && timer_last_output.elapsed().as_secs() >= 15 {
+        if uci_output && iters.is_multiple_of(8192) && timer_last_output.elapsed().as_secs() >= 1 {
             self.search_report(
                 search_stats.avg_depth.load(Ordering::Relaxed),
                 search_stats.seldepth(),
@@ -495,15 +495,14 @@ impl<'a> Searcher<'a> {
     }
 
     fn get_cp(score: f32) -> f32 {
-        let clamped_score = score.clamp(0.0, 1.0);
-        let deviation = (clamped_score - 0.5).abs();
-        let sign = (clamped_score - 0.5).signum();
-        if deviation > 0.107 {
-            (100.0 + 2923.0 * (deviation - 0.107)) * sign
-        } else {
-            let adjusted_score = 0.5 + (clamped_score - 0.5).powi(3) * 100.0;
-            -200.0 * (1.0 / adjusted_score - 1.0).ln()
-        }
+        // Exact mathematical clamp points (f64 for precision)
+        const S_MIN: f64 = 0.329002405333_f64;
+        const S_MAX: f64 = 0.670997594667_f64;
+
+        let s = (score as f64).clamp(S_MIN, S_MAX);
+        let a = 0.5_f64 + 100.0_f64 * (s - 0.5_f64).powi(3);
+        let cp = 200.0_f64 * (a.ln() - (1.0_f64 - a).ln());
+        cp as f32
     }
 
     pub fn display_moves(&self) {
