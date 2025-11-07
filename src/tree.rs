@@ -12,6 +12,7 @@ use std::{
     array,
     mem::MaybeUninit,
     ops::Index,
+    ptr,
     sync::atomic::{AtomicBool, AtomicI16, AtomicU64, Ordering},
 };
 
@@ -330,6 +331,19 @@ impl Tree {
         tree.reset_root_accumulator();
 
         tree
+    }
+
+    /// Recreate the tree with a new memory budget without overlapping the old
+    /// allocation. Dropping the existing instance before building the new one
+    /// prevents temporarily doubling the hash table's memory usage.
+    pub fn rebuild(&mut self, mb: usize, threads: usize, root: ChessState) {
+        unsafe {
+            let ptr: *mut Tree = self;
+            ptr::drop_in_place(ptr);
+            ptr::write(ptr, Tree::new_mb(mb, threads));
+        }
+
+        self.set_root_position(&root);
     }
 
     pub fn root_position(&self) -> &ChessState {
