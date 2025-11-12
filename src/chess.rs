@@ -5,6 +5,107 @@ use crate::{
 
 pub use montyformat::chess::{Attacks, Castling, GameState, Move, Position};
 
+#[derive(Clone, Copy, Debug)]
+pub struct EvalWdl {
+    pub win: f32,
+    pub draw: f32,
+    pub loss: f32,
+}
+
+impl EvalWdl {
+    pub fn new(win: f32, draw: f32, loss: f32) -> Self {
+        let mut win = win.clamp(0.0, 1.0);
+        let mut draw = draw.clamp(0.0, 1.0);
+        let mut loss = loss.clamp(0.0, 1.0);
+
+        let sum = win + draw + loss;
+
+        if sum <= 0.0 {
+            return Self {
+                win: 1.0 / 3.0,
+                draw: 1.0 / 3.0,
+                loss: 1.0 / 3.0,
+            };
+        }
+
+        let inv = 1.0 / sum;
+        win *= inv;
+        draw *= inv;
+        loss *= inv;
+
+        Self { win, draw, loss }
+    }
+
+    pub fn score(&self) -> f32 {
+        self.win + 0.5 * self.draw
+    }
+
+    pub fn from_draw_and_score(draw: f32, score: f32) -> Self {
+        let draw = draw.clamp(0.0, 1.0);
+        let min_score = draw * 0.5;
+        let max_score = 1.0 - draw * 0.5;
+        let score = score.clamp(min_score.min(max_score), max_score.max(min_score));
+
+        let win = (score - draw * 0.5).max(0.0);
+        let loss = (1.0 - draw - win).max(0.0);
+        Self::new(win, draw, loss)
+    }
+
+    pub fn to_cp_i32(&self) -> i32 {
+        const K: f32 = 400.0;
+        let score = self.score().clamp(0.0, 1.0);
+        (-K * (1.0 / score - 1.0).ln()) as i32
+    }
+
+    pub fn apply_contempt(self, contempt: f32) -> Self {
+        if contempt == 0.0 {
+            return self;
+        }
+
+        let w = self.win;
+        let l = self.loss;
+        const EPS: f32 = 1e-4;
+
+        if w <= EPS || l <= EPS || w >= 1.0 - EPS || l >= 1.0 - EPS {
+            return self;
+        }
+
+        let a = (1.0 / l - 1.0).ln();
+        let b = (1.0 / w - 1.0).ln();
+        let denom = a + b;
+
+        if !denom.is_finite() || denom.abs() < 1e-6 {
+            return self;
+        }
+
+        let s = 2.0 / denom;
+        let mu = (a - b) / denom;
+
+        // Correction factor: 16x
+        let delta_mu = s * s * contempt * std::f32::consts::LN_10 / (400.0 * 16.0);
+        let mu_new = mu + delta_mu;
+
+        let logistic = |x: f32| 1.0 / (1.0 + (-x).exp());
+        let w_new = logistic((-1.0 + mu_new) / s);
+        let l_new = logistic((-1.0 - mu_new) / s);
+        let mut d_new = (1.0 - w_new - l_new).max(0.0);
+
+        if d_new > 1.0 {
+            d_new = 1.0;
+        }
+
+        EvalWdl::new(w_new, d_new, l_new)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct EvalBreakdown {
+    pub raw: EvalWdl,
+    pub material: EvalWdl,
+    pub contempt: EvalWdl,
+    pub cp: i32,
+}
+
 #[derive(Clone)]
 pub struct ChessState {
     board: Position,
@@ -101,33 +202,69 @@ impl ChessState {
         self.board.piece(piece).count_ones() as i32
     }
 
-    pub fn get_value(&self, value: &ValueNetwork, _params: &MctsParams) -> i32 {
-        const K: f32 = 400.0;
-        let (win, draw, _) = value.eval(&self.board);
-
-        let score = win + draw / 2.0;
-        let cp = (-K * (1.0 / score.clamp(0.0, 1.0) - 1.0).ln()) as i32;
+    fn evaluate_material_wdl(
+        &self,
+        value: &ValueNetwork,
+        params: &MctsParams,
+    ) -> (EvalWdl, EvalWdl, i32) {
+        let (win, draw, loss) = value.eval(&self.board);
+        let raw = EvalWdl::new(win, draw, loss);
+        let cp_base = raw.to_cp_i32();
 
         #[cfg(not(feature = "datagen"))]
-        {
+        let cp = {
             use montyformat::chess::consts::Piece;
 
-            let mut mat = self.piece_count(Piece::KNIGHT) * _params.knight_value()
-                + self.piece_count(Piece::BISHOP) * _params.bishop_value()
-                + self.piece_count(Piece::ROOK) * _params.rook_value()
-                + self.piece_count(Piece::QUEEN) * _params.queen_value();
+            let mut mat = self.piece_count(Piece::KNIGHT) * params.knight_value()
+                + self.piece_count(Piece::BISHOP) * params.bishop_value()
+                + self.piece_count(Piece::ROOK) * params.rook_value()
+                + self.piece_count(Piece::QUEEN) * params.queen_value();
 
-            mat = _params.material_offset() + mat / _params.material_div1();
+            mat = params.material_offset() + mat / params.material_div1();
 
-            cp * mat / _params.material_div2()
-        }
+            cp_base * mat / params.material_div2()
+        };
 
         #[cfg(feature = "datagen")]
+        let cp = {
+            let _ = params;
+            cp_base
+        };
+
+        let score = 1.0 / (1.0 + (-(cp as f32) / 400.0).exp());
+        let material = EvalWdl::from_draw_and_score(raw.draw, score);
+
+        (raw, material, cp)
+    }
+
+    pub fn eval_with_contempt(
+        &self,
+        value: &ValueNetwork,
+        params: &MctsParams,
+        root_stm: usize,
+    ) -> EvalBreakdown {
+        let (raw, material, cp) = self.evaluate_material_wdl(value, params);
+        let contempt = params.contempt() as f32;
+        let perspective = if self.stm() == root_stm { 1.0 } else { -1.0 };
+        let contempt_scaled = material.apply_contempt(contempt * perspective);
+
+        EvalBreakdown {
+            raw,
+            material,
+            contempt: contempt_scaled,
+            cp,
+        }
+    }
+
+    pub fn get_value(&self, value: &ValueNetwork, params: &MctsParams) -> i32 {
+        let (_, _, cp) = self.evaluate_material_wdl(value, params);
         cp
     }
 
-    pub fn get_value_wdl(&self, value: &ValueNetwork, params: &MctsParams) -> f32 {
-        1.0 / (1.0 + (-(self.get_value(value, params) as f32) / 400.0).exp())
+    pub fn get_value_wdl(&self, value: &ValueNetwork, params: &MctsParams, root_stm: usize) -> f32 {
+        self.eval_with_contempt(value, params, root_stm)
+            .contempt
+            .score()
     }
 
     pub fn perft(&self, depth: usize) -> u64 {

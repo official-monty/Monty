@@ -86,8 +86,26 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
             "perft" => run_perft(&commands, &pos),
             "quit" => std::process::exit(0),
             "eval" => {
-                println!("cp: {}", pos.get_value(value, &params));
-                println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl(value, &params));
+                let breakdown = pos.eval_with_contempt(value, &params, pos.stm());
+                println!("cp: {}", breakdown.cp);
+                println!(
+                    "wdl raw: {:.2}% {:.2}% {:.2}%",
+                    100.0 * breakdown.raw.win,
+                    100.0 * breakdown.raw.draw,
+                    100.0 * breakdown.raw.loss
+                );
+                println!(
+                    "wdl material: {:.2}% {:.2}% {:.2}%",
+                    100.0 * breakdown.material.win,
+                    100.0 * breakdown.material.draw,
+                    100.0 * breakdown.material.loss
+                );
+                println!(
+                    "wdl contempt: {:.2}% {:.2}% {:.2}%",
+                    100.0 * breakdown.contempt.win,
+                    100.0 * breakdown.contempt.draw,
+                    100.0 * breakdown.contempt.loss
+                );
             }
             "policy" => {
                 let mut max = f32::NEG_INFINITY;

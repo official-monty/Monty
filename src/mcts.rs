@@ -285,6 +285,7 @@ impl<'a> Searcher<'a> {
         let mut timer_last_output = Instant::now();
 
         let pos = self.tree.root_position();
+        let root_stm = pos.stm();
         let node = self.tree.root_node();
 
         // the root node is added to an empty tree, **and not counted** towards the
@@ -298,7 +299,7 @@ impl<'a> Searcher<'a> {
             self.tree
                 .expand_node(ptr, pos, self.params, self.policy, 1, 0);
 
-            let root_eval = pos.get_value_wdl(self.value, self.params);
+            let root_eval = pos.get_value_wdl(self.value, self.params, root_stm);
             self.tree.update_node_stats(ptr, 1.0 - root_eval, 0);
         }
         // relabel preexisting root policies with root PST value
