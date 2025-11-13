@@ -22,6 +22,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
     let mut move_overhead = 400;
     let mut uci_opponent_rating: Option<i32> = None;
     let mut uci_rating_adv: Option<i32> = None;
+    let mut contempt_override: Option<i32> = None;
 
     let mut stored_message: Option<String> = None;
 
@@ -56,6 +57,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                 &mut hash_mb,
                 &mut uci_opponent_rating,
                 &mut uci_rating_adv,
+                &mut contempt_override,
             ),
             "position" => position(commands, &mut pos),
             "go" => {
@@ -252,6 +254,7 @@ fn preamble() {
     println!("option name MoveOverhead type spin default 400 min 0 max 5000");
     println!("option name report_moves type button");
     println!("option name report_iters type button");
+    println!("option name contempt type spin default 0 min -1000 max 1000");
 
     #[cfg(feature = "tunable")]
     MctsParams::info(MctsParams::default());
@@ -269,6 +272,7 @@ fn setoption(
     hash_mb: &mut usize,
     uci_opponent_rating: &mut Option<i32>,
     uci_rating_adv: &mut Option<i32>,
+    contempt_override: &mut Option<i32>,
 ) {
     let Some((name, value)) = parse_name_value(commands) else {
         return;
@@ -307,7 +311,21 @@ fn setoption(
                 }
             }
         }
+        "contempt" => {
+            if let Some(v) = value {
+                if let Ok(parsed) = v.parse::<i32>() {
+                    let clamped = parsed.clamp(-1000, 1000);
+                    *contempt_override = Some(clamped);
+                    params.set("contempt", clamped);
+                    println!("info string using contempt {} elo", clamped);
+                }
+            }
+        }
         "UCI_Opponent" => {
+            if contempt_override.is_some() || uci_rating_adv.is_some() {
+                return;
+            }
+
             if let Some(v) = value {
                 if let Ok(parsed) = parse_uci_opponent_rating(&v) {
                     *uci_opponent_rating = parsed;
@@ -316,8 +334,15 @@ fn setoption(
             }
         }
         "UCI_RatingAdv" => {
+            if contempt_override.is_some() {
+                return;
+            }
+
             if let Some(v) = value {
-                if let Ok(parsed) = v.parse::<f32>() {
+                if v.eq_ignore_ascii_case("none") {
+                    *uci_rating_adv = None;
+                    apply_uci_contempt(params, *uci_opponent_rating, *uci_rating_adv);
+                } else if let Ok(parsed) = v.parse::<f32>() {
                     let rating_adv = parsed.round() as i32;
                     *uci_rating_adv = Some(rating_adv);
                     apply_uci_contempt(params, *uci_opponent_rating, *uci_rating_adv);
@@ -386,8 +411,9 @@ fn apply_uci_contempt(
     let contempt = rating_adv.or_else(|| opponent_rating.map(|opp| DEFAULT_SELF_RATING - opp));
 
     if let Some(contempt) = contempt {
-        params.set("contempt", contempt);
-        println!("info string using contempt {} elo", contempt);
+        let clamped = contempt.clamp(-1000, 1000);
+        params.set("contempt", clamped);
+        println!("info string using contempt {} elo", clamped);
     }
 }
 
