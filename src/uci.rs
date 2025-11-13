@@ -20,6 +20,8 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
     let mut report_moves = false;
     let mut threads = 1;
     let mut move_overhead = 400;
+    let mut uci_opponent_rating: Option<i32> = None;
+    let mut uci_rating_adv: Option<i32> = None;
 
     let mut stored_message: Option<String> = None;
 
@@ -52,6 +54,8 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                 &mut threads,
                 &mut move_overhead,
                 &mut hash_mb,
+                &mut uci_opponent_rating,
+                &mut uci_rating_adv,
             ),
             "position" => position(commands, &mut pos),
             "go" => {
@@ -263,45 +267,127 @@ fn setoption(
     threads: &mut usize,
     move_overhead: &mut usize,
     hash_mb: &mut usize,
+    uci_opponent_rating: &mut Option<i32>,
+    uci_rating_adv: &mut Option<i32>,
 ) {
-    if let ["setoption", "name", "report_moves"] = commands {
-        *report_moves = !*report_moves;
-        return;
-    }
-
-    if let ["setoption", "name", "report_iters"] = commands {
-        REPORT_ITERS.fetch_xor(true, Ordering::Relaxed);
-        return;
-    }
-
-    let (name, val) = if let ["setoption", "name", x, "value", y] = commands {
-        if *x == "UCI_Chess960" {
-            return;
-        }
-
-        if *x == "Threads" {
-            *threads = y.parse().unwrap();
-            let root = tree.root_position().clone();
-            tree.rebuild(*hash_mb, *threads, root);
-            return;
-        }
-
-        if *x == "MoveOverhead" {
-            *move_overhead = y.parse().unwrap();
-            return;
-        }
-
-        (*x, y.parse::<i32>().unwrap_or(0))
-    } else {
+    let Some((name, value)) = parse_name_value(commands) else {
         return;
     };
 
-    if name == "Hash" {
-        *hash_mb = val as usize;
-        let root = tree.root_position().clone();
-        tree.rebuild(*hash_mb, *threads, root);
+    match name.as_str() {
+        "report_moves" => {
+            *report_moves = !*report_moves;
+        }
+        "report_iters" => {
+            REPORT_ITERS.fetch_xor(true, Ordering::Relaxed);
+        }
+        "UCI_Chess960" => {}
+        "Threads" => {
+            if let Some(v) = value {
+                if let Ok(parsed) = v.parse::<usize>() {
+                    *threads = parsed.max(1);
+                    let root = tree.root_position().clone();
+                    tree.rebuild(*hash_mb, *threads, root);
+                }
+            }
+        }
+        "MoveOverhead" => {
+            if let Some(v) = value {
+                if let Ok(parsed) = v.parse::<usize>() {
+                    *move_overhead = parsed;
+                }
+            }
+        }
+        "Hash" => {
+            if let Some(v) = value {
+                if let Ok(parsed) = v.parse::<i32>() {
+                    *hash_mb = parsed.max(1) as usize;
+                    let root = tree.root_position().clone();
+                    tree.rebuild(*hash_mb, *threads, root);
+                }
+            }
+        }
+        "UCI_Opponent" => {
+            if let Some(v) = value {
+                if let Ok(parsed) = parse_uci_opponent_rating(&v) {
+                    *uci_opponent_rating = parsed;
+                    apply_uci_contempt(params, *uci_opponent_rating, *uci_rating_adv);
+                }
+            }
+        }
+        "UCI_RatingAdv" => {
+            if let Some(v) = value {
+                if let Ok(parsed) = v.parse::<f32>() {
+                    let rating_adv = parsed.round() as i32;
+                    *uci_rating_adv = Some(rating_adv);
+                    apply_uci_contempt(params, *uci_opponent_rating, *uci_rating_adv);
+                }
+            }
+        }
+        _ => {
+            if let Some(v) = value {
+                let parsed = v.parse::<i32>().unwrap_or(0);
+                params.set(&name, parsed);
+            }
+        }
+    }
+}
+
+fn parse_name_value(commands: &[&str]) -> Option<(String, Option<String>)> {
+    if commands.len() < 3 || commands[1] != "name" {
+        return None;
+    }
+
+    let mut name_parts = Vec::new();
+    let mut idx = 2;
+    while idx < commands.len() && commands[idx] != "value" {
+        name_parts.push(commands[idx]);
+        idx += 1;
+    }
+
+    if name_parts.is_empty() {
+        return None;
+    }
+
+    let name = name_parts.join(" ");
+
+    if idx >= commands.len() {
+        return Some((name, None));
+    }
+
+    let value = if idx + 1 < commands.len() {
+        Some(commands[idx + 1..].join(" "))
     } else {
-        params.set(name, val);
+        Some(String::new())
+    };
+
+    Some((name, value))
+}
+
+fn parse_uci_opponent_rating(value: &str) -> Result<Option<i32>, ()> {
+    let mut parts = value.split_whitespace();
+    // format: "none <rating|none> <type> <name>"
+    parts.next().ok_or(())?; // skip first field (unused)
+    let rating_str = parts.next().ok_or(())?;
+    if rating_str.eq_ignore_ascii_case("none") {
+        return Ok(None);
+    }
+
+    rating_str.parse::<i32>().map(Some).map_err(|_| ())
+}
+
+fn apply_uci_contempt(
+    params: &mut MctsParams,
+    opponent_rating: Option<i32>,
+    rating_adv: Option<i32>,
+) {
+    const DEFAULT_SELF_RATING: i32 = 3600;
+
+    let contempt = rating_adv.or_else(|| opponent_rating.map(|opp| DEFAULT_SELF_RATING - opp));
+
+    if let Some(contempt) = contempt {
+        params.set("contempt", contempt);
+        println!("info string using contempt {} elo", contempt);
     }
 }
 
