@@ -254,6 +254,8 @@ fn preamble() {
     println!("option name MoveOverhead type spin default 400 min 0 max 5000");
     println!("option name report_moves type button");
     println!("option name report_iters type button");
+    println!("option name UCI_Opponent type string default");
+    println!("option name UCI_RatingAdv type spin default 0");
     println!("option name Contempt type spin default 0 min -1000 max 1000");
 
     #[cfg(feature = "tunable")]
