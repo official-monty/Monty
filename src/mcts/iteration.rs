@@ -108,7 +108,11 @@ pub fn perform_one(
 
 fn get_utility(searcher: &Searcher, ptr: NodePtr, pos: &ChessState) -> f32 {
     match searcher.tree[ptr].state() {
-        GameState::Ongoing => pos.get_value_wdl(searcher.value, searcher.params),
+        GameState::Ongoing => pos.get_value_wdl(
+            searcher.value,
+            searcher.params,
+            searcher.tree.root_position().stm(),
+        ),
         GameState::Draw => 0.5,
         GameState::Lost(_) => 0.0,
         GameState::Won(_) => 1.0,

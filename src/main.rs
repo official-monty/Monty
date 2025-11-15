@@ -235,7 +235,9 @@ mod net {
             return;
         }
 
-        uci::run(policy, value);
+        let tcec_mode = matches!(arg1.as_deref(), Some("tcec"));
+
+        uci::run(policy, value, tcec_mode);
     }
 }
 
@@ -269,6 +271,8 @@ mod nonet {
             return;
         }
 
-        uci::run(policy, value);
+        let tcec_mode = matches!(arg1.as_deref(), Some("tcec"));
+
+        uci::run(policy, value, tcec_mode);
     }
 }
