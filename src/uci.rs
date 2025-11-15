@@ -11,7 +11,7 @@ use std::{
     time::Instant,
 };
 
-pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
+pub fn run(policy: &PolicyNetwork, value: &ValueNetwork, tcec_mode: bool) {
     let mut pos = ChessState::default();
     let mut root_game_ply = 0;
     let mut params = MctsParams::default();
@@ -143,7 +143,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
             }
             "d" => pos.display(policy),
             "params" => params.list_spsa(),
-            "uci" => preamble(),
+            "uci" => preamble(tcec_mode),
             "ucinewgame" => {
                 root_game_ply = 0;
                 tree.clear(threads);
@@ -245,7 +245,7 @@ pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork, params:
     );
 }
 
-fn preamble() {
+fn preamble(tcec_mode: bool) {
     println!("id name {}", env!("FORMATTED_NAME"));
     println!("id author Jamie Whiting, Viren & The Monty Authors");
     println!("option name Hash type spin default 64 min 1 max 524288");
@@ -254,8 +254,10 @@ fn preamble() {
     println!("option name MoveOverhead type spin default 400 min 0 max 5000");
     println!("option name report_moves type button");
     println!("option name report_iters type button");
-    println!("option name UCI_Opponent type string default");
-    println!("option name UCI_RatingAdv type spin default 0");
+    if tcec_mode {
+        println!("option name UCI_Opponent type string default");
+        println!("option name UCI_RatingAdv type spin default 0");
+    }
     println!("option name Contempt type spin default 0 min -1000 max 1000");
 
     #[cfg(feature = "tunable")]
@@ -408,7 +410,7 @@ fn apply_uci_contempt(
     opponent_rating: Option<i32>,
     rating_adv: Option<i32>,
 ) {
-    const DEFAULT_SELF_RATING: i32 = 3600;
+    const DEFAULT_SELF_RATING: i32 = 3550;
 
     let contempt = rating_adv.or_else(|| opponent_rating.map(|opp| DEFAULT_SELF_RATING - opp));
 
