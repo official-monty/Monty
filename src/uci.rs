@@ -410,7 +410,7 @@ fn apply_uci_contempt(
     opponent_rating: Option<i32>,
     rating_adv: Option<i32>,
 ) {
-    const DEFAULT_SELF_RATING: i32 = 3550;
+    const DEFAULT_SELF_RATING: i32 = 3520;
 
     let contempt = rating_adv.or_else(|| opponent_rating.map(|opp| DEFAULT_SELF_RATING - opp));
 
