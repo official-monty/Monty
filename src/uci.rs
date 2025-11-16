@@ -11,7 +11,7 @@ use std::{
     time::Instant,
 };
 
-pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
+pub fn run(policy: &PolicyNetwork, value: &ValueNetwork, tcec_mode: bool) {
     let mut pos = ChessState::default();
     let mut root_game_ply = 0;
     let mut params = MctsParams::default();
@@ -20,6 +20,9 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
     let mut report_moves = false;
     let mut threads = 1;
     let mut move_overhead = 400;
+    let mut uci_opponent_rating: Option<i32> = None;
+    let mut uci_rating_adv: Option<i32> = None;
+    let mut contempt_override: Option<i32> = None;
 
     let mut stored_message: Option<String> = None;
 
@@ -52,6 +55,9 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
                 &mut threads,
                 &mut move_overhead,
                 &mut hash_mb,
+                &mut uci_opponent_rating,
+                &mut uci_rating_adv,
+                &mut contempt_override,
             ),
             "position" => position(commands, &mut pos),
             "go" => {
@@ -86,8 +92,26 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
             "perft" => run_perft(&commands, &pos),
             "quit" => std::process::exit(0),
             "eval" => {
-                println!("cp: {}", pos.get_value(value, &params));
-                println!("wdl: {:.2}%", 100.0 * pos.get_value_wdl(value, &params));
+                let breakdown = pos.eval_with_contempt(value, &params, pos.stm());
+                println!("cp: {}", breakdown.cp);
+                println!(
+                    "wdl raw: {:.2}% {:.2}% {:.2}%",
+                    100.0 * breakdown.raw.win,
+                    100.0 * breakdown.raw.draw,
+                    100.0 * breakdown.raw.loss
+                );
+                println!(
+                    "wdl material: {:.2}% {:.2}% {:.2}%",
+                    100.0 * breakdown.material.win,
+                    100.0 * breakdown.material.draw,
+                    100.0 * breakdown.material.loss
+                );
+                println!(
+                    "wdl contempt: {:.2}% {:.2}% {:.2}%",
+                    100.0 * breakdown.contempt.win,
+                    100.0 * breakdown.contempt.draw,
+                    100.0 * breakdown.contempt.loss
+                );
             }
             "policy" => {
                 let mut max = f32::NEG_INFINITY;
@@ -119,7 +143,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork) {
             }
             "d" => pos.display(policy),
             "params" => params.list_spsa(),
-            "uci" => preamble(),
+            "uci" => preamble(tcec_mode),
             "ucinewgame" => {
                 root_game_ply = 0;
                 tree.clear(threads);
@@ -221,7 +245,7 @@ pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork, params:
     );
 }
 
-fn preamble() {
+fn preamble(tcec_mode: bool) {
     println!("id name {}", env!("FORMATTED_NAME"));
     println!("id author Jamie Whiting, Viren & The Monty Authors");
     println!("option name Hash type spin default 64 min 1 max 524288");
@@ -230,6 +254,11 @@ fn preamble() {
     println!("option name MoveOverhead type spin default 400 min 0 max 5000");
     println!("option name report_moves type button");
     println!("option name report_iters type button");
+    if tcec_mode {
+        println!("option name UCI_Opponent type string default");
+        println!("option name UCI_RatingAdv type spin default 0");
+    }
+    println!("option name Contempt type spin default 0 min -1000 max 1000");
 
     #[cfg(feature = "tunable")]
     MctsParams::info(MctsParams::default());
@@ -245,45 +274,150 @@ fn setoption(
     threads: &mut usize,
     move_overhead: &mut usize,
     hash_mb: &mut usize,
+    uci_opponent_rating: &mut Option<i32>,
+    uci_rating_adv: &mut Option<i32>,
+    contempt_override: &mut Option<i32>,
 ) {
-    if let ["setoption", "name", "report_moves"] = commands {
-        *report_moves = !*report_moves;
-        return;
-    }
-
-    if let ["setoption", "name", "report_iters"] = commands {
-        REPORT_ITERS.fetch_xor(true, Ordering::Relaxed);
-        return;
-    }
-
-    let (name, val) = if let ["setoption", "name", x, "value", y] = commands {
-        if *x == "UCI_Chess960" {
-            return;
-        }
-
-        if *x == "Threads" {
-            *threads = y.parse().unwrap();
-            let root = tree.root_position().clone();
-            tree.rebuild(*hash_mb, *threads, root);
-            return;
-        }
-
-        if *x == "MoveOverhead" {
-            *move_overhead = y.parse().unwrap();
-            return;
-        }
-
-        (*x, y.parse::<i32>().unwrap_or(0))
-    } else {
+    let Some((name, value)) = parse_name_value(commands) else {
         return;
     };
 
-    if name == "Hash" {
-        *hash_mb = val as usize;
-        let root = tree.root_position().clone();
-        tree.rebuild(*hash_mb, *threads, root);
+    match name.as_str() {
+        "report_moves" => {
+            *report_moves = !*report_moves;
+        }
+        "report_iters" => {
+            REPORT_ITERS.fetch_xor(true, Ordering::Relaxed);
+        }
+        "UCI_Chess960" => {}
+        "Threads" => {
+            if let Some(v) = value {
+                if let Ok(parsed) = v.parse::<usize>() {
+                    *threads = parsed.max(1);
+                    let root = tree.root_position().clone();
+                    tree.rebuild(*hash_mb, *threads, root);
+                }
+            }
+        }
+        "MoveOverhead" => {
+            if let Some(v) = value {
+                if let Ok(parsed) = v.parse::<usize>() {
+                    *move_overhead = parsed;
+                }
+            }
+        }
+        "Hash" => {
+            if let Some(v) = value {
+                if let Ok(parsed) = v.parse::<i32>() {
+                    *hash_mb = parsed.max(1) as usize;
+                    let root = tree.root_position().clone();
+                    tree.rebuild(*hash_mb, *threads, root);
+                }
+            }
+        }
+        "Contempt" => {
+            if let Some(v) = value {
+                if let Ok(parsed) = v.parse::<i32>() {
+                    let clamped = parsed.clamp(-1000, 1000);
+                    *contempt_override = Some(clamped);
+                    params.set("contempt", clamped);
+                    println!("info string using contempt {} elo", clamped);
+                }
+            }
+        }
+        "UCI_Opponent" => {
+            if contempt_override.is_some() || uci_rating_adv.is_some() {
+                return;
+            }
+
+            if let Some(v) = value {
+                if let Ok(parsed) = parse_uci_opponent_rating(&v) {
+                    *uci_opponent_rating = parsed;
+                    apply_uci_contempt(params, *uci_opponent_rating, *uci_rating_adv);
+                }
+            }
+        }
+        "UCI_RatingAdv" => {
+            if contempt_override.is_some() {
+                return;
+            }
+
+            if let Some(v) = value {
+                if v.eq_ignore_ascii_case("none") {
+                    *uci_rating_adv = None;
+                    apply_uci_contempt(params, *uci_opponent_rating, *uci_rating_adv);
+                } else if let Ok(parsed) = v.parse::<f32>() {
+                    let rating_adv = parsed.round() as i32;
+                    *uci_rating_adv = Some(rating_adv);
+                    apply_uci_contempt(params, *uci_opponent_rating, *uci_rating_adv);
+                }
+            }
+        }
+        _ => {
+            if let Some(v) = value {
+                let parsed = v.parse::<i32>().unwrap_or(0);
+                params.set(&name, parsed);
+            }
+        }
+    }
+}
+
+fn parse_name_value(commands: &[&str]) -> Option<(String, Option<String>)> {
+    if commands.len() < 3 || commands[1] != "name" {
+        return None;
+    }
+
+    let mut name_parts = Vec::new();
+    let mut idx = 2;
+    while idx < commands.len() && commands[idx] != "value" {
+        name_parts.push(commands[idx]);
+        idx += 1;
+    }
+
+    if name_parts.is_empty() {
+        return None;
+    }
+
+    let name = name_parts.join(" ");
+
+    if idx >= commands.len() {
+        return Some((name, None));
+    }
+
+    let value = if idx + 1 < commands.len() {
+        Some(commands[idx + 1..].join(" "))
     } else {
-        params.set(name, val);
+        Some(String::new())
+    };
+
+    Some((name, value))
+}
+
+fn parse_uci_opponent_rating(value: &str) -> Result<Option<i32>, ()> {
+    let mut parts = value.split_whitespace();
+    // format: "none <rating|none> <type> <name>"
+    parts.next().ok_or(())?; // skip first field (unused)
+    let rating_str = parts.next().ok_or(())?;
+    if rating_str.eq_ignore_ascii_case("none") {
+        return Ok(None);
+    }
+
+    rating_str.parse::<i32>().map(Some).map_err(|_| ())
+}
+
+fn apply_uci_contempt(
+    params: &mut MctsParams,
+    opponent_rating: Option<i32>,
+    rating_adv: Option<i32>,
+) {
+    const DEFAULT_SELF_RATING: i32 = 3520;
+
+    let contempt = rating_adv.or_else(|| opponent_rating.map(|opp| DEFAULT_SELF_RATING - opp));
+
+    if let Some(contempt) = contempt {
+        let clamped = contempt.clamp(-1000, 1000);
+        params.set("contempt", clamped);
+        println!("info string using contempt {} elo", clamped);
     }
 }
 
