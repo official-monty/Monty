@@ -23,6 +23,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork, tcec_mode: bool) {
     let mut uci_opponent_rating: Option<i32> = None;
     let mut uci_rating_adv: Option<i32> = None;
     let mut contempt_override: Option<i32> = None;
+    let mut contempt_analysis = false;
 
     let mut stored_message: Option<String> = None;
 
@@ -58,6 +59,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork, tcec_mode: bool) {
                 &mut uci_opponent_rating,
                 &mut uci_rating_adv,
                 &mut contempt_override,
+                &mut contempt_analysis,
             ),
             "position" => position(commands, &mut pos),
             "go" => {
@@ -75,6 +77,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork, tcec_mode: bool) {
                     value,
                     threads,
                     move_overhead,
+                    contempt_analysis,
                     &mut stored_message,
                     #[cfg(feature = "datagen")]
                     1.0,
@@ -251,6 +254,7 @@ fn preamble(tcec_mode: bool) {
     println!("option name Hash type spin default 64 min 1 max 524288");
     println!("option name Threads type spin default 1 min 1 max 512");
     println!("option name UCI_Chess960 type check default false");
+    println!("option name Contempt_Analysis type check default false");
     println!("option name MoveOverhead type spin default 400 min 0 max 5000");
     println!("option name report_moves type button");
     println!("option name report_iters type button");
@@ -277,6 +281,7 @@ fn setoption(
     uci_opponent_rating: &mut Option<i32>,
     uci_rating_adv: &mut Option<i32>,
     contempt_override: &mut Option<i32>,
+    disable_tree_reuse: &mut bool,
 ) {
     let Some((name, value)) = parse_name_value(commands) else {
         return;
@@ -290,6 +295,11 @@ fn setoption(
             REPORT_ITERS.fetch_xor(true, Ordering::Relaxed);
         }
         "UCI_Chess960" => {}
+        "Contempt_Analysis" => {
+            if let Some(v) = value {
+                *disable_tree_reuse = v.eq_ignore_ascii_case("true");
+            }
+        }
         "Threads" => {
             if let Some(v) = value {
                 if let Ok(parsed) = v.parse::<usize>() {
@@ -468,6 +478,7 @@ fn go(
     value: &ValueNetwork,
     threads: usize,
     move_overhead: usize,
+    disable_tree_reuse: bool,
     stored_message: &mut Option<String>,
     #[cfg(feature = "datagen")] temp: f32,
 ) {
@@ -527,6 +538,10 @@ fn go(
     }
 
     let abort = AtomicBool::new(false);
+
+    if disable_tree_reuse {
+        tree.clear(threads);
+    }
 
     tree.set_root_position(pos);
 
