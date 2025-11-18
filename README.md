@@ -9,6 +9,16 @@
 To compile, run `make`. The required networks will be downloaded automatically (and validated).
 This requires `make` and a recent enough rust version (see the [MSRV](Cargo.toml)) installed via `rustup` (the official way).
 
+## Analysis
+
+Monty is the state-of-the-art engine for CPU-based contempt analysis. Its contempt parameter is calibrated to represent the effective rating difference 
+between us and the opponent, and it has been validated across a wide range from –1000 Elo (us being weaker) to +1000 Elo (us being stronger).
+
+When using contempt in analysis, it is crucial the Contempt_Analysis flag is set to true. Below is an example in the En Croissant GUI:
+
+<img src="https://github.com/user-attachments/assets/a07371a8-5815-4237-a102-ac6aaaa4ca54" width="400">
+
+
 ## Development & Project Structure
 
 #### Testing
