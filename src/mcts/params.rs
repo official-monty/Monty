@@ -187,4 +187,8 @@ make_mcts_params! {
     visit_threshold_power: i32 = 3, 0, 8, 1, 0.002;
     virtual_loss_weight: f64 = 2.5, 1.0, 5.0, 0.25, 0.002;
     contempt: i32 = 0, -1000, 1000, 10, 0.0; //Do not tune this value!
+    tm_var_kt: f32 = 0.25, 0.0, 1.0, 0.025, 0.002;
+    tm_var_slope: f32 = 1.0, 0.0, 5.0, 0.1, 0.002;
+    tm_var_min: f32 = 0.5, 0.1, 1.0, 0.05, 0.002;
+    tm_var_max: f32 = 1.5, 1.0, 5.0, 0.15, 0.002;
 }
