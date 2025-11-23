@@ -446,8 +446,8 @@ impl Tree {
         self.hash.get(hash)
     }
 
-    pub fn push_hash(&self, hash: u64, wins: f32) {
-        self.hash.push(hash, wins);
+    pub fn push_hash(&self, hash: u64, wins: f32, visits: u64) {
+        self.hash.push(hash, wins, visits);
     }
 
     pub fn update_node_stats(&self, ptr: NodePtr, value: f32, thread_id: usize) {

@@ -1,9 +1,10 @@
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct HashEntry {
-    hash: u16,
+    hash: u32,
     q: u16,
+    visits: u32,
 }
 
 impl HashEntry {
@@ -13,23 +14,11 @@ impl HashEntry {
 }
 
 #[derive(Default)]
-struct HashEntryInternal(AtomicU32);
+struct HashEntryInternal(AtomicU64);
 
 impl Clone for HashEntryInternal {
     fn clone(&self) -> Self {
-        Self(AtomicU32::new(self.0.load(Ordering::Relaxed)))
-    }
-}
-
-impl From<&HashEntryInternal> for HashEntry {
-    fn from(value: &HashEntryInternal) -> Self {
-        unsafe { std::mem::transmute(value.0.load(Ordering::Relaxed)) }
-    }
-}
-
-impl From<HashEntry> for u32 {
-    fn from(value: HashEntry) -> Self {
-        unsafe { std::mem::transmute(value) }
+        Self(AtomicU64::new(self.0.load(Ordering::Relaxed)))
     }
 }
 
@@ -80,11 +69,26 @@ impl HashTable {
 
     pub fn fetch(&self, hash: u64) -> HashEntry {
         let idx = hash % (self.table.len() as u64);
-        HashEntry::from(&self.table[idx as usize])
+        let raw = self.table[idx as usize].0.load(Ordering::Relaxed);
+        Self::unpack(raw)
     }
 
-    fn key(hash: u64) -> u16 {
-        (hash >> 48) as u16
+    fn key(hash: u64) -> u32 {
+        (hash >> 40) as u32
+    }
+
+    fn pack(key: u32, q: u16, visits: u32) -> u64 {
+        (u64::from(key) & 0xFFFFFF)
+            | ((u64::from(q) & 0xFFFF) << 24)
+            | ((u64::from(visits) & 0xFFFFFF) << 40)
+    }
+
+    fn unpack(raw: u64) -> HashEntry {
+        HashEntry {
+            hash: (raw & 0xFFFFFF) as u32,
+            q: ((raw >> 24) & 0xFFFF) as u16,
+            visits: ((raw >> 40) & 0xFFFFFF) as u32,
+        }
     }
 
     pub fn get(&self, hash: u64) -> Option<HashEntry> {
@@ -97,16 +101,39 @@ impl HashTable {
         }
     }
 
-    pub fn push(&self, hash: u64, q: f32) {
+    pub fn push(&self, hash: u64, q: f32, visits: u64) {
         let idx = hash % (self.table.len() as u64);
+        let key = Self::key(hash);
+        let q_u16 = (q * f32::from(u16::MAX)) as u16;
+        let visits_u32 = visits.min(0xFFFFFF) as u32;
 
-        let entry = HashEntry {
-            hash: Self::key(hash),
-            q: (q * f32::from(u16::MAX)) as u16,
-        };
+        let new_raw = Self::pack(key, q_u16, visits_u32);
+        let entry_atomic = &self.table[idx as usize].0;
 
-        self.table[idx as usize]
-            .0
-            .store(u32::from(entry), Ordering::Relaxed)
+        let mut old_raw = entry_atomic.load(Ordering::Relaxed);
+
+        loop {
+            let old_entry = Self::unpack(old_raw);
+
+            let replace = if old_entry.hash != key {
+                true
+            } else {
+                visits_u32 >= old_entry.visits
+            };
+
+            if !replace {
+                break;
+            }
+
+            match entry_atomic.compare_exchange(
+                old_raw,
+                new_raw,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => break,
+                Err(actual) => old_raw = actual,
+            }
+        }
     }
 }
