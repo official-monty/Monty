@@ -117,8 +117,12 @@ impl Position {
 
     #[must_use]
     pub fn attackers_to_square(&self, sq: usize, side: usize, occ: u64) -> u64 {
-        let opps = self.bb[side ^ 1];
-        self.attackers_to_square_with(sq, occ, side, opps)
+        ((Attacks::knight(sq) & self.bb[Piece::KNIGHT])
+            | (Attacks::king(sq) & self.bb[Piece::KING])
+            | (Attacks::pawn(sq, side) & self.bb[Piece::PAWN])
+            | (Attacks::rook(sq, occ) & (self.bb[Piece::ROOK] ^ self.bb[Piece::QUEEN]))
+            | (Attacks::bishop(sq, occ) & (self.bb[Piece::BISHOP] ^ self.bb[Piece::QUEEN])))
+            & self.bb[side ^ 1]
     }
 
     #[must_use]
@@ -150,10 +154,28 @@ impl Position {
 
     #[must_use]
     pub fn threats_by(&self, side: usize) -> u64 {
+        let mut threats = 0;
+
         let king = self.piece(Piece::KING) & self.bb[side ^ 1];
         let occ = self.occ() ^ king;
+
         let opps = self.bb[side];
-        self.threats_by_cached(side, opps, occ)
+
+        let queens = self.bb[Piece::QUEEN];
+
+        bitloop!(|opps & (self.bb[Piece::ROOK] | queens), sq| threats |= Attacks::rook(sq as usize, occ));
+        bitloop!(|opps & (self.bb[Piece::BISHOP] | queens), sq| threats |= Attacks::bishop(sq as usize, occ));
+        bitloop!(|opps & self.bb[Piece::KNIGHT], sq| threats |= Attacks::knight(sq as usize));
+        bitloop!(|opps & self.bb[Piece::KING], sq| threats |= Attacks::king(sq as usize));
+
+        let pawns = opps & self.bb[Piece::PAWN];
+        threats |= if side == Side::WHITE {
+            Attacks::white_pawn_setwise(pawns)
+        } else {
+            Attacks::black_pawn_setwise(pawns)
+        };
+
+        threats
     }
 
     pub fn draw(&self) -> bool {
@@ -335,59 +357,35 @@ impl Position {
         castling: &Castling,
         f: &mut F,
     ) {
-        let stm = self.stm();
-        let boys = self.bb[stm];
-        let opps = self.bb[stm ^ 1];
-        let king_sq = (self.bb[Piece::KING] & boys).trailing_zeros() as usize;
-        let occ = boys | opps;
-        let occ_without_king = occ ^ (1 << king_sq);
-
-        let threats = self.threats_by_cached(stm ^ 1, opps, occ_without_king);
+        let pinned = self.pinned();
+        let king_sq = self.king_index();
+        let threats = self.threats();
         let checkers = if threats & (1 << king_sq) > 0 {
-            self.attackers_to_square_with(king_sq, occ, stm, opps)
+            self.checkers()
         } else {
             0
         };
 
-        let pinned = self.pinned_with(occ, boys, opps, king_sq);
-
-        self.king_moves::<QUIETS, F>(f, threats, king_sq, occ, opps);
+        self.king_moves::<QUIETS, F>(f, threats);
 
         if checkers == 0 {
-            self.gen_pnbrq::<QUIETS, F>(
-                f,
-                u64::MAX,
-                u64::MAX,
-                pinned,
-                castling,
-                occ,
-                boys,
-                opps,
-                king_sq,
-            );
+            self.gen_pnbrq::<QUIETS, F>(f, u64::MAX, u64::MAX, pinned, castling);
             if QUIETS {
-                self.castles(f, occ, threats, castling, pinned);
+                self.castles(f, self.occ(), threats, castling, pinned);
             }
         } else if checkers & (checkers - 1) == 0 {
             let checker_sq = checkers.trailing_zeros() as usize;
             let free = IN_BETWEEN[king_sq][checker_sq];
-            self.gen_pnbrq::<QUIETS, F>(
-                f, checkers, free, pinned, castling, occ, boys, opps, king_sq,
-            );
+            self.gen_pnbrq::<QUIETS, F>(f, checkers, free, pinned, castling);
         }
     }
 
-    fn king_moves<const QUIETS: bool, F: FnMut(Move)>(
-        &self,
-        f: &mut F,
-        threats: u64,
-        king_sq: usize,
-        occ: u64,
-        opps: u64,
-    ) {
+    fn king_moves<const QUIETS: bool, F: FnMut(Move)>(&self, f: &mut F, threats: u64) {
+        let king_sq = self.king_index();
         let attacks = Attacks::king(king_sq) & !threats;
+        let occ = self.occ();
 
-        bitloop!(|attacks & opps, to | f(Move::new(king_sq as u16, to, Flag::CAP)));
+        bitloop!(|attacks & self.opps(), to | f(Move::new(king_sq as u16, to, Flag::CAP)));
 
         if QUIETS {
             bitloop!(|attacks & !occ, to| f(Move::new(king_sq as u16, to, Flag::QUIET)));
@@ -401,23 +399,21 @@ impl Position {
         free: u64,
         pinned: u64,
         castling: &Castling,
-        occ: u64,
-        boys: u64,
-        opps: u64,
-        king_sq: usize,
     ) {
+        let boys = self.boys();
         let pawns = self.piece(Piece::PAWN) & boys;
+        let side = self.stm();
         let pinned_pawns = pawns & pinned;
         let free_pawns = pawns & !pinned;
         let check_mask = free | checkers;
 
         if QUIETS {
-            if self.stm() == Side::WHITE {
-                self.pawn_pushes::<{ Side::WHITE }, false, F>(f, free_pawns, free, occ, king_sq);
-                self.pawn_pushes::<{ Side::WHITE }, true, F>(f, pinned_pawns, free, occ, king_sq);
+            if side == Side::WHITE {
+                self.pawn_pushes::<{ Side::WHITE }, false, F>(f, free_pawns, free);
+                self.pawn_pushes::<{ Side::WHITE }, true, F>(f, pinned_pawns, free);
             } else {
-                self.pawn_pushes::<{ Side::BLACK }, false, F>(f, free_pawns, free, occ, king_sq);
-                self.pawn_pushes::<{ Side::BLACK }, true, F>(f, pinned_pawns, free, occ, king_sq);
+                self.pawn_pushes::<{ Side::BLACK }, false, F>(f, free_pawns, free);
+                self.pawn_pushes::<{ Side::BLACK }, true, F>(f, pinned_pawns, free);
             }
         }
 
@@ -425,13 +421,13 @@ impl Position {
             self.en_passants(f, pawns, castling);
         }
 
-        self.pawn_captures::<false, F>(f, free_pawns, checkers, opps, king_sq);
-        self.pawn_captures::<true, F>(f, pinned_pawns, checkers, opps, king_sq);
+        self.pawn_captures::<false, F>(f, free_pawns, checkers);
+        self.pawn_captures::<true, F>(f, pinned_pawns, checkers);
 
-        self.piece_moves::<QUIETS, { Piece::KNIGHT }, F>(f, check_mask, pinned, occ, king_sq);
-        self.piece_moves::<QUIETS, { Piece::BISHOP }, F>(f, check_mask, pinned, occ, king_sq);
-        self.piece_moves::<QUIETS, { Piece::ROOK }, F>(f, check_mask, pinned, occ, king_sq);
-        self.piece_moves::<QUIETS, { Piece::QUEEN }, F>(f, check_mask, pinned, occ, king_sq);
+        self.piece_moves::<QUIETS, { Piece::KNIGHT }, F>(f, check_mask, pinned);
+        self.piece_moves::<QUIETS, { Piece::BISHOP }, F>(f, check_mask, pinned);
+        self.piece_moves::<QUIETS, { Piece::ROOK }, F>(f, check_mask, pinned);
+        self.piece_moves::<QUIETS, { Piece::QUEEN }, F>(f, check_mask, pinned);
     }
 
     fn castles<F: FnMut(Move)>(
@@ -485,10 +481,6 @@ impl Position {
         let boys = self.boys();
         let kidx = self.king_index();
         let opps = self.opps();
-        self.pinned_with(occ, boys, opps, kidx)
-    }
-
-    fn pinned_with(&self, occ: u64, boys: u64, opps: u64, kidx: usize) -> u64 {
         let rq = self.piece(Piece::QUEEN) | self.piece(Piece::ROOK);
         let bq = self.piece(Piece::QUEEN) | self.piece(Piece::BISHOP);
 
@@ -508,24 +500,10 @@ impl Position {
         f: &mut F,
         check_mask: u64,
         pinned: u64,
-        occ: u64,
-        king_sq: usize,
     ) {
         let attackers = self.boys() & self.piece(PC);
-        self.piece_moves_internal::<QUIETS, PC, false, F>(
-            f,
-            check_mask,
-            attackers & !pinned,
-            occ,
-            king_sq,
-        );
-        self.piece_moves_internal::<QUIETS, PC, true, F>(
-            f,
-            check_mask,
-            attackers & pinned,
-            occ,
-            king_sq,
-        );
+        self.piece_moves_internal::<QUIETS, PC, false, F>(f, check_mask, attackers & !pinned);
+        self.piece_moves_internal::<QUIETS, PC, true, F>(f, check_mask, attackers & pinned);
     }
 
     fn piece_moves_internal<
@@ -538,9 +516,10 @@ impl Position {
         f: &mut F,
         check_mask: u64,
         attackers: u64,
-        occ: u64,
-        king_sq: usize,
     ) {
+        let occ = self.occ();
+        let king_sq = self.king_index();
+
         bitloop!(|attackers, from| {
             let mut attacks = Attacks::of_piece::<PC>(usize::from(from), occ);
 
@@ -562,10 +541,10 @@ impl Position {
         f: &mut F,
         mut attackers: u64,
         checkers: u64,
-        opps: u64,
-        king_sq: usize,
     ) {
         let side = self.stm();
+        let opps = self.opps();
+        let king_sq = self.king_index();
         let promo_attackers = attackers & Rank::PEN[side];
         attackers &= !Rank::PEN[side];
 
@@ -600,10 +579,9 @@ impl Position {
         f: &mut F,
         pawns: u64,
         check_mask: u64,
-        occ: u64,
-        king_sq: usize,
     ) {
-        let empty = !occ;
+        let empty = !self.occ();
+        let king_sq = self.king_index();
 
         let mut pushable_pawns = shift::<SIDE>(empty & check_mask) & pawns;
         let promotable_pawns = pushable_pawns & Rank::PEN[SIDE];
@@ -742,47 +720,6 @@ impl Position {
         string += "+-----------------+";
 
         string
-    }
-}
-
-impl Position {
-    fn attackers_to_square_with(&self, sq: usize, occ: u64, side: usize, opps: u64) -> u64 {
-        let knights = self.bb[Piece::KNIGHT] & opps;
-        let bishops = self.bb[Piece::BISHOP] & opps;
-        let rooks = self.bb[Piece::ROOK] & opps;
-        let queens = self.bb[Piece::QUEEN] & opps;
-        let king = self.bb[Piece::KING] & opps;
-        let pawns = self.bb[Piece::PAWN] & opps;
-
-        (Attacks::knight(sq) & knights)
-            | (Attacks::king(sq) & king)
-            | (Attacks::pawn(sq, side) & pawns)
-            | (Attacks::rook(sq, occ) & (rooks | queens))
-            | (Attacks::bishop(sq, occ) & (bishops | queens))
-    }
-
-    fn threats_by_cached(&self, side: usize, opps: u64, occ: u64) -> u64 {
-        let mut threats = 0;
-
-        let queens = self.bb[Piece::QUEEN] & opps;
-        let rooks = (self.bb[Piece::ROOK] | queens) & opps;
-        let bishops = (self.bb[Piece::BISHOP] | queens) & opps;
-        let knights = self.bb[Piece::KNIGHT] & opps;
-        let kings = self.bb[Piece::KING] & opps;
-
-        bitloop!(|rooks, sq| threats |= Attacks::rook(sq as usize, occ));
-        bitloop!(|bishops, sq| threats |= Attacks::bishop(sq as usize, occ));
-        bitloop!(|knights, sq| threats |= Attacks::knight(sq as usize));
-        bitloop!(|kings, sq| threats |= Attacks::king(sq as usize));
-
-        let pawns = opps & self.bb[Piece::PAWN];
-        threats |= if side == Side::WHITE {
-            Attacks::white_pawn_setwise(pawns)
-        } else {
-            Attacks::black_pawn_setwise(pawns)
-        };
-
-        threats
     }
 }
 
