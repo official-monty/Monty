@@ -7,6 +7,46 @@ use std::{
 
 use montyformat::{FastDeserialise, MontyFormat, MontyValueFormat};
 
+const PROGRESS_INTERVAL: u64 = 1024 * 1024 * 256;
+
+struct Progress {
+    total: u64,
+    remaining: u64,
+    prev_interval: u64,
+}
+
+impl Progress {
+    fn new(total: u64) -> Self {
+        let remaining = total;
+        let prev_interval = remaining / PROGRESS_INTERVAL;
+
+        Self {
+            total,
+            remaining,
+            prev_interval,
+        }
+    }
+
+    fn update(&mut self, bytes_written: u64) {
+        if bytes_written == 0 || self.total == 0 {
+            return;
+        }
+
+        self.remaining = self.remaining.saturating_sub(bytes_written);
+
+        if self.remaining / PROGRESS_INTERVAL < self.prev_interval {
+            self.prev_interval = self.remaining / PROGRESS_INTERVAL;
+            let written = self.total - self.remaining;
+            print!(
+                "Written {written}/{total} Bytes ({:.2}%)\r",
+                written as f64 / self.total as f64 * 100.0,
+                total = self.total
+            );
+            let _ = io::stdout().flush();
+        }
+    }
+}
+
 fn main() -> io::Result<()> {
     let mut args = env::args().skip(1);
 
@@ -80,6 +120,7 @@ fn split_into_parts<T: FastDeserialise>(input_path: &Path, parts: usize) -> io::
     }
 
     let total_games = count_games::<T>(input_path)?;
+    let total_bytes = File::open(input_path)?.metadata()?.len();
 
     if total_games == 0 {
         return Err(Error::new(
@@ -105,6 +146,7 @@ fn split_into_parts<T: FastDeserialise>(input_path: &Path, parts: usize) -> io::
 
     let mut reader = BufReader::new(File::open(input_path)?);
     let mut buffer = Vec::new();
+    let mut progress = Progress::new(total_bytes);
 
     for (idx, &games_in_part) in games_per_part.iter().enumerate() {
         let part_index = idx + 1;
@@ -115,6 +157,7 @@ fn split_into_parts<T: FastDeserialise>(input_path: &Path, parts: usize) -> io::
         for _ in 0..games_in_part {
             read_game_into_buffer::<T>(&mut reader, &mut buffer)?;
             writer.write_all(&buffer)?;
+            progress.update(buffer.len() as u64);
         }
         writer.flush()?;
     }
@@ -132,6 +175,8 @@ fn split_by_games<T: FastDeserialise>(input_path: &Path, games_per_file: usize) 
     let mut current_writer: Option<BufWriter<File>> = None;
     let mut games_written_in_current = 0usize;
     let mut file_index = 0usize;
+    let total_bytes = reader.get_ref().metadata()?.len();
+    let mut progress = Progress::new(total_bytes);
 
     loop {
         match T::deserialise_fast_into_buffer(&mut reader, &mut buffer) {
@@ -147,6 +192,7 @@ fn split_by_games<T: FastDeserialise>(input_path: &Path, games_per_file: usize) 
                 if let Some(writer) = current_writer.as_mut() {
                     writer.write_all(&buffer)?;
                     games_written_in_current += 1;
+                    progress.update(buffer.len() as u64);
                 }
 
                 if games_written_in_current == games_per_file {
