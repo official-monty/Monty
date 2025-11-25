@@ -15,6 +15,7 @@ use montyformat::{FastDeserialise, MontyFormat, MontyValueFormat};
 use rayon::prelude::*;
 
 const PROGRESS_INTERVAL: u64 = 1024 * 1024 * 256;
+const OUTPUT_BUFFER_SIZE: usize = 8 * 1024 * 1024;
 
 #[derive(Clone)]
 struct Progress {
@@ -102,7 +103,8 @@ fn scan_games<T: FastDeserialise>(input_path: &Path) -> io::Result<ScanResult> {
             let progress = progress.clone();
 
             scope.spawn(move || {
-                let mut buffer = Vec::new();
+                let mut buffer = Vec::with_capacity(8192);
+                let mut local_spans = Vec::with_capacity(1024);
 
                 loop {
                     let start = cursor.load(Ordering::Relaxed);
@@ -131,7 +133,7 @@ fn scan_games<T: FastDeserialise>(input_path: &Path) -> io::Result<ScanResult> {
                             }
 
                             progress.update(consumed as u64);
-                            spans.lock().unwrap().push(GameSpan {
+                            local_spans.push(GameSpan {
                                 start,
                                 len: consumed,
                             });
@@ -146,6 +148,10 @@ fn scan_games<T: FastDeserialise>(input_path: &Path) -> io::Result<ScanResult> {
                             break;
                         }
                     }
+                }
+
+                if !local_spans.is_empty() {
+                    spans.lock().unwrap().extend(local_spans);
                 }
             });
         }
@@ -288,7 +294,8 @@ fn split_into_parts<T: FastDeserialise>(input_path: &Path, parts: usize) -> io::
                 games_in_part = end_idx - start_idx
             );
 
-            let mut writer = BufWriter::new(File::create(output_path)?);
+            let mut writer =
+                BufWriter::with_capacity(OUTPUT_BUFFER_SIZE, File::create(output_path)?);
 
             for span in &spans[start_idx..end_idx] {
                 writer.write_all(&mmap[span.start..span.start + span.len])?;
@@ -324,7 +331,8 @@ fn split_by_games<T: FastDeserialise>(input_path: &Path, games_per_file: usize) 
             let output_path = numbered_output_path(input_path, file_index);
             println!("Starting new file {}", output_path.display());
 
-            let mut writer = BufWriter::new(File::create(output_path)?);
+            let mut writer =
+                BufWriter::with_capacity(OUTPUT_BUFFER_SIZE, File::create(output_path)?);
             for span in &spans[start_idx..end_idx] {
                 writer.write_all(&mmap[span.start..span.start + span.len])?;
                 progress.update(span.len as u64);
