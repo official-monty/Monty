@@ -16,6 +16,7 @@ pub fn perform_one(
 
     let cur_hash = pos.hash();
     let mut child_hash: Option<u64> = None;
+    let mut child_visits = 0;
     let tree = searcher.tree;
     let node = &tree[ptr];
 
@@ -64,6 +65,7 @@ pub fn perform_one(
         // capture child hash (value is stored from the side to move at this child)
         child_hash = Some(pos.hash());
 
+        child_visits = tree[child_ptr].visits();
         tree[child_ptr].inc_threads();
 
         // acquire lock to avoid issues with desynced setting of
@@ -95,9 +97,9 @@ pub fn perform_one(
     // store value for the side to move at the visited node in TT
     if let Some(h) = child_hash {
         // `u` here is from the current node's perspective, so flip for the child
-        tree.push_hash(h, 1.0 - u);
+        tree.push_hash(h, 1.0 - u, child_visits);
     } else {
-        tree.push_hash(cur_hash, u);
+        tree.push_hash(cur_hash, u, 1);
     }
 
     // flip perspective and backpropagate
