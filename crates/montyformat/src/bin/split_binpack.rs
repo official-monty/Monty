@@ -1,50 +1,168 @@
 use std::{
     env,
     fs::File,
-    io::{self, BufReader, BufWriter, Error, ErrorKind, Write},
+    io::{self, BufWriter, Error, ErrorKind, Write},
     path::{Path, PathBuf},
+    sync::{
+        atomic::{AtomicU64, AtomicUsize, Ordering},
+        Arc, Mutex,
+    },
+    thread,
 };
 
+use memmap2::MmapOptions;
 use montyformat::{FastDeserialise, MontyFormat, MontyValueFormat};
+use rayon::prelude::*;
 
 const PROGRESS_INTERVAL: u64 = 1024 * 1024 * 256;
 
+#[derive(Clone)]
 struct Progress {
     total: u64,
-    remaining: u64,
-    prev_interval: u64,
+    written: Arc<AtomicU64>,
+    next_interval: Arc<AtomicU64>,
 }
 
 impl Progress {
     fn new(total: u64) -> Self {
-        let remaining = total;
-        let prev_interval = remaining / PROGRESS_INTERVAL;
-
         Self {
             total,
-            remaining,
-            prev_interval,
+            written: Arc::new(AtomicU64::new(0)),
+            next_interval: Arc::new(AtomicU64::new(PROGRESS_INTERVAL)),
         }
     }
 
-    fn update(&mut self, bytes_written: u64) {
-        if bytes_written == 0 || self.total == 0 {
+    fn update(&self, bytes: u64) {
+        if bytes == 0 || self.total == 0 {
             return;
         }
 
-        self.remaining = self.remaining.saturating_sub(bytes_written);
+        let written = self.written.fetch_add(bytes, Ordering::Relaxed) + bytes;
 
-        if self.remaining / PROGRESS_INTERVAL < self.prev_interval {
-            self.prev_interval = self.remaining / PROGRESS_INTERVAL;
-            let written = self.total - self.remaining;
-            print!(
-                "Written {written}/{total} Bytes ({:.2}%)\r",
-                written as f64 / self.total as f64 * 100.0,
-                total = self.total
-            );
-            let _ = io::stdout().flush();
+        loop {
+            let next = self.next_interval.load(Ordering::Relaxed);
+            if written < next && written < self.total {
+                break;
+            }
+
+            if self
+                .next_interval
+                .compare_exchange(
+                    next,
+                    next.saturating_add(PROGRESS_INTERVAL),
+                    Ordering::SeqCst,
+                    Ordering::Relaxed,
+                )
+                .is_ok()
+            {
+                let capped_written = written.min(self.total);
+                print!(
+                    "Written {capped_written}/{total} Bytes ({:.2}%)\r",
+                    capped_written as f64 / self.total as f64 * 100.0,
+                    total = self.total
+                );
+                let _ = io::stdout().flush();
+                break;
+            }
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct GameSpan {
+    start: usize,
+    len: usize,
+}
+
+struct ScanResult {
+    spans: Vec<GameSpan>,
+    mmap: Arc<memmap2::Mmap>,
+    total_bytes: u64,
+}
+
+fn scan_games<T: FastDeserialise>(input_path: &Path) -> io::Result<ScanResult> {
+    let file = File::open(input_path)?;
+    let mmap = Arc::new(unsafe { MmapOptions::new().map(&file)? });
+    let total_bytes = mmap.len() as u64;
+    let progress = Progress::new(total_bytes);
+
+    let cursor = Arc::new(AtomicUsize::new(0));
+    let spans = Arc::new(Mutex::new(Vec::new()));
+    let error: Arc<Mutex<Option<io::Error>>> = Arc::new(Mutex::new(None));
+    let threads = thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1);
+
+    thread::scope(|scope| {
+        for _ in 0..threads {
+            let cursor = Arc::clone(&cursor);
+            let spans = Arc::clone(&spans);
+            let mmap = Arc::clone(&mmap);
+            let error = Arc::clone(&error);
+            let progress = progress.clone();
+
+            scope.spawn(move || {
+                let mut buffer = Vec::new();
+
+                loop {
+                    let start = cursor.load(Ordering::Relaxed);
+                    if start >= mmap.len() {
+                        break;
+                    }
+
+                    let mut reader = io::Cursor::new(&mmap[start..]);
+                    match T::deserialise_fast_into_buffer(&mut reader, &mut buffer) {
+                        Ok(()) => {
+                            let consumed = reader.position() as usize;
+                            if consumed == 0 {
+                                break;
+                            }
+
+                            if cursor
+                                .compare_exchange(
+                                    start,
+                                    start + consumed,
+                                    Ordering::SeqCst,
+                                    Ordering::Relaxed,
+                                )
+                                .is_err()
+                            {
+                                continue;
+                            }
+
+                            progress.update(consumed as u64);
+                            spans.lock().unwrap().push(GameSpan {
+                                start,
+                                len: consumed,
+                            });
+                        }
+                        Err(err) if err.kind() == ErrorKind::UnexpectedEof => {
+                            cursor.store(mmap.len(), Ordering::SeqCst);
+                            break;
+                        }
+                        Err(err) => {
+                            cursor.store(mmap.len(), Ordering::SeqCst);
+                            *error.lock().unwrap() = Some(err);
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+    });
+
+    if let Some(err) = error.lock().unwrap().take() {
+        return Err(err);
+    }
+
+    let mut spans = Arc::try_unwrap(spans).unwrap().into_inner().unwrap();
+    spans.sort_by_key(|span| span.start);
+
+    Ok(ScanResult {
+        spans,
+        mmap: Arc::clone(&mmap),
+        total_bytes,
+    })
 }
 
 fn main() -> io::Result<()> {
@@ -119,8 +237,9 @@ fn split_into_parts<T: FastDeserialise>(input_path: &Path, parts: usize) -> io::
         return Err(usage_error("Number of parts must be greater than zero"));
     }
 
-    let total_games = count_games::<T>(input_path)?;
-    let total_bytes = File::open(input_path)?.metadata()?.len();
+    let scan = scan_games::<T>(input_path)?;
+    let total_games = scan.spans.len();
+    let total_bytes = scan.total_bytes;
 
     if total_games == 0 {
         return Err(Error::new(
@@ -144,23 +263,41 @@ fn split_into_parts<T: FastDeserialise>(input_path: &Path, parts: usize) -> io::
         *chunk += 1;
     }
 
-    let mut reader = BufReader::new(File::open(input_path)?);
-    let mut buffer = Vec::new();
-    let mut progress = Progress::new(total_bytes);
+    let spans = Arc::new(scan.spans);
+    let mmap = Arc::clone(&scan.mmap);
+    let progress = Progress::new(total_bytes);
 
-    for (idx, &games_in_part) in games_per_part.iter().enumerate() {
-        let part_index = idx + 1;
-        let output_path = numbered_output_path(input_path, part_index);
-        println!("Writing {games_in_part} games to {}", output_path.display());
-        let mut writer = BufWriter::new(File::create(output_path)?);
+    let mut start_idx = 0usize;
+    let part_specs: Vec<_> = games_per_part
+        .iter()
+        .enumerate()
+        .map(|(idx, &games_in_part)| {
+            let end_idx = start_idx + games_in_part;
+            let spec = (idx + 1, start_idx, end_idx);
+            start_idx = end_idx;
+            spec
+        })
+        .collect();
 
-        for _ in 0..games_in_part {
-            read_game_into_buffer::<T>(&mut reader, &mut buffer)?;
-            writer.write_all(&buffer)?;
-            progress.update(buffer.len() as u64);
-        }
-        writer.flush()?;
-    }
+    part_specs.into_par_iter().try_for_each(
+        |(part_index, start_idx, end_idx)| -> io::Result<()> {
+            let output_path = numbered_output_path(input_path, part_index);
+            println!(
+                "Writing {games_in_part} games to {}",
+                output_path.display(),
+                games_in_part = end_idx - start_idx
+            );
+
+            let mut writer = BufWriter::new(File::create(output_path)?);
+
+            for span in &spans[start_idx..end_idx] {
+                writer.write_all(&mmap[span.start..span.start + span.len])?;
+                progress.update(span.len as u64);
+            }
+
+            writer.flush()
+        },
+    )?;
 
     Ok(())
 }
@@ -170,82 +307,33 @@ fn split_by_games<T: FastDeserialise>(input_path: &Path, games_per_file: usize) 
         return Err(usage_error("Games per file must be greater than zero"));
     }
 
-    let mut reader = BufReader::new(File::open(input_path)?);
-    let mut buffer = Vec::new();
-    let mut current_writer: Option<BufWriter<File>> = None;
-    let mut games_written_in_current = 0usize;
-    let mut file_index = 0usize;
-    let total_bytes = reader.get_ref().metadata()?.len();
-    let mut progress = Progress::new(total_bytes);
+    let scan = scan_games::<T>(input_path)?;
+    let spans = Arc::new(scan.spans);
+    let mmap = Arc::clone(&scan.mmap);
+    let progress = Progress::new(scan.total_bytes);
 
-    loop {
-        match T::deserialise_fast_into_buffer(&mut reader, &mut buffer) {
-            Ok(()) => {
-                if current_writer.is_none() {
-                    file_index += 1;
-                    let output_path = numbered_output_path(input_path, file_index);
-                    println!("Starting new file {}", output_path.display());
-                    current_writer = Some(BufWriter::new(File::create(output_path)?));
-                    games_written_in_current = 0;
-                }
+    let file_specs: Vec<(usize, usize, usize)> = spans
+        .chunks(games_per_file)
+        .enumerate()
+        .map(|(idx, chunk)| (idx + 1, idx * games_per_file, chunk.len()))
+        .collect();
 
-                if let Some(writer) = current_writer.as_mut() {
-                    writer.write_all(&buffer)?;
-                    games_written_in_current += 1;
-                    progress.update(buffer.len() as u64);
-                }
+    file_specs.into_par_iter().try_for_each(
+        |(file_index, start_idx, count)| -> io::Result<()> {
+            let end_idx = start_idx + count;
+            let output_path = numbered_output_path(input_path, file_index);
+            println!("Starting new file {}", output_path.display());
 
-                if games_written_in_current == games_per_file {
-                    if let Some(mut writer) = current_writer.take() {
-                        writer.flush()?;
-                    }
-                }
+            let mut writer = BufWriter::new(File::create(output_path)?);
+            for span in &spans[start_idx..end_idx] {
+                writer.write_all(&mmap[span.start..span.start + span.len])?;
+                progress.update(span.len as u64);
             }
-            Err(err) if err.kind() == ErrorKind::UnexpectedEof => {
-                if let Some(mut writer) = current_writer.take() {
-                    if games_written_in_current > 0 {
-                        writer.flush()?;
-                    }
-                }
-                break;
-            }
-            Err(err) => return Err(err),
-        }
-    }
+            writer.flush()
+        },
+    )?;
 
     Ok(())
-}
-
-fn read_game_into_buffer<T: FastDeserialise>(
-    reader: &mut BufReader<File>,
-    buffer: &mut Vec<u8>,
-) -> io::Result<()> {
-    T::deserialise_fast_into_buffer(reader, buffer).or_else(|err| {
-        if err.kind() == ErrorKind::UnexpectedEof {
-            Err(Error::new(
-                ErrorKind::UnexpectedEof,
-                "Encountered EOF while reading expected game",
-            ))
-        } else {
-            Err(err)
-        }
-    })
-}
-
-fn count_games<T: FastDeserialise>(input_path: &Path) -> io::Result<usize> {
-    let mut reader = BufReader::new(File::open(input_path)?);
-    let mut buffer = Vec::new();
-    let mut count = 0usize;
-
-    loop {
-        match T::deserialise_fast_into_buffer(&mut reader, &mut buffer) {
-            Ok(()) => count += 1,
-            Err(err) if err.kind() == ErrorKind::UnexpectedEof => break,
-            Err(err) => return Err(err),
-        }
-    }
-
-    Ok(count)
 }
 
 fn numbered_output_path(input_path: &Path, index: usize) -> PathBuf {
