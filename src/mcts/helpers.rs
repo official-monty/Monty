@@ -179,16 +179,8 @@ impl SearchHelpers {
                 * searcher.params.tm_bmv4())
         .clamp(searcher.params.tm_bmv5(), searcher.params.tm_bmv6());
 
-        let std_dev = searcher.tree[searcher.tree.root_node()].var().sqrt();
-        let variance_factor = (1.0
-            + (std_dev - searcher.params.tm_var_kt()) * searcher.params.tm_var_slope())
-        .clamp(searcher.params.tm_var_min(), searcher.params.tm_var_max());
-
-        let total_time = (time as f32
-            * falling_eval
-            * best_move_instability
-            * best_move_visits
-            * variance_factor) as u128;
+        let total_time =
+            (time as f32 * falling_eval * best_move_instability * best_move_visits) as u128;
 
         (elapsed >= total_time, score)
     }
