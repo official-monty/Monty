@@ -503,7 +503,7 @@ impl<'a> Searcher<'a> {
         let s = (score as f64).clamp(S_MIN, S_MAX);
         let a = 0.5_f64 + 100.0_f64 * (s - 0.5_f64).powi(3);
         let cp = 200.0_f64 * (a.ln() - (1.0_f64 - a).ln());
-        cp as f32
+        cp.clamp(-5000.0, 5000.0) as f32
     }
 
     pub fn display_moves(&self) {
