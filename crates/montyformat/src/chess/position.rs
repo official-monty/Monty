@@ -200,7 +200,7 @@ impl Position {
                 return true;
             }
 
-            return false
+            return false;
         }
 
         false
