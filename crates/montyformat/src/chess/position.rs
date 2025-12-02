@@ -192,15 +192,8 @@ impl Position {
                 return false;
             }
 
-            let bishops = self.bb[Piece::BISHOP];
-            let white_bishops = bishops & self.bb[Side::WHITE];
-            let black_bishops = bishops & self.bb[Side::BLACK];
-
-            if white_bishops.count_ones() <= 1 && black_bishops.count_ones() <= 1 {
-                return true;
-            }
-
-            return false;
+            let b = self.bb[Piece::BISHOP];
+            return b & 0x55AA55AA55AA55AA == b || b & 0xAA55AA55AA55AA55 == b;
         }
 
         false
