@@ -67,7 +67,7 @@ impl<'a> DatagenThread<'a> {
             max_nodes: 100000,
             max_time: None,
             opt_time: None,
-            kld_min_gain: Some(0.000001),
+            kld_min_gain: Some(0.0000001),
         };
 
         let mut result = 0.5;
