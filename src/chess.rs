@@ -78,7 +78,7 @@ impl EvalWdl {
             return self;
         }
 
-        let s = (2.0 / denom).clamp(-3.0, 3.0);
+        let s = 2.0 / denom;
         let mu = (a - b) / denom;
 
         // Correction factor: 16x
