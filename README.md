@@ -12,7 +12,7 @@ This requires `make` and a recent enough rust version (see the [MSRV](Cargo.toml
 ## Analysis
 
 Monty is the state-of-the-art engine for CPU-based contempt analysis. Its contempt parameter is calibrated to represent the effective rating difference 
-between us and the opponent, and it has been validated across a wide range from –1000 Elo (us being weaker) to +1000 Elo (us being stronger).
+between us and the opponent, and it has been validated across a wide range from –600 Elo (us being weaker) to +600 Elo (us being stronger).
 
 When using contempt in analysis, it is crucial the Contempt_Analysis flag is set to true. Below is an example in the En Croissant GUI:
 

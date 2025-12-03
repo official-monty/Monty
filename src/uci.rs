@@ -262,7 +262,7 @@ fn preamble(tcec_mode: bool) {
         println!("option name UCI_Opponent type string default");
         println!("option name UCI_RatingAdv type spin default 0");
     }
-    println!("option name Contempt type spin default 0 min -1000 max 1000");
+    println!("option name Contempt type spin default 0 min -600 max 600");
 
     #[cfg(feature = "tunable")]
     MctsParams::info(MctsParams::default());
@@ -328,7 +328,7 @@ fn setoption(
         "Contempt" => {
             if let Some(v) = value {
                 if let Ok(parsed) = v.parse::<i32>() {
-                    let clamped = parsed.clamp(-1000, 1000);
+                    let clamped = parsed.clamp(-600, 600);
                     *contempt_override = Some(clamped);
                     params.set("contempt", clamped);
                     println!("info string using contempt {} elo", clamped);
@@ -425,7 +425,7 @@ fn apply_uci_contempt(
     let contempt = rating_adv.or_else(|| opponent_rating.map(|opp| DEFAULT_SELF_RATING - opp));
 
     if let Some(contempt) = contempt {
-        let clamped = contempt.clamp(-1000, 1000);
+        let clamped = contempt.clamp(-600, 600);
         params.set("contempt", clamped);
         println!("info string using contempt {} elo", clamped);
     }
