@@ -179,10 +179,6 @@ impl Position {
     }
 
     pub fn draw(&self) -> bool {
-        if self.halfm > 100 {
-            return true;
-        }
-
         if self.bb[Piece::PAWN] | self.bb[Piece::ROOK] | self.bb[Piece::QUEEN] == 0 {
             if (self.bb[Side::WHITE] | self.bb[Side::BLACK]).count_ones() <= 3 {
                 return true;
@@ -192,15 +188,8 @@ impl Position {
                 return false;
             }
 
-            let bishops = self.bb[Piece::BISHOP];
-            let white_bishops = bishops & self.bb[Side::WHITE];
-            let black_bishops = bishops & self.bb[Side::BLACK];
-
-            if white_bishops.count_ones() <= 1 && black_bishops.count_ones() <= 1 {
-                return true;
-            }
-
-            return false;
+            let b = self.bb[Piece::BISHOP];
+            return b & 0x55AA55AA55AA55AA == b || b & 0xAA55AA55AA55AA55 == b;
         }
 
         false
@@ -225,18 +214,21 @@ impl Position {
     }
 
     pub fn game_state(&self, castling: &Castling, stack: &[u64]) -> GameState {
-        if self.draw() || self.repetition(stack) {
-            return GameState::Draw;
-        }
-
         let mut count = 0;
         self.map_legal_moves(castling, |_| count += 1);
+
+        let mate = count == 0 && self.in_check();
+
+        if self.halfm > 100 || (self.halfm == 100 && !mate) || self.draw() || self.repetition(stack)
+        {
+            return GameState::Draw;
+        }
 
         if count > 0 {
             return GameState::Ongoing;
         }
 
-        if self.in_check() {
+        if mate {
             GameState::Lost(0)
         } else {
             GameState::Draw
