@@ -83,7 +83,7 @@ impl EvalWdl {
 
         // Correction factor: 16x
         let delta_mu =
-            (s * s * contempt * std::f32::consts::LN_10 / (400.0 * 16.0)).clamp(-8.0, 8.0);
+            (s * s * contempt * std::f32::consts::LN_10 / (400.0 * 16.0)).clamp(-0.8, 0.8);
         let mu_new = mu + delta_mu;
 
         let logistic = |x: f32| 1.0 / (1.0 + (-x).exp());
