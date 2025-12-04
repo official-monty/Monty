@@ -219,7 +219,8 @@ impl Position {
 
         let mate = count == 0 && self.in_check();
 
-        if self.halfm > 100 || (self.halfm == 100 && !mate) || self.draw() || self.repetition(stack) {
+        if self.halfm > 100 || (self.halfm == 100 && !mate) || self.draw() || self.repetition(stack)
+        {
             return GameState::Draw;
         }
 
