@@ -126,7 +126,7 @@ impl ChessState {
     pub const BENCH_DEPTH: usize = 4;
 
     #[cfg(not(feature = "datagen"))]
-    pub const BENCH_DEPTH: usize = 6;
+    pub const BENCH_DEPTH: usize = 5;
 
     pub fn board(&self) -> Position {
         self.board
