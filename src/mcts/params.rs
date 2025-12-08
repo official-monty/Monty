@@ -131,7 +131,7 @@ macro_rules! make_mcts_params {
 
 make_mcts_params! {
     root_pst_adjustment: f32 = 0.34, 0.01, 1.0, 0.034, 0.002;
-    depth_pst_adjustment: f32 = 1.8, 0.1, 10.0, 0.018, 0.002;
+    depth_pst_adjustment: f32 = 1.8, 0.1, 10.0, 0.18, 0.002;
     winning_pst_threshold: f32 = 0.603, 0.0, 1.0, 0.05, 0.002;
     winning_pst_max: f32 = 1.615, 0.1, 10.0, 0.1, 0.002;
     base_pst_adjustment: f32 = 0.1, 0.01, 1.0, 0.01, 0.002;
@@ -152,6 +152,8 @@ make_mcts_params! {
     material_offset: i32 = 559, 400, 1200, 40, 0.002;
     material_div1: i32 = 36, 16, 64, 3, 0.002;
     material_div2: i32 = 1226, 512, 1536, 64, 0.002;
+    material_draw_offset: i32 = 15200, 0, 20000, 152, 0.002;
+    material_draw_scale: f32 = 0.188, 0.0, 1.0, 0.019, 0.002;
     tm_opt_value1: f64 = 0.64, 0.1, 1.2, 0.072, 0.002;
     tm_opt_value2: f64 = 0.434, 0.1, 1.0, 0.045, 0.002;
     tm_opt_value3: f64 = 0.66, 0.1, 1.2, 0.08, 0.002;
