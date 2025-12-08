@@ -219,19 +219,20 @@ mod net {
 
     pub fn run() {
         let mut args = std::env::args();
-        let arg1 = args.nth(1);
+        args.next();
+        let arg1 = args.next();
+        let arg2 = args.next();
 
         // Interpret the memory-mapped data as network structures
         let policy: &PolicyNetwork = unsafe { read_into_struct_unchecked(&NETWORKS.0) };
         let value: &ValueNetwork = unsafe { read_into_struct_unchecked(&NETWORKS.1) };
 
         if let Some("bench") = arg1.as_deref() {
-            uci::bench(
-                ChessState::BENCH_DEPTH,
-                policy,
-                value,
-                &MctsParams::default(),
-            );
+            let depth = arg2
+                .and_then(|d| d.parse().ok())
+                .unwrap_or(ChessState::BENCH_DEPTH);
+
+            uci::bench(depth, policy, value, &MctsParams::default());
             return;
         }
 
@@ -250,7 +251,9 @@ mod nonet {
 
     pub fn run() {
         let mut args = std::env::args();
-        let arg1 = args.nth(1);
+        args.next();
+        let arg1 = args.next();
+        let arg2 = args.next();
 
         let policy_mapped: MappedWeights<networks::PolicyNetwork> =
             unsafe { read_into_struct_unchecked(networks::PolicyFileDefaultName) };
@@ -262,12 +265,11 @@ mod nonet {
         let value = value_mapped.data;
 
         if let Some("bench") = arg1.as_deref() {
-            uci::bench(
-                ChessState::BENCH_DEPTH,
-                policy,
-                value,
-                &MctsParams::default(),
-            );
+            let depth = arg2
+                .and_then(|d| d.parse().ok())
+                .unwrap_or(ChessState::BENCH_DEPTH);
+
+            uci::bench(depth, policy, value, &MctsParams::default());
             return;
         }
 
