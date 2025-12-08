@@ -220,8 +220,10 @@ impl ChessState {
                 + self.piece_count(Piece::ROOK) * params.rook_value()
                 + self.piece_count(Piece::QUEEN) * params.queen_value();
 
-            let draw_adj =
-                raw.draw * (params.material_draw_offset() - mat) as f32 * params.material_draw_scale();
+            let draw_adj = raw.draw
+                * (params.material_draw_offset() - mat) as f32
+                * params.material_draw_scale()
+                / 1000.0;
 
             let sum = raw.win + raw.draw + draw_adj + raw.loss;
             let material = EvalWdl {
