@@ -210,30 +210,36 @@ impl ChessState {
     ) -> (EvalWdl, EvalWdl, i32) {
         let (win, draw, loss) = value.eval(&self.board);
         let raw = EvalWdl::new(win, draw, loss);
-        let cp_base = raw.to_cp_i32();
 
         #[cfg(not(feature = "datagen"))]
-        let cp = {
+        let (material, cp) = {
             use montyformat::chess::consts::Piece;
 
-            let mut mat = self.piece_count(Piece::KNIGHT) * params.knight_value()
+            let mat = self.piece_count(Piece::KNIGHT) * params.knight_value()
                 + self.piece_count(Piece::BISHOP) * params.bishop_value()
                 + self.piece_count(Piece::ROOK) * params.rook_value()
                 + self.piece_count(Piece::QUEEN) * params.queen_value();
 
-            mat = params.material_offset() + mat / params.material_div1();
+            let draw_adj =
+                raw.draw * (params.material_draw_offset() - mat) as f32 * params.material_draw_scale();
 
-            cp_base * mat / params.material_div2()
+            let sum = raw.win + raw.draw + draw_adj + raw.loss;
+            let material = EvalWdl {
+                win: raw.win / sum,
+                draw: (raw.draw + draw_adj) / sum,
+                loss: raw.loss / sum,
+            };
+            (material, material.to_cp_i32())
         };
 
         #[cfg(feature = "datagen")]
-        let cp = {
+        let (material, cp) = {
             let _ = params;
-            cp_base
+            let cp_base = raw.to_cp_i32();
+            let score = 1.0 / (1.0 + (-(cp_base as f32) / 400.0).exp());
+            let material = EvalWdl::from_draw_and_score(raw.draw, score);
+            (material, cp_base)
         };
-
-        let score = 1.0 / (1.0 + (-(cp as f32) / 400.0).exp());
-        let material = EvalWdl::from_draw_and_score(raw.draw, score);
 
         (raw, material, cp)
     }

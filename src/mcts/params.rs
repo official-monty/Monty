@@ -152,6 +152,8 @@ make_mcts_params! {
     material_offset: i32 = 559, 400, 1200, 40, 0.002;
     material_div1: i32 = 36, 16, 64, 3, 0.002;
     material_div2: i32 = 1226, 512, 1536, 64, 0.002;
+    material_draw_offset: i32 = 15200, 0, 20000, 100, 0.002;
+    material_draw_scale: f32 = 0.000188, 0.0, 1.0, 0.00001, 0.002;
     tm_opt_value1: f64 = 0.64, 0.1, 1.2, 0.072, 0.002;
     tm_opt_value2: f64 = 0.434, 0.1, 1.0, 0.045, 0.002;
     tm_opt_value3: f64 = 0.66, 0.1, 1.2, 0.08, 0.002;
