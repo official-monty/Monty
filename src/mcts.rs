@@ -502,6 +502,7 @@ impl<'a> Searcher<'a> {
 
         let s = (score as f64).clamp(S_MIN, S_MAX);
         let diff = s - 0.5_f64;
+        #[allow(clippy::approx_constant)]
         let term = diff.abs().powf(3.14_f64).copysign(diff);
 
         let a = 0.5_f64 + 100.0_f64 * term;
