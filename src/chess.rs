@@ -198,10 +198,7 @@ impl ChessState {
         policy.get(&self.board, &mov, hl)
     }
 
-    #[cfg(not(feature = "datagen"))]
-    fn piece_count(&self, piece: usize) -> i32 {
-        self.board.piece(piece).count_ones() as i32
-    }
+
 
     fn evaluate_material_wdl(
         &self,
@@ -213,17 +210,8 @@ impl ChessState {
 
         #[cfg(not(feature = "datagen"))]
         let (material, cp) = {
-            use montyformat::chess::consts::Piece;
-
-            let mat = self.piece_count(Piece::KNIGHT) * params.knight_value()
-                + self.piece_count(Piece::BISHOP) * params.bishop_value()
-                + self.piece_count(Piece::ROOK) * params.rook_value()
-                + self.piece_count(Piece::QUEEN) * params.queen_value();
-
-            let draw_adj = raw.draw
-                * (params.material_draw_offset() - mat) as f32
-                * params.material_draw_scale()
-                / 1000.0;
+            let draw_adj = raw.draw * params.sharpness_scale()
+                + raw.draw * raw.draw * params.sharpness_quadratic();
 
             let sum = raw.win + raw.draw + draw_adj + raw.loss;
             let material = EvalWdl {

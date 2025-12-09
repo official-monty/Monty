@@ -92,6 +92,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork, tcec_mode: bool) {
 
                 bench(depth, policy, value, &params);
             }
+
             "perft" => run_perft(&commands, &pos),
             "quit" => std::process::exit(0),
             "eval" => {
@@ -247,6 +248,8 @@ pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork, params:
         total_nodes as f32 / time
     );
 }
+
+
 
 fn preamble(tcec_mode: bool) {
     println!("id name {}", env!("FORMATTED_NAME"));

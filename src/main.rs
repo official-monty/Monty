@@ -236,6 +236,8 @@ mod net {
             return;
         }
 
+
+
         let tcec_mode = matches!(arg1.as_deref(), Some("tcec"));
 
         uci::run(policy, value, tcec_mode);
@@ -272,6 +274,8 @@ mod nonet {
             uci::bench(depth, policy, value, &MctsParams::default());
             return;
         }
+
+
 
         let tcec_mode = matches!(arg1.as_deref(), Some("tcec"));
 
