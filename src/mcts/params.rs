@@ -145,15 +145,8 @@ make_mcts_params! {
     gini_base: f32 = 0.463, 0.2, 2.0, 0.0679, 0.002;
     gini_ln_multiplier: f32 = 1.567, 0.4, 3.0, 0.1634, 0.002;
     gini_min: f32 = 2.26, 0.5, 4.0, 0.21, 0.002;
-    knight_value: i32 = 437, 250, 750, 25, 0.002;
-    bishop_value: i32 = 409, 250, 750, 25, 0.002;
-    rook_value: i32 = 768, 400, 1000, 30, 0.002;
-    queen_value: i32 = 1512, 900, 1600, 35, 0.002;
-    material_offset: i32 = 559, 400, 1200, 40, 0.002;
-    material_div1: i32 = 36, 16, 64, 3, 0.002;
-    material_div2: i32 = 1226, 512, 1536, 64, 0.002;
-    material_draw_offset: i32 = 15200, 0, 20000, 152, 0.002;
-    material_draw_scale: f32 = 0.188, 0.0, 1.0, 0.019, 0.002;
+    sharpness_scale: f32 = 2.449, 0.0, 5.0, 0.1, 0.002;
+    sharpness_quadratic: f32 = 0.872, -5.0, 5.0, 0.1, 0.002;
     tm_opt_value1: f64 = 0.64, 0.1, 1.2, 0.072, 0.002;
     tm_opt_value2: f64 = 0.434, 0.1, 1.0, 0.045, 0.002;
     tm_opt_value3: f64 = 0.66, 0.1, 1.2, 0.08, 0.002;
