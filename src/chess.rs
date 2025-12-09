@@ -198,8 +198,6 @@ impl ChessState {
         policy.get(&self.board, &mov, hl)
     }
 
-
-
     fn evaluate_material_wdl(
         &self,
         value: &ValueNetwork,
