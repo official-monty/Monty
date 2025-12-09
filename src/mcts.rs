@@ -497,12 +497,16 @@ impl<'a> Searcher<'a> {
 
     fn get_cp(score: f32) -> f32 {
         // Exact mathematical clamp points (f64 for precision)
-        const S_MIN: f64 = 0.329002405333_f64;
-        const S_MAX: f64 = 0.670997594667_f64;
+        const S_MIN: f64 = 0.314993_f64;
+        const S_MAX: f64 = 0.685007_f64;
 
         let s = (score as f64).clamp(S_MIN, S_MAX);
-        let a = 0.5_f64 + 100.0_f64 * (s - 0.5_f64).powi(3);
-        let cp = 200.0_f64 * (a.ln() - (1.0_f64 - a).ln());
+        let diff = s - 0.5_f64;
+        let term = diff.abs().powf(3.14_f64).copysign(diff);
+
+        let a = 0.5_f64 + 100.0_f64 * term;
+        let safe_a = a.clamp(0.00000000001, 0.99999999999);
+        let cp = 200.0_f64 * (safe_a.ln() - (1.0_f64 - safe_a).ln());
         cp.clamp(-5000.0, 5000.0) as f32
     }
 
