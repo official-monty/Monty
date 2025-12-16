@@ -317,7 +317,7 @@ impl Tree {
 
         let node_bytes = std::mem::size_of::<Node>() + 2;
 
-        Self::new(bytes / node_bytes, bytes / node_bytes / 4, threads)
+        Self::new(bytes / node_bytes, bytes / node_bytes / 16, threads)
     }
 
     fn new(tree_cap: usize, hash_cap: usize, threads: usize) -> Self {
