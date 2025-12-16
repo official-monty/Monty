@@ -61,20 +61,23 @@ pub struct NodeStatsDelta {
     pub visits: u64,
     pub sum_q: u64,
     pub sum_sq_q: u64,
+    pub draws: u64,
 }
 
 impl NodeStatsDelta {
-    pub fn from_value(q: f32) -> Self {
+    pub fn from_value(q: f32, draw: f32) -> Self {
         let q = (f64::from(q) * f64::from(QUANT)) as u64;
+        let draws = (f64::from(draw) * f64::from(QUANT)) as u64;
         Self {
             visits: 1,
             sum_q: q,
             sum_sq_q: q * q,
+            draws,
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.visits == 0 && self.sum_q == 0 && self.sum_sq_q == 0
+        self.visits == 0 && self.sum_q == 0 && self.sum_sq_q == 0 && self.draws == 0
     }
 }
 
@@ -83,6 +86,7 @@ impl AddAssign for NodeStatsDelta {
         self.visits = self.visits.saturating_add(rhs.visits);
         self.sum_q = self.sum_q.saturating_add(rhs.sum_q);
         self.sum_sq_q = self.sum_sq_q.saturating_add(rhs.sum_sq_q);
+        self.draws = self.draws.saturating_add(rhs.draws);
     }
 }
 
@@ -98,6 +102,7 @@ pub struct Node {
     visits: AtomicU64,
     sum_q: AtomicU64,
     sum_sq_q: AtomicU64,
+    draws: AtomicU64,
     gini_impurity: AtomicU8,
 }
 
@@ -113,6 +118,7 @@ impl Node {
             visits: AtomicU64::new(0),
             sum_q: AtomicU64::new(0),
             sum_sq_q: AtomicU64::new(0),
+            draws: AtomicU64::new(0),
             gini_impurity: AtomicU8::new(0),
         }
     }
@@ -157,6 +163,18 @@ impl Node {
 
     pub fn q(&self) -> f32 {
         self.q64() as f32
+    }
+
+    pub fn draw(&self) -> f32 {
+        let visits = self.visits.load(Ordering::Relaxed);
+
+        if visits == 0 {
+            return 0.0;
+        }
+
+        let draws = self.draws.load(Ordering::Relaxed);
+
+        (draws / visits) as f32 / QUANT as f32
     }
 
     pub fn sq_q(&self) -> f64 {
@@ -242,6 +260,7 @@ impl Node {
         self.visits.store(other.visits.load(Relaxed), Relaxed);
         self.sum_q.store(other.sum_q.load(Relaxed), Relaxed);
         self.sum_sq_q.store(other.sum_sq_q.load(Relaxed), Relaxed);
+        self.draws.store(other.draws.load(Relaxed), Relaxed);
     }
 
     pub fn clear(&self) {
@@ -251,11 +270,12 @@ impl Node {
         self.visits.store(0, Ordering::Relaxed);
         self.sum_q.store(0, Ordering::Relaxed);
         self.sum_sq_q.store(0, Ordering::Relaxed);
+        self.draws.store(0, Ordering::Relaxed);
         self.threads.store(0, Ordering::Relaxed);
     }
 
-    pub fn update(&self, q: f32) {
-        self.apply_delta(NodeStatsDelta::from_value(q));
+    pub fn update(&self, q: f32, draw: f32) {
+        self.apply_delta(NodeStatsDelta::from_value(q, draw));
     }
 
     pub fn apply_delta(&self, delta: NodeStatsDelta) {
@@ -273,6 +293,10 @@ impl Node {
 
         if delta.sum_sq_q > 0 {
             self.sum_sq_q.fetch_add(delta.sum_sq_q, Ordering::Relaxed);
+        }
+
+        if delta.draws > 0 {
+            self.draws.fetch_add(delta.draws, Ordering::Relaxed);
         }
     }
 

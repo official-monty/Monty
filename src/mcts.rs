@@ -299,8 +299,10 @@ impl<'a> Searcher<'a> {
             self.tree
                 .expand_node(ptr, pos, self.params, self.policy, 1, 0);
 
-            let root_eval = pos.get_value_wdl(self.value, self.params, root_stm);
-            self.tree.update_node_stats(ptr, 1.0 - root_eval, 0);
+            let eval = pos.eval_with_contempt(self.value, self.params, root_stm);
+            let root_score = eval.contempt.score();
+            self.tree
+                .update_node_stats(ptr, 1.0 - root_score, eval.contempt.draw, 0);
         }
         // relabel preexisting root policies with root PST value
         else if self.tree[node].has_children() {
@@ -418,7 +420,14 @@ impl<'a> Searcher<'a> {
             print!("score mate -{} ", pv_line.len() / 2);
         } else {
             let cp = Searcher::get_cp(score);
-            print!("score cp {cp:.0} ");
+            let root = &self.tree[self.tree.root_node()];
+            let draw = root.draw().clamp(0.0, 1.0);
+            let score = (1.0 - root.q()).clamp(0.0, 1.0);
+            let win = (score - 0.5 * draw).clamp(0.0, 1.0);
+            let loss = (1.0 - win - draw).clamp(0.0, 1.0);
+            let wdl = [win, draw, loss].map(|v| (v * 1000.0).round() as i32);
+
+            print!("score cp {cp:.0} wdl {} {} {} ", wdl[0], wdl[1], wdl[2]);
         }
 
         let nodes = if REPORT_ITERS.load(Ordering::Relaxed) {

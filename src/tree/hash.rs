@@ -1,24 +1,40 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct HashEntry {
     hash: u32,
-    q: u16,
+    q: u32,
+    d: u32,
+    #[allow(dead_code)]
     visits: u32,
 }
 
 impl HashEntry {
     pub fn q(&self) -> f32 {
-        f32::from(self.q) / f32::from(u16::MAX)
+        self.q as f32 / u32::MAX as f32
+    }
+
+    pub fn d(&self) -> f32 {
+        self.d as f32 / u32::MAX as f32
     }
 }
 
 #[derive(Default)]
-struct HashEntryInternal(AtomicU64);
+struct HashEntryInternal {
+    hash: AtomicU32,
+    q: AtomicU32,
+    d: AtomicU32,
+    visits: AtomicU32,
+}
 
 impl Clone for HashEntryInternal {
     fn clone(&self) -> Self {
-        Self(AtomicU64::new(self.0.load(Ordering::Relaxed)))
+        Self {
+            hash: AtomicU32::new(self.hash.load(Ordering::Relaxed)),
+            q: AtomicU32::new(self.q.load(Ordering::Relaxed)),
+            d: AtomicU32::new(self.d.load(Ordering::Relaxed)),
+            visits: AtomicU32::new(self.visits.load(Ordering::Relaxed)),
+        }
     }
 }
 
@@ -27,28 +43,9 @@ pub struct HashTable {
 }
 
 impl HashTable {
-    pub fn new(size: usize, threads: usize) -> Self {
-        let chunk_size = size.div_ceil(threads);
-
+    pub fn new(size: usize, _threads: usize) -> Self {
         let mut table = HashTable { table: Vec::new() };
-        table.table.reserve_exact(size);
-
-        unsafe {
-            use std::mem::{size_of, MaybeUninit};
-            let ptr = table.table.as_mut_ptr().cast();
-            let uninit: &mut [MaybeUninit<u8>] =
-                std::slice::from_raw_parts_mut(ptr, size * size_of::<HashEntryInternal>());
-
-            std::thread::scope(|s| {
-                for chunk in uninit.chunks_mut(chunk_size) {
-                    s.spawn(|| {
-                        chunk.as_mut_ptr().write_bytes(0, chunk.len());
-                    });
-                }
-            });
-
-            table.table.set_len(size);
-        }
+        table.table.resize_with(size, HashEntryInternal::default);
 
         table
     }
@@ -69,26 +66,18 @@ impl HashTable {
 
     pub fn fetch(&self, hash: u64) -> HashEntry {
         let idx = hash % (self.table.len() as u64);
-        let raw = self.table[idx as usize].0.load(Ordering::Relaxed);
-        Self::unpack(raw)
+        let entry = &self.table[idx as usize];
+
+        HashEntry {
+            hash: entry.hash.load(Ordering::Relaxed),
+            q: entry.q.load(Ordering::Relaxed),
+            d: entry.d.load(Ordering::Relaxed),
+            visits: entry.visits.load(Ordering::Relaxed),
+        }
     }
 
     fn key(hash: u64) -> u32 {
-        (hash >> 40) as u32
-    }
-
-    fn pack(key: u32, q: u16, visits: u32) -> u64 {
-        (u64::from(key) & 0xFFFFFF)
-            | ((u64::from(q) & 0xFFFF) << 24)
-            | ((u64::from(visits) & 0xFFFFFF) << 40)
-    }
-
-    fn unpack(raw: u64) -> HashEntry {
-        HashEntry {
-            hash: (raw & 0xFFFFFF) as u32,
-            q: ((raw >> 24) & 0xFFFF) as u16,
-            visits: ((raw >> 40) & 0xFFFFFF) as u32,
-        }
+        (hash >> 32) as u32
     }
 
     pub fn get(&self, hash: u64) -> Option<HashEntry> {
@@ -101,39 +90,26 @@ impl HashTable {
         }
     }
 
-    pub fn push(&self, hash: u64, q: f32, visits: u64) {
+    pub fn push(&self, hash: u64, q: f32, draw: f32, visits: u64) {
         let idx = hash % (self.table.len() as u64);
         let key = Self::key(hash);
-        let q_u16 = (q * f32::from(u16::MAX)) as u16;
-        let visits_u32 = visits.min(0xFFFFFF) as u32;
+        let q_u32 = (q.clamp(0.0, 1.0) * u32::MAX as f32) as u32;
+        let d_u32 = (draw.clamp(0.0, 1.0) * u32::MAX as f32) as u32;
+        let visits_u32 = visits.min(u32::MAX as u64) as u32;
 
-        let new_raw = Self::pack(key, q_u16, visits_u32);
-        let entry_atomic = &self.table[idx as usize].0;
+        let entry = &self.table[idx as usize];
+        let existing_hash = entry.hash.load(Ordering::Relaxed);
+        let replace = if existing_hash != key {
+            true
+        } else {
+            visits_u32 >= entry.visits.load(Ordering::Relaxed)
+        };
 
-        let mut old_raw = entry_atomic.load(Ordering::Relaxed);
-
-        loop {
-            let old_entry = Self::unpack(old_raw);
-
-            let replace = if old_entry.hash != key {
-                true
-            } else {
-                visits_u32 >= old_entry.visits
-            };
-
-            if !replace {
-                break;
-            }
-
-            match entry_atomic.compare_exchange(
-                old_raw,
-                new_raw,
-                Ordering::Relaxed,
-                Ordering::Relaxed,
-            ) {
-                Ok(_) => break,
-                Err(actual) => old_raw = actual,
-            }
+        if replace {
+            entry.q.store(q_u32, Ordering::Relaxed);
+            entry.d.store(d_u32, Ordering::Relaxed);
+            entry.visits.store(visits_u32, Ordering::Relaxed);
+            entry.hash.store(key, Ordering::Relaxed);
         }
     }
 }
