@@ -454,27 +454,12 @@ impl<'a> Searcher<'a> {
         } else if score < 0.0 {
             print!("score mate -{} ", pv_line.len() / 2);
         } else {
-            let root = &self.tree[self.tree.root_node()];
-            let draw = root.draw().clamp(0.0, 1.0);
-
-            let score = (1.0 - root.q()).clamp(0.0, 1.0);
-            let win  = (score - 0.5 * draw).clamp(0.0, 1.0);
-            let loss = (1.0 - win - draw).clamp(0.0, 1.0);
-
-            let cal = calibrate_wdl(win, draw, loss);          
-            let expected = cal[0] + 0.5 * cal[1];              
-
-            let s = expected - 0.5;
-            let t = s.abs();
-            let scaled = (if t <= 0.25 {
-                s.signum() * 4.0 * t
-            } else {
-                s.signum() * 0.25 / (0.5 - t)
-            } * 100.0)
-                .clamp(-10000.0, 10000.0);
-
+            let (scaled, cal) = self.get_display_score();
             let wdl_i = cal.map(|v| (v * 1000.0).round() as i32);
-            print!("score cp {scaled:.0} wdl {} {} {} ", wdl_i[0], wdl_i[1], wdl_i[2])
+            print!(
+                "score cp {scaled:.0} wdl {} {} {} ",
+                wdl_i[0], wdl_i[1], wdl_i[2]
+            )
         }
 
         let nodes = if REPORT_ITERS.load(Ordering::Relaxed) {
@@ -493,6 +478,29 @@ impl<'a> Searcher<'a> {
         }
 
         println!();
+    }
+
+    fn get_display_score(&self) -> (f32, [f32; 3]) {
+        let root = &self.tree[self.tree.root_node()];
+        let draw = root.draw().clamp(0.0, 1.0);
+
+        let score = (1.0 - root.q()).clamp(0.0, 1.0);
+        let win = (score - 0.5 * draw).clamp(0.0, 1.0);
+        let loss = (1.0 - win - draw).clamp(0.0, 1.0);
+
+        let cal = calibrate_wdl(win, draw, loss);
+        let expected = cal[0] + 0.5 * cal[1];
+
+        let s = expected - 0.5;
+        let t = s.abs();
+        let scaled = (if t <= 0.25 {
+            s.signum() * 4.0 * t
+        } else {
+            s.signum() * 0.25 / (0.5 - t)
+        } * 100.0)
+            .clamp(-5000.0, 5000.0);
+
+        (scaled, cal)
     }
 
     fn get_pv(&self, mut depth: usize) -> (Vec<Move>, f32) {
