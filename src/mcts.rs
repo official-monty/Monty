@@ -30,6 +30,41 @@ pub type SearchRet = (Move, f32);
 
 pub static REPORT_ITERS: AtomicBool = AtomicBool::new(false);
 
+fn calibrate_wdl(win: f32, draw: f32, loss: f32) -> [f32; 3] {
+    const W: [[f64; 3]; 3] = [
+        [4.140_504_73, 0.382_337_41, -2.026_061_9],
+        [-2.062_578_44, -0.433_771_7, -2.028_203_13],
+        [-2.077_926_3, 0.051_434_29, 4.054_265_04],
+    ];
+    const B: [f64; 3] = [2.665_068_58, -4.612_801_62, 1.947_733_04];
+
+    let eps = 1e-12f64;
+    let mut pw = f64::from(win).max(eps);
+    let mut pd = f64::from(draw).max(eps);
+    let mut pl = f64::from(loss).max(eps);
+
+    let z = pw + pd + pl;
+    pw /= z;
+    pd /= z;
+    pl /= z;
+
+    let x0 = pw.ln();
+    let x1 = pd.ln();
+    let x2 = pl.ln();
+
+    let s0 = W[0][0] * x0 + W[0][1] * x1 + W[0][2] * x2 + B[0];
+    let s1 = W[1][0] * x0 + W[1][1] * x1 + W[1][2] * x2 + B[1];
+    let s2 = W[2][0] * x0 + W[2][1] * x1 + W[2][2] * x2 + B[2];
+
+    let m = s0.max(s1).max(s2);
+    let e0 = (s0 - m).exp();
+    let e1 = (s1 - m).exp();
+    let e2 = (s2 - m).exp();
+    let sum = e0 + e1 + e2;
+
+    [(e0 / sum) as f32, (e1 / sum) as f32, (e2 / sum) as f32]
+}
+
 #[derive(Clone, Copy)]
 pub struct Limits {
     pub max_time: Option<u128>,
@@ -425,7 +460,7 @@ impl<'a> Searcher<'a> {
             let score = (1.0 - root.q()).clamp(0.0, 1.0);
             let win = (score - 0.5 * draw).clamp(0.0, 1.0);
             let loss = (1.0 - win - draw).clamp(0.0, 1.0);
-            let wdl = [win, draw, loss].map(|v| (v * 1000.0).round() as i32);
+            let wdl = calibrate_wdl(win, draw, loss).map(|v| (v * 1000.0).round() as i32);
 
             print!("score cp {cp:.0} wdl {} {} {} ", wdl[0], wdl[1], wdl[2]);
         }
