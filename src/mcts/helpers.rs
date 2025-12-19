@@ -155,7 +155,10 @@ impl SearchHelpers {
 
         // Use more time if our eval is falling, and vice versa
         let (_, mut score) = searcher.get_pv(0);
-        score = Searcher::get_cp(score);
+        score = {
+            let clamped = score.clamp(1e-6, 1.0 - 1e-6);
+            -400.0 * ((1.0 / clamped) - 1.0).ln()
+        };
         let eval_diff = if previous_score == f32::NEG_INFINITY {
             0.0
         } else {
