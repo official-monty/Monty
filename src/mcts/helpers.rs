@@ -154,8 +154,7 @@ impl SearchHelpers {
         let elapsed = timer.elapsed().as_millis();
 
         // Use more time if our eval is falling, and vice versa
-        let (_, mut score) = searcher.get_pv(0);
-        score = Searcher::get_cp(score);
+        let (score, _) = searcher.get_display_score();
         let eval_diff = if previous_score == f32::NEG_INFINITY {
             0.0
         } else {
