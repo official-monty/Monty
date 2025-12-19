@@ -456,22 +456,25 @@ impl<'a> Searcher<'a> {
         } else {
             let root = &self.tree[self.tree.root_node()];
             let draw = root.draw().clamp(0.0, 1.0);
+
             let score = (1.0 - root.q()).clamp(0.0, 1.0);
-            let win = (score - 0.5 * draw).clamp(0.0, 1.0);
+            let win  = (score - 0.5 * draw).clamp(0.0, 1.0);
             let loss = (1.0 - win - draw).clamp(0.0, 1.0);
-            let expected = win + 0.5 * draw;
+
+            let cal = calibrate_wdl(win, draw, loss);          
+            let expected = cal[0] + 0.5 * cal[1];              
+
             let s = expected - 0.5;
             let t = s.abs();
-            let scaled = if expected == 0.5 {
-                0.0
-            } else if t <= 0.25 {
+            let scaled = (if t <= 0.25 {
                 s.signum() * 4.0 * t
             } else {
-                s.signum() * (4.0 * t) / (0.5 - t)
-            } * 1000.0;
-            let wdl = calibrate_wdl(win, draw, loss).map(|v| (v * 1000.0).round() as i32);
+                s.signum() * 0.25 / (0.5 - t)
+            } * 100.0)
+                .clamp(-10000.0, 10000.0);
 
-            print!("score cp {scaled:.0} wdl {} {} {} ", wdl[0], wdl[1], wdl[2]);
+            let wdl_i = cal.map(|v| (v * 1000.0).round() as i32);
+            print!("score cp {scaled:.0} wdl {} {} {} ", wdl_i[0], wdl_i[1], wdl_i[2])
         }
 
         let nodes = if REPORT_ITERS.load(Ordering::Relaxed) {
