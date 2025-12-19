@@ -454,15 +454,24 @@ impl<'a> Searcher<'a> {
         } else if score < 0.0 {
             print!("score mate -{} ", pv_line.len() / 2);
         } else {
-            let cp = Searcher::get_cp(score);
             let root = &self.tree[self.tree.root_node()];
             let draw = root.draw().clamp(0.0, 1.0);
             let score = (1.0 - root.q()).clamp(0.0, 1.0);
             let win = (score - 0.5 * draw).clamp(0.0, 1.0);
             let loss = (1.0 - win - draw).clamp(0.0, 1.0);
+            let expected = win + 0.5 * draw;
+            let s = expected - 0.5;
+            let t = s.abs();
+            let scaled = if expected == 0.5 {
+                0.0
+            } else if t <= 0.25 {
+                s.signum() * 4.0 * t
+            } else {
+                s.signum() * (4.0 * t) / (0.5 - t)
+            } * 1000.0;
             let wdl = calibrate_wdl(win, draw, loss).map(|v| (v * 1000.0).round() as i32);
 
-            print!("score cp {cp:.0} wdl {} {} {} ", wdl[0], wdl[1], wdl[2]);
+            print!("score cp {scaled:.0} wdl {} {} {} ", wdl[0], wdl[1], wdl[2]);
         }
 
         let nodes = if REPORT_ITERS.load(Ordering::Relaxed) {
@@ -537,22 +546,6 @@ impl<'a> Searcher<'a> {
                 }
             }
         })
-    }
-
-    fn get_cp(score: f32) -> f32 {
-        // Exact mathematical clamp points (f64 for precision)
-        const S_MIN: f64 = 0.314993_f64;
-        const S_MAX: f64 = 0.685007_f64;
-
-        let s = (score as f64).clamp(S_MIN, S_MAX);
-        let diff = s - 0.5_f64;
-        #[allow(clippy::approx_constant)]
-        let term = diff.abs().powf(3.14_f64).copysign(diff);
-
-        let a = 0.5_f64 + 100.0_f64 * term;
-        let safe_a = a.clamp(0.00000000001, 0.99999999999);
-        let cp = 200.0_f64 * (safe_a.ln() - (1.0_f64 - safe_a).ln());
-        cp.clamp(-5000.0, 5000.0) as f32
     }
 
     pub fn display_moves(&self) {
