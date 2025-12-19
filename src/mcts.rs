@@ -30,6 +30,41 @@ pub type SearchRet = (Move, f32);
 
 pub static REPORT_ITERS: AtomicBool = AtomicBool::new(false);
 
+fn calibrate_wdl(win: f32, draw: f32, loss: f32) -> [f32; 3] {
+    const W: [[f64; 3]; 3] = [
+        [3.75992276, 0.23714723, -1.85080033],
+        [-1.87382233, -0.17493249, -1.85294861],
+        [-1.88610042, -0.06221474, 3.70374894],
+    ];
+    const B: [f64; 3] = [2.34454785, -4.07057366, 1.72602581];
+
+    let eps = 1e-12f64;
+    let mut pw = f64::from(win).max(eps);
+    let mut pd = f64::from(draw).max(eps);
+    let mut pl = f64::from(loss).max(eps);
+
+    let z = pw + pd + pl;
+    pw /= z;
+    pd /= z;
+    pl /= z;
+
+    let x0 = pw.ln();
+    let x1 = pd.ln();
+    let x2 = pl.ln();
+
+    let s0 = W[0][0] * x0 + W[0][1] * x1 + W[0][2] * x2 + B[0];
+    let s1 = W[1][0] * x0 + W[1][1] * x1 + W[1][2] * x2 + B[1];
+    let s2 = W[2][0] * x0 + W[2][1] * x1 + W[2][2] * x2 + B[2];
+
+    let m = s0.max(s1).max(s2);
+    let e0 = (s0 - m).exp();
+    let e1 = (s1 - m).exp();
+    let e2 = (s2 - m).exp();
+    let sum = e0 + e1 + e2;
+
+    [(e0 / sum) as f32, (e1 / sum) as f32, (e2 / sum) as f32]
+}
+
 #[derive(Clone, Copy)]
 pub struct Limits {
     pub max_time: Option<u128>,
@@ -299,8 +334,10 @@ impl<'a> Searcher<'a> {
             self.tree
                 .expand_node(ptr, pos, self.params, self.policy, 1, 0);
 
-            let root_eval = pos.get_value_wdl(self.value, self.params, root_stm);
-            self.tree.update_node_stats(ptr, 1.0 - root_eval, 0);
+            let eval = pos.eval_with_contempt(self.value, self.params, root_stm);
+            let root_score = eval.contempt.score();
+            self.tree
+                .update_node_stats(ptr, 1.0 - root_score, eval.contempt.draw, 0);
         }
         // relabel preexisting root policies with root PST value
         else if self.tree[node].has_children() {
@@ -417,8 +454,12 @@ impl<'a> Searcher<'a> {
         } else if score < 0.0 {
             print!("score mate -{} ", pv_line.len() / 2);
         } else {
-            let cp = Searcher::get_cp(score);
-            print!("score cp {cp:.0} ");
+            let (scaled, cal) = self.get_display_score();
+            let wdl_i = cal.map(|v| (v * 1000.0).round() as i32);
+            print!(
+                "score cp {scaled:.0} wdl {} {} {} ",
+                wdl_i[0], wdl_i[1], wdl_i[2]
+            )
         }
 
         let nodes = if REPORT_ITERS.load(Ordering::Relaxed) {
@@ -437,6 +478,29 @@ impl<'a> Searcher<'a> {
         }
 
         println!();
+    }
+
+    fn get_display_score(&self) -> (f32, [f32; 3]) {
+        let root = &self.tree[self.tree.root_node()];
+        let draw = root.draw().clamp(0.0, 1.0);
+
+        let score = (1.0 - root.q()).clamp(0.0, 1.0);
+        let win = (score - 0.5 * draw).clamp(0.0, 1.0);
+        let loss = (1.0 - win - draw).clamp(0.0, 1.0);
+
+        let cal = calibrate_wdl(win, draw, loss);
+        let expected = cal[0] + 0.5 * cal[1];
+
+        let s = expected - 0.5;
+        let t = s.abs();
+        let scaled = (if t <= 0.25 {
+            s.signum() * 4.0 * t
+        } else {
+            s.signum() * 0.25 / (0.5 - t)
+        } * 100.0)
+            .clamp(-5000.0, 5000.0);
+
+        (scaled, cal)
     }
 
     fn get_pv(&self, mut depth: usize) -> (Vec<Move>, f32) {
@@ -493,22 +557,6 @@ impl<'a> Searcher<'a> {
                 }
             }
         })
-    }
-
-    fn get_cp(score: f32) -> f32 {
-        // Exact mathematical clamp points (f64 for precision)
-        const S_MIN: f64 = 0.314993_f64;
-        const S_MAX: f64 = 0.685007_f64;
-
-        let s = (score as f64).clamp(S_MIN, S_MAX);
-        let diff = s - 0.5_f64;
-        #[allow(clippy::approx_constant)]
-        let term = diff.abs().powf(3.14_f64).copysign(diff);
-
-        let a = 0.5_f64 + 100.0_f64 * term;
-        let safe_a = a.clamp(0.00000000001, 0.99999999999);
-        let cp = 200.0_f64 * (safe_a.ln() - (1.0_f64 - safe_a).ln());
-        cp.clamp(-5000.0, 5000.0) as f32
     }
 
     pub fn display_moves(&self) {

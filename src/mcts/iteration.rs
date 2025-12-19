@@ -11,7 +11,7 @@ pub fn perform_one(
     ptr: NodePtr,
     depth: &mut usize,
     thread_id: usize,
-) -> Option<f32> {
+) -> Option<(f32, f32)> {
     *depth += 1;
 
     let cur_hash = pos.hash();
@@ -20,7 +20,7 @@ pub fn perform_one(
     let tree = searcher.tree;
     let node = &tree[ptr];
 
-    let mut u = if node.is_terminal() || node.visits() == 0 {
+    let mut value = if node.is_terminal() || node.visits() == 0 {
         if node.visits() == 0 {
             node.set_state(pos.game_state());
         }
@@ -28,7 +28,7 @@ pub fn perform_one(
         // probe hash table to use in place of network
         if node.state() == GameState::Ongoing {
             if let Some(entry) = tree.probe_hash(cur_hash) {
-                entry.q()
+                (entry.q(), entry.d())
             } else {
                 get_utility(searcher, ptr, pos)
             }
@@ -86,7 +86,7 @@ pub fn perform_one(
         let u = maybe_u?;
 
         if tree[child_ptr].state() == GameState::Ongoing {
-            tree.update_butterfly(stm, mov, u, searcher.params);
+            tree.update_butterfly(stm, mov, u.0, searcher.params);
         }
 
         tree.propogate_proven_mates(ptr, tree[child_ptr].state());
@@ -97,27 +97,30 @@ pub fn perform_one(
     // store value for the side to move at the visited node in TT
     if let Some(h) = child_hash {
         // `u` here is from the current node's perspective, so flip for the child
-        tree.push_hash(h, 1.0 - u, child_visits);
+        tree.push_hash(h, 1.0 - value.0, value.1, child_visits);
     } else {
-        tree.push_hash(cur_hash, u, 1);
+        tree.push_hash(cur_hash, value.0, value.1, 1);
     }
 
     // flip perspective and backpropagate
-    u = 1.0 - u;
-    tree.update_node_stats(ptr, u, thread_id);
-    Some(u)
+    value.0 = 1.0 - value.0;
+    tree.update_node_stats(ptr, value.0, value.1, thread_id);
+    Some(value)
 }
 
-fn get_utility(searcher: &Searcher, ptr: NodePtr, pos: &ChessState) -> f32 {
+fn get_utility(searcher: &Searcher, ptr: NodePtr, pos: &ChessState) -> (f32, f32) {
     match searcher.tree[ptr].state() {
-        GameState::Ongoing => pos.get_value_wdl(
-            searcher.value,
-            searcher.params,
-            searcher.tree.root_position().stm(),
-        ),
-        GameState::Draw => 0.5,
-        GameState::Lost(_) => 0.0,
-        GameState::Won(_) => 1.0,
+        GameState::Ongoing => {
+            let eval = pos.eval_with_contempt(
+                searcher.value,
+                searcher.params,
+                searcher.tree.root_position().stm(),
+            );
+            (eval.contempt.score(), eval.contempt.draw)
+        }
+        GameState::Draw => (0.5, 1.0),
+        GameState::Lost(_) => (0.0, 0.0),
+        GameState::Won(_) => (1.0, 0.0),
     }
 }
 
