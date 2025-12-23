@@ -112,7 +112,7 @@ impl<'a> Searcher<'a> {
         previous_score: &mut f32,
         #[cfg(feature = "datagen")] previous_kld: &mut Vec<i32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
-        multipv: usize,
+        #[cfg(not(feature = "uci-minimal"))] multipv: usize,
         thread_id: usize,
     ) {
         if self.playout_until_full_internal(search_stats, true, thread_id, || {
@@ -129,6 +129,7 @@ impl<'a> Searcher<'a> {
                 previous_kld,
                 #[cfg(not(feature = "uci-minimal"))]
                 uci_output,
+                #[cfg(not(feature = "uci-minimal"))]
                 multipv,
             )
         }) {
@@ -196,7 +197,7 @@ impl<'a> Searcher<'a> {
         previous_score: &mut f32,
         #[cfg(feature = "datagen")] previous_kld_state: &mut Vec<i32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
-        multipv: usize,
+        #[cfg(not(feature = "uci-minimal"))] multipv: usize,
     ) -> bool {
         let iters = search_stats.main_iters();
 
@@ -401,6 +402,7 @@ impl<'a> Searcher<'a> {
                         &mut previous_kld,
                         #[cfg(not(feature = "uci-minimal"))]
                         uci_output,
+                        #[cfg(not(feature = "uci-minimal"))]
                         multipv,
                         0,
                     );
