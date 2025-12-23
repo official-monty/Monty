@@ -13,9 +13,6 @@ use crate::{
     tree::{Node, NodePtr, Tree},
 };
 
-#[cfg(feature = "datagen")]
-use crate::tree::Node;
-
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     thread,
@@ -318,6 +315,7 @@ impl<'a> Searcher<'a> {
         false
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn search(
         &self,
         threads: usize,
@@ -458,6 +456,7 @@ impl<'a> Searcher<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn search_report(
         &self,
         depth: usize,

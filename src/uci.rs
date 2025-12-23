@@ -278,6 +278,7 @@ fn preamble(tcec_mode: bool) {
     println!("uciok");
 }
 
+#[allow(clippy::too_many_arguments)]
 fn setoption(
     commands: &[&str],
     params: &mut MctsParams,
