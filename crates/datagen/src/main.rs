@@ -1,6 +1,8 @@
+mod book;
 mod rng;
 mod thread;
 
+use book::OpeningBook;
 use montyformat::{MontyFormat, MontyValueFormat};
 use rng::Rand;
 use thread::DatagenThread;
@@ -15,7 +17,7 @@ use monty::{
 use std::{
     env::Args,
     fs::File,
-    io::{BufWriter, Read, Write},
+    io::{BufWriter, Write},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -157,8 +159,6 @@ pub fn run_datagen(
     let stop_base = AtomicBool::new(false);
     let stop = &stop_base;
 
-    let mut buf = String::new();
-
     let vout = File::create(opts.out_path.as_str()).unwrap();
     let vout = BufWriter::new(vout);
     let dest = Destination {
@@ -173,10 +173,9 @@ pub fn run_datagen(
 
     let dest_mutex = Arc::new(Mutex::new(dest));
 
-    let book = opts.book.map(|path| {
-        File::open(path).unwrap().read_to_string(&mut buf).unwrap();
-        buf.trim().split('\n').collect::<Vec<&str>>()
-    });
+    let book = opts
+        .book
+        .map(|path| OpeningBook::load(path).expect("failed to load opening book"));
 
     std::thread::scope(|s| {
         for _ in 0..opts.threads {
