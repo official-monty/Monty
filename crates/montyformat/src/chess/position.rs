@@ -344,15 +344,9 @@ impl Position {
             8 * chs[1].to_string().parse::<u8>().unwrap_or(0) + chs[0] as u8 - 105
         };
 
-        pos.halfm = vec
-            .get(4)
-            .and_then(|v| v.parse::<u8>().ok())
-            .unwrap_or(0);
+        pos.halfm = vec.get(4).and_then(|v| v.parse::<u8>().ok()).unwrap_or(0);
 
-        pos.fullm = vec
-            .get(5)
-            .and_then(|v| v.parse::<u16>().ok())
-            .unwrap_or(1);
+        pos.fullm = vec.get(5).and_then(|v| v.parse::<u16>().ok()).unwrap_or(1);
 
         pos
     }
