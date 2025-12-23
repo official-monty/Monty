@@ -196,7 +196,7 @@ impl<'a> Searcher<'a> {
         previous_score: &mut f32,
         #[cfg(feature = "datagen")] previous_kld_state: &mut Vec<i32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
-        multipv: usize,
+        _multipv: usize,
     ) -> bool {
         let iters = search_stats.main_iters();
 
@@ -455,19 +455,36 @@ impl<'a> Searcher<'a> {
         iters: usize,
         multipv: usize,
     ) {
-        let pv_lines = self.multipv_lines(depth, multipv);
-
-        let nodes = if REPORT_ITERS.load(Ordering::Relaxed) {
-            iters
-        } else {
-            nodes
-        };
         let elapsed = timer.elapsed();
-        let nps = nodes as f32 / elapsed.as_secs_f32();
+        let pv_lines = self.multipv_lines(depth, seldepth, nodes, multipv);
+
+        let elapsed_secs = elapsed.as_secs_f32();
         let ms = elapsed.as_millis();
 
         for (idx, pv_line) in pv_lines.iter().enumerate() {
-            print!("info depth {depth} seldepth {seldepth} ");
+            let line_depth = if multipv > 1 {
+                pv_line.depth.max(1)
+            } else {
+                depth
+            };
+
+            let line_seldepth = if multipv > 1 {
+                pv_line.seldepth.max(1)
+            } else {
+                seldepth
+            };
+
+            let line_nodes = if multipv > 1 {
+                pv_line.nodes
+            } else if REPORT_ITERS.load(Ordering::Relaxed) {
+                iters
+            } else {
+                nodes
+            };
+
+            let nps = line_nodes as f32 / elapsed_secs;
+
+            print!("info depth {line_depth} seldepth {line_seldepth} ");
             if multipv > 1 {
                 print!("multipv {} ", idx + 1);
             }
@@ -491,7 +508,7 @@ impl<'a> Searcher<'a> {
 
             let policy = (pv_line.policy * 10000.0).round();
 
-            print!("time {ms} nodes {nodes} nps {nps:.0} policy {policy:.0} pv");
+            print!("time {ms} nodes {line_nodes} nps {nps:.0} policy {policy:.0} pv");
 
             for mov in &pv_line.line {
                 print!(" {}", self.tree.root_position().conv_mov_to_str(*mov));
@@ -533,7 +550,13 @@ impl<'a> Searcher<'a> {
         (scaled, cal)
     }
 
-    fn multipv_lines(&self, depth: usize, multipv: usize) -> Vec<PvLine> {
+    fn multipv_lines(
+        &self,
+        depth: usize,
+        seldepth: usize,
+        nodes: usize,
+        multipv: usize,
+    ) -> Vec<PvLine> {
         let children = self.root_children_by_score(multipv.max(1));
 
         if children.is_empty() {
@@ -542,13 +565,26 @@ impl<'a> Searcher<'a> {
                 score: 0.0,
                 policy: 0.0,
                 node: self.tree.root_node(),
+                depth,
+                seldepth,
+                nodes,
             }];
         }
 
-        children
+        let mut lines: Vec<PvLine> = children
             .into_iter()
             .map(|(ptr, mov)| self.build_pv_line(ptr, mov, depth))
-            .collect()
+            .collect();
+
+        if multipv == 1 {
+            for line in &mut lines {
+                line.depth = depth;
+                line.seldepth = seldepth;
+                line.nodes = nodes;
+            }
+        }
+
+        lines
     }
 
     fn root_children_by_score(&self, limit: usize) -> Vec<(NodePtr, Move)> {
@@ -589,7 +625,12 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    fn build_pv_line(&self, start_ptr: NodePtr, start_move: Move, mut depth: usize) -> PvLine {
+    fn build_pv_line(
+        &self,
+        start_ptr: NodePtr,
+        start_move: Move,
+        mut depth: usize,
+    ) -> PvLine {
         let mate = self.tree[self.tree.root_node()].is_terminal();
         let policy = if start_ptr.is_null() {
             0.0
@@ -606,9 +647,13 @@ impl<'a> Searcher<'a> {
         };
 
         let half = self.tree.half() > 0;
+        let mut pv_depth = 0;
+        let mut pv_seldepth = 0;
 
         while (mate || depth > 0) && !ptr.is_null() && ptr.half() == half {
             pv.push(mov);
+            pv_depth += 1;
+            pv_seldepth = pv_seldepth.max(pv_depth);
             let idx = self.get_best_child(ptr);
 
             if idx == usize::MAX {
@@ -626,6 +671,13 @@ impl<'a> Searcher<'a> {
             score,
             policy,
             node: start_ptr,
+            depth: pv_depth,
+            seldepth: pv_seldepth,
+            nodes: if start_ptr.is_null() {
+                0
+            } else {
+                self.tree[start_ptr].visits() as usize
+            },
         }
     }
 
@@ -687,4 +739,7 @@ struct PvLine {
     score: f32,
     policy: f32,
     node: NodePtr,
+    depth: usize,
+    seldepth: usize,
+    nodes: usize,
 }
