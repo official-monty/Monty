@@ -7,3 +7,7 @@ edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
+
+[dependencies]
+memmap2 = "0.9.9"
+rayon = "1.11.0"

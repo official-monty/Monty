@@ -3,8 +3,10 @@ use std::io::{Error, ErrorKind, Write};
 use crate::{
     chess::{Castling, Move, Position},
     interleave::{interleave, FastDeserialise},
-    read_into_primitive, read_primitive_into_vec,
+    read_into_primitive,
 };
+
+const GAME_HEADER_SIZE: usize = 43;
 
 pub struct SearchData {
     pub best_move: Move,
@@ -224,39 +226,28 @@ impl FastDeserialise for MontyFormat {
         buffer: &mut Vec<u8>,
     ) -> std::io::Result<()> {
         buffer.clear();
+        buffer.reserve(GAME_HEADER_SIZE);
 
-        for _ in 0..4 {
-            let _ = read_primitive_into_vec!(reader, buffer, u64);
-        }
-
-        let _ = read_primitive_into_vec!(reader, buffer, u8);
-        let _ = read_primitive_into_vec!(reader, buffer, u8);
-        let _ = read_primitive_into_vec!(reader, buffer, u8);
-        let _ = read_primitive_into_vec!(reader, buffer, u8);
-        let _ = read_primitive_into_vec!(reader, buffer, u16);
-
-        for _ in 0..4 {
-            let _ = read_primitive_into_vec!(reader, buffer, u8);
-        }
-
-        let _ = read_primitive_into_vec!(reader, buffer, u8);
+        let mut header = [0u8; GAME_HEADER_SIZE];
+        reader.read_exact(&mut header)?;
+        buffer.extend_from_slice(&header);
 
         loop {
-            let best_move = Move::from(read_primitive_into_vec!(reader, buffer, u16));
+            let mut move_header = [0u8; 5];
+            reader.read_exact(&mut move_header)?;
+            buffer.extend_from_slice(&move_header);
 
+            let best_move = Move::from(u16::from_le_bytes([move_header[0], move_header[1]]));
             if best_move == Move::NULL {
                 break;
             }
 
-            let _ = read_primitive_into_vec!(reader, buffer, u16);
-
-            let num_moves = read_primitive_into_vec!(reader, buffer, u8);
-
-            if num_moves > 0 {
-                for _ in 0..num_moves {
-                    let _ = read_primitive_into_vec!(reader, buffer, u8);
-                }
-            };
+            let move_count = usize::from(move_header[4]);
+            if move_count > 0 {
+                let start_len = buffer.len();
+                buffer.resize(start_len + move_count, 0);
+                reader.read_exact(&mut buffer[start_len..])?;
+            }
         }
 
         Ok(())
