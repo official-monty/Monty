@@ -1,4 +1,7 @@
-use crate::{Destination, Rand};
+use crate::{
+    book::{OpeningBook, OpeningBookReader},
+    Destination, Rand,
+};
 
 use monty::{
     chess::{ChessState, GameState},
@@ -18,16 +21,18 @@ pub struct DatagenThread<'a> {
     params: MctsParams,
     dest: Arc<Mutex<Destination>>,
     stop: &'a AtomicBool,
-    book: Option<Vec<&'a str>>,
+    book: Option<OpeningBookReader>,
 }
 
 impl<'a> DatagenThread<'a> {
     pub fn new(
         params: MctsParams,
         stop: &'a AtomicBool,
-        book: Option<Vec<&'a str>>,
+        book: Option<OpeningBook>,
         dest: Arc<Mutex<Destination>>,
     ) -> Self {
+        let book = book.map(|book| book.reader().expect("failed to open opening book reader"));
+
         Self {
             rng: Rand::with_seed(),
             params,
@@ -48,9 +53,11 @@ impl<'a> DatagenThread<'a> {
     }
 
     fn run_game(&mut self, policy: &PolicyNetwork, value: &ValueNetwork, output_policy: bool) {
-        let mut position = if let Some(book) = &self.book {
-            let idx = self.rng.rand_int() as usize % book.len();
-            ChessState::from_fen(book[idx])
+        let mut position = if let Some(book) = &mut self.book {
+            let fen = book
+                .random_line(&mut self.rng)
+                .expect("failed to select random opening");
+            ChessState::from_fen(fen.as_str())
         } else {
             ChessState::from_fen(ChessState::STARTPOS)
         };
