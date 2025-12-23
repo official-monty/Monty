@@ -113,6 +113,7 @@ impl<'a> Searcher<'a> {
         #[cfg(feature = "datagen")] previous_kld: &mut Vec<i32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
         #[cfg(not(feature = "uci-minimal"))] multipv: usize,
+        #[cfg(not(feature = "uci-minimal"))] gui_compatibility: bool,
         thread_id: usize,
     ) {
         if self.playout_until_full_internal(search_stats, true, thread_id, || {
@@ -131,6 +132,8 @@ impl<'a> Searcher<'a> {
                 uci_output,
                 #[cfg(not(feature = "uci-minimal"))]
                 multipv,
+                #[cfg(not(feature = "uci-minimal"))]
+                gui_compatibility,
             )
         }) {
             self.abort.store(true, Ordering::Relaxed);
@@ -198,6 +201,7 @@ impl<'a> Searcher<'a> {
         #[cfg(feature = "datagen")] previous_kld_state: &mut Vec<i32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
         #[cfg(not(feature = "uci-minimal"))] multipv: usize,
+        #[cfg(not(feature = "uci-minimal"))] gui_compatibility: bool,
     ) -> bool {
         let iters = search_stats.main_iters();
 
@@ -289,6 +293,7 @@ impl<'a> Searcher<'a> {
                     search_stats.total_nodes(),
                     search_stats.total_iters(),
                     multipv,
+                    gui_compatibility,
                 );
 
                 *timer_last_output = Instant::now();
@@ -304,6 +309,7 @@ impl<'a> Searcher<'a> {
                 search_stats.total_nodes(),
                 search_stats.total_iters(),
                 multipv,
+                gui_compatibility,
             );
 
             *timer_last_output = Instant::now();
@@ -318,6 +324,7 @@ impl<'a> Searcher<'a> {
         limits: Limits,
         uci_output: bool,
         multipv: usize,
+        gui_compatibility: bool,
         update_nodes: &mut usize,
         #[cfg(feature = "datagen")] use_dirichlet_noise: bool,
         #[cfg(feature = "datagen")] temp: f32,
@@ -404,6 +411,8 @@ impl<'a> Searcher<'a> {
                         uci_output,
                         #[cfg(not(feature = "uci-minimal"))]
                         multipv,
+                        #[cfg(not(feature = "uci-minimal"))]
+                        gui_compatibility,
                         0,
                     );
                 });
@@ -430,6 +439,7 @@ impl<'a> Searcher<'a> {
                 search_stats.total_nodes(),
                 search_stats.total_iters(),
                 multipv,
+                gui_compatibility,
             );
         }
 
@@ -456,6 +466,7 @@ impl<'a> Searcher<'a> {
         nodes: usize,
         iters: usize,
         multipv: usize,
+        gui_compatibility: bool,
     ) {
         let elapsed = timer.elapsed();
         let pv_lines = self.multipv_lines(depth, seldepth, nodes, multipv);
@@ -507,16 +518,22 @@ impl<'a> Searcher<'a> {
                     cal = [cal[2], cal[1], cal[0]];
                 }
 
-                let wdl_i = cal.map(|v| (v * 1000.0).round() as i32);
-                print!(
-                    "score cp {scaled:.0} wdl {} {} {} ",
-                    wdl_i[0], wdl_i[1], wdl_i[2]
-                )
+                print!("score cp {scaled:.0} ");
+
+                if !gui_compatibility {
+                    let wdl_i = cal.map(|v| (v * 1000.0).round() as i32);
+                    print!("wdl {} {} {} ", wdl_i[0], wdl_i[1], wdl_i[2]);
+                }
             }
 
-            let policy = (pv_line.policy * 10000.0).round();
+            print!("time {ms} nodes {line_nodes} nps {nps:.0} ");
 
-            print!("time {ms} nodes {line_nodes} nps {nps:.0} policy {policy:.0} pv");
+            if !gui_compatibility {
+                let policy = (pv_line.policy * 10000.0).round();
+                print!("policy {policy:.0} ");
+            }
+
+            print!("pv");
 
             for mov in &pv_line.line {
                 print!(" {}", self.tree.root_position().conv_mov_to_str(*mov));
@@ -633,12 +650,7 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    fn build_pv_line(
-        &self,
-        start_ptr: NodePtr,
-        start_move: Move,
-        mut depth: usize,
-    ) -> PvLine {
+    fn build_pv_line(&self, start_ptr: NodePtr, start_move: Move, mut depth: usize) -> PvLine {
         let mate = self.tree[self.tree.root_node()].is_terminal();
         let policy = if start_ptr.is_null() {
             0.0

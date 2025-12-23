@@ -100,7 +100,8 @@ impl<'a> DatagenThread<'a> {
             tree.set_root_position(&position);
             let searcher = Searcher::new(&tree, &self.params, policy, value, &abort);
 
-            let (best_move, score, iters) = searcher.search(1, limits, false, &mut 0, true, temp);
+            let (best_move, score, iters) =
+                searcher.search(1, limits, false, 1, false, &mut 0, true, temp);
 
             searches += 1;
             total_iters += iters;
