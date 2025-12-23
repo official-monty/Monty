@@ -196,7 +196,7 @@ impl<'a> Searcher<'a> {
         previous_score: &mut f32,
         #[cfg(feature = "datagen")] previous_kld_state: &mut Vec<i32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
-        _multipv: usize,
+        multipv: usize,
     ) -> bool {
         let iters = search_stats.main_iters();
 
@@ -494,11 +494,17 @@ impl<'a> Searcher<'a> {
             } else if pv_line.score < 0.0 {
                 print!("score mate -{} ", pv_line.line.len() / 2);
             } else {
-                let (scaled, cal) = if multipv > 1 {
+                let (mut scaled, mut cal) = if multipv > 1 {
                     self.get_display_score_for(pv_line.node)
                 } else {
                     self.get_display_score()
                 };
+
+                if multipv > 1 && pv_line.node != self.tree.root_node() {
+                    scaled = -scaled;
+                    cal = [cal[2], cal[1], cal[0]];
+                }
+
                 let wdl_i = cal.map(|v| (v * 1000.0).round() as i32);
                 print!(
                     "score cp {scaled:.0} wdl {} {} {} ",
@@ -646,11 +652,10 @@ impl<'a> Searcher<'a> {
             self.pv_score(start_ptr, self.tree[start_ptr].q())
         };
 
-        let half = self.tree.half() > 0;
         let mut pv_depth = 0;
         let mut pv_seldepth = 0;
 
-        while (mate || depth > 0) && !ptr.is_null() && ptr.half() == half {
+        while (mate || depth > 0) && !ptr.is_null() {
             pv.push(mov);
             pv_depth += 1;
             pv_seldepth = pv_seldepth.max(pv_depth);
