@@ -20,6 +20,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork, tcec_mode: bool) {
     let mut report_moves = false;
     let mut threads = 1;
     let mut move_overhead = 400;
+    let mut multipv = 1usize;
     let mut uci_opponent_rating: Option<i32> = None;
     let mut uci_rating_adv: Option<i32> = None;
     let mut contempt_override: Option<i32> = None;
@@ -56,6 +57,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork, tcec_mode: bool) {
                 &mut threads,
                 &mut move_overhead,
                 &mut hash_mb,
+                &mut multipv,
                 &mut uci_opponent_rating,
                 &mut uci_rating_adv,
                 &mut contempt_override,
@@ -73,6 +75,7 @@ pub fn run(policy: &PolicyNetwork, value: &ValueNetwork, tcec_mode: bool) {
                     root_game_ply,
                     &params,
                     report_moves,
+                    multipv,
                     policy,
                     value,
                     threads,
@@ -235,9 +238,9 @@ pub fn bench(depth: usize, policy: &PolicyNetwork, value: &ValueNetwork, params:
         let searcher = Searcher::new(&tree, params, policy, value, &abort);
         let timer = Instant::now();
         #[cfg(not(feature = "datagen"))]
-        searcher.search(1, limits, false, &mut total_nodes);
+        searcher.search(1, limits, false, 1, &mut total_nodes);
         #[cfg(feature = "datagen")]
-        searcher.search(1, limits, false, &mut total_nodes, false, 1.0);
+        searcher.search(1, limits, false, 1, &mut total_nodes, false, 1.0);
         time += timer.elapsed().as_secs_f32();
         tree.clear(1);
     }
@@ -256,6 +259,7 @@ fn preamble(tcec_mode: bool) {
     println!("option name UCI_Chess960 type check default false");
     println!("option name Contempt_Analysis type check default false");
     println!("option name MoveOverhead type spin default 400 min 0 max 5000");
+    println!("option name MultiPV type spin default 1 min 1 max 10");
     println!("option name report_moves type button");
     println!("option name report_iters type button");
     if tcec_mode {
@@ -278,6 +282,7 @@ fn setoption(
     threads: &mut usize,
     move_overhead: &mut usize,
     hash_mb: &mut usize,
+    multipv: &mut usize,
     uci_opponent_rating: &mut Option<i32>,
     uci_rating_adv: &mut Option<i32>,
     contempt_override: &mut Option<i32>,
@@ -322,6 +327,13 @@ fn setoption(
                     *hash_mb = parsed.max(1) as usize;
                     let root = tree.root_position().clone();
                     tree.rebuild(*hash_mb, *threads, root);
+                }
+            }
+        }
+        "MultiPV" => {
+            if let Some(v) = value {
+                if let Ok(parsed) = v.parse::<usize>() {
+                    *multipv = parsed.clamp(1, 10);
                 }
             }
         }
@@ -474,6 +486,7 @@ fn go(
     root_game_ply: u32,
     params: &MctsParams,
     report_moves: bool,
+    multipv: usize,
     policy: &PolicyNetwork,
     value: &ValueNetwork,
     threads: usize,
@@ -562,6 +575,7 @@ fn go(
                     threads,
                     limits,
                     true,
+                    multipv,
                     &mut 0,
                     #[cfg(feature = "datagen")]
                     false,

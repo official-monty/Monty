@@ -10,7 +10,7 @@ pub use search_stats::SearchStats;
 use crate::{
     chess::{GameState, Move},
     networks::{PolicyNetwork, ValueNetwork},
-    tree::{NodePtr, Tree},
+    tree::{Node, NodePtr, Tree},
 };
 
 #[cfg(feature = "datagen")]
@@ -112,6 +112,7 @@ impl<'a> Searcher<'a> {
         previous_score: &mut f32,
         #[cfg(feature = "datagen")] previous_kld: &mut Vec<i32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
+        multipv: usize,
         thread_id: usize,
     ) {
         if self.playout_until_full_internal(search_stats, true, thread_id, || {
@@ -128,6 +129,7 @@ impl<'a> Searcher<'a> {
                 previous_kld,
                 #[cfg(not(feature = "uci-minimal"))]
                 uci_output,
+                multipv,
             )
         }) {
             self.abort.store(true, Ordering::Relaxed);
@@ -194,6 +196,7 @@ impl<'a> Searcher<'a> {
         previous_score: &mut f32,
         #[cfg(feature = "datagen")] previous_kld_state: &mut Vec<i32>,
         #[cfg(not(feature = "uci-minimal"))] uci_output: bool,
+        multipv: usize,
     ) -> bool {
         let iters = search_stats.main_iters();
 
@@ -284,6 +287,7 @@ impl<'a> Searcher<'a> {
                     timer,
                     search_stats.total_nodes(),
                     search_stats.total_iters(),
+                    multipv,
                 );
 
                 *timer_last_output = Instant::now();
@@ -298,6 +302,7 @@ impl<'a> Searcher<'a> {
                 timer,
                 search_stats.total_nodes(),
                 search_stats.total_iters(),
+                multipv,
             );
 
             *timer_last_output = Instant::now();
@@ -311,6 +316,7 @@ impl<'a> Searcher<'a> {
         threads: usize,
         limits: Limits,
         uci_output: bool,
+        multipv: usize,
         update_nodes: &mut usize,
         #[cfg(feature = "datagen")] use_dirichlet_noise: bool,
         #[cfg(feature = "datagen")] temp: f32,
@@ -395,6 +401,7 @@ impl<'a> Searcher<'a> {
                         &mut previous_kld,
                         #[cfg(not(feature = "uci-minimal"))]
                         uci_output,
+                        multipv,
                         0,
                     );
                 });
@@ -420,6 +427,7 @@ impl<'a> Searcher<'a> {
                 &timer,
                 search_stats.total_nodes(),
                 search_stats.total_iters(),
+                multipv,
             );
         }
 
@@ -445,22 +453,9 @@ impl<'a> Searcher<'a> {
         timer: &Instant,
         nodes: usize,
         iters: usize,
+        multipv: usize,
     ) {
-        print!("info depth {depth} seldepth {seldepth} ");
-        let (pv_line, score) = self.get_pv(depth);
-
-        if score > 1.0 {
-            print!("score mate {} ", pv_line.len().div_ceil(2));
-        } else if score < 0.0 {
-            print!("score mate -{} ", pv_line.len() / 2);
-        } else {
-            let (scaled, cal) = self.get_display_score();
-            let wdl_i = cal.map(|v| (v * 1000.0).round() as i32);
-            print!(
-                "score cp {scaled:.0} wdl {} {} {} ",
-                wdl_i[0], wdl_i[1], wdl_i[2]
-            )
-        }
+        let pv_lines = self.multipv_lines(depth, multipv);
 
         let nodes = if REPORT_ITERS.load(Ordering::Relaxed) {
             iters
@@ -471,20 +466,55 @@ impl<'a> Searcher<'a> {
         let nps = nodes as f32 / elapsed.as_secs_f32();
         let ms = elapsed.as_millis();
 
-        print!("time {ms} nodes {nodes} nps {nps:.0} pv");
+        for (idx, pv_line) in pv_lines.iter().enumerate() {
+            print!("info depth {depth} seldepth {seldepth} ");
+            if multipv > 1 {
+                print!("multipv {} ", idx + 1);
+            }
 
-        for mov in pv_line {
-            print!(" {}", self.tree.root_position().conv_mov_to_str(mov));
+            if pv_line.score > 1.0 {
+                print!("score mate {} ", pv_line.line.len().div_ceil(2));
+            } else if pv_line.score < 0.0 {
+                print!("score mate -{} ", pv_line.line.len() / 2);
+            } else {
+                let (scaled, cal) = if multipv > 1 {
+                    self.get_display_score_for(pv_line.node)
+                } else {
+                    self.get_display_score()
+                };
+                let wdl_i = cal.map(|v| (v * 1000.0).round() as i32);
+                print!(
+                    "score cp {scaled:.0} wdl {} {} {} ",
+                    wdl_i[0], wdl_i[1], wdl_i[2]
+                )
+            }
+
+            let policy = (pv_line.policy * 10000.0).round();
+
+            print!("time {ms} nodes {nodes} nps {nps:.0} policy {policy:.0} pv");
+
+            for mov in &pv_line.line {
+                print!(" {}", self.tree.root_position().conv_mov_to_str(*mov));
+            }
+
+            println!();
         }
-
-        println!();
     }
 
     fn get_display_score(&self) -> (f32, [f32; 3]) {
-        let root = &self.tree[self.tree.root_node()];
-        let draw = root.draw().clamp(0.0, 1.0);
+        self.get_display_score_for(self.tree.root_node())
+    }
 
-        let score = (1.0 - root.q()).clamp(0.0, 1.0);
+    fn get_display_score_for(&self, node: NodePtr) -> (f32, [f32; 3]) {
+        let node_ref = if node.is_null() {
+            &self.tree[self.tree.root_node()]
+        } else {
+            &self.tree[node]
+        };
+
+        let draw = node_ref.draw().clamp(0.0, 1.0);
+
+        let score = (1.0 - node_ref.q()).clamp(0.0, 1.0);
         let win = (score - 0.5 * draw).clamp(0.0, 1.0);
         let loss = (1.0 - win - draw).clamp(0.0, 1.0);
 
@@ -503,23 +533,78 @@ impl<'a> Searcher<'a> {
         (scaled, cal)
     }
 
-    fn get_pv(&self, mut depth: usize) -> (Vec<Move>, f32) {
+    fn multipv_lines(&self, depth: usize, multipv: usize) -> Vec<PvLine> {
+        let children = self.root_children_by_score(multipv.max(1));
+
+        if children.is_empty() {
+            return vec![PvLine {
+                line: Vec::new(),
+                score: 0.0,
+                policy: 0.0,
+                node: self.tree.root_node(),
+            }];
+        }
+
+        children
+            .into_iter()
+            .map(|(ptr, mov)| self.build_pv_line(ptr, mov, depth))
+            .collect()
+    }
+
+    fn root_children_by_score(&self, limit: usize) -> Vec<(NodePtr, Move)> {
+        let root = self.tree.root_node();
+        let first_child_ptr = self.tree[root].actions();
+
+        let mut children: Vec<(NodePtr, Move)> = (0..self.tree[root].num_actions())
+            .map(|action| {
+                let ptr = first_child_ptr + action;
+                (ptr, self.tree[ptr].parent_move())
+            })
+            .collect();
+
+        children.sort_by(|(a_ptr, _), (b_ptr, _)| {
+            let a_score = Self::node_order_score(&self.tree[*a_ptr]);
+            let b_score = Self::node_order_score(&self.tree[*b_ptr]);
+
+            b_score
+                .partial_cmp(&a_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        children.truncate(limit.min(children.len()));
+
+        children
+    }
+
+    fn node_order_score(node: &Node) -> f32 {
+        if node.visits() == 0 {
+            return f32::NEG_INFINITY;
+        }
+
+        match node.state() {
+            GameState::Lost(n) => 1.0 + f32::from(n),
+            GameState::Won(n) => f32::from(n) - 256.0,
+            GameState::Draw => 0.5,
+            GameState::Ongoing => node.q(),
+        }
+    }
+
+    fn build_pv_line(&self, start_ptr: NodePtr, start_move: Move, mut depth: usize) -> PvLine {
         let mate = self.tree[self.tree.root_node()].is_terminal();
-
-        let (mut ptr, mut mov, q) = self.get_best_action(self.tree.root_node());
-
-        let score = if !ptr.is_null() {
-            match self.tree[ptr].state() {
-                GameState::Lost(_) => 1.1,
-                GameState::Won(_) => -0.1,
-                GameState::Draw => 0.5,
-                GameState::Ongoing => q,
-            }
+        let policy = if start_ptr.is_null() {
+            0.0
         } else {
-            q
+            self.tree[start_ptr].policy()
+        };
+        let mut pv = Vec::new();
+        let mut ptr = start_ptr;
+        let mut mov = start_move;
+        let score = if start_ptr.is_null() {
+            0.0
+        } else {
+            self.pv_score(start_ptr, self.tree[start_ptr].q())
         };
 
-        let mut pv = Vec::new();
         let half = self.tree.half() > 0;
 
         while (mate || depth > 0) && !ptr.is_null() && ptr.half() == half {
@@ -530,11 +615,31 @@ impl<'a> Searcher<'a> {
                 break;
             }
 
-            (ptr, mov, _) = self.get_best_action(ptr);
+            let (next_ptr, next_mov, _) = self.get_best_action(ptr);
+            ptr = next_ptr;
+            mov = next_mov;
             depth = depth.saturating_sub(1);
         }
 
-        (pv, score)
+        PvLine {
+            line: pv,
+            score,
+            policy,
+            node: start_ptr,
+        }
+    }
+
+    fn pv_score(&self, ptr: NodePtr, q: f32) -> f32 {
+        if ptr.is_null() {
+            return q;
+        }
+
+        match self.tree[ptr].state() {
+            GameState::Lost(_) => 1.1,
+            GameState::Won(_) => -0.1,
+            GameState::Draw => 0.5,
+            GameState::Ongoing => q,
+        }
     }
 
     fn get_best_action(&self, node: NodePtr) -> (NodePtr, Move, f32) {
@@ -575,4 +680,11 @@ impl<'a> Searcher<'a> {
             );
         }
     }
+}
+
+struct PvLine {
+    line: Vec<Move>,
+    score: f32,
+    policy: f32,
+    node: NodePtr,
 }
