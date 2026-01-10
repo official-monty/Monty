@@ -8,11 +8,11 @@ use super::common::{Accumulator, Layer, TransposedLayer};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals, dead_code)]
-pub const PolicyFileDefaultName: &str = "nn-06e27b5ef6e7.network";
+pub const PolicyFileDefaultName: &str = "nn-54c1b0dc9f59.network";
 #[allow(non_upper_case_globals, dead_code)]
-pub const CompressedPolicyName: &str = "nn-bef5cb915ecf.network";
+pub const CompressedPolicyName: &str = "nn-1d51d22ed5ba.network";
 #[allow(non_upper_case_globals, dead_code)]
-pub const DatagenPolicyFileName: &str = "nn-06e27b5ef6e7.network";
+pub const DatagenPolicyFileName: &str = "nn-54c1b0dc9f59.network";
 
 const QA: i16 = 128;
 const QB: i16 = 128;
