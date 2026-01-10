@@ -473,20 +473,20 @@ impl<'a> Searcher<'a> {
         let elapsed_secs = elapsed.as_secs_f32();
         let ms = elapsed.as_millis();
 
-        for (idx, pv_line) in pv_lines.iter().enumerate() {
-            let line_depth = if multipv > 1 {
+        let mut emit_info_line = |pv_line: &PvLine, idx: usize, use_multipv: bool| {
+            let line_depth = if use_multipv {
                 pv_line.depth.max(1)
             } else {
                 depth
             };
 
-            let line_seldepth = if multipv > 1 {
+            let line_seldepth = if use_multipv {
                 pv_line.seldepth.max(1)
             } else {
                 seldepth
             };
 
-            let line_nodes = if multipv > 1 {
+            let line_nodes = if use_multipv {
                 pv_line.nodes
             } else if REPORT_ITERS.load(Ordering::Relaxed) {
                 iters
@@ -497,7 +497,7 @@ impl<'a> Searcher<'a> {
             let nps = line_nodes as f32 / elapsed_secs;
 
             print!("info depth {line_depth} seldepth {line_seldepth} ");
-            if multipv > 1 {
+            if use_multipv && multipv > 1 {
                 print!("multipv {} ", idx + 1);
             }
 
@@ -506,13 +506,13 @@ impl<'a> Searcher<'a> {
             } else if pv_line.score < 0.0 {
                 print!("score mate -{} ", pv_line.line.len() / 2);
             } else {
-                let (mut scaled, mut cal) = if multipv > 1 {
+                let (mut scaled, mut cal) = if use_multipv {
                     self.get_display_score_for(pv_line.node)
                 } else {
                     self.get_display_score()
                 };
 
-                if multipv > 1 && pv_line.node != self.tree.root_node() {
+                if use_multipv && pv_line.node != self.tree.root_node() {
                     scaled = -scaled;
                     cal = [cal[2], cal[1], cal[0]];
                 }
@@ -539,6 +539,16 @@ impl<'a> Searcher<'a> {
             }
 
             println!();
+        };
+
+        if !gui_compatibility && multipv > 1 {
+            if let Some(pv_line) = pv_lines.first() {
+                emit_info_line(pv_line, 0, false);
+            }
+        }
+
+        for (idx, pv_line) in pv_lines.iter().enumerate() {
+            emit_info_line(pv_line, idx, multipv > 1);
         }
     }
 
