@@ -12,7 +12,7 @@ pub const PolicyFileDefaultName: &str = "nn-6e49a41bd7c0.network";
 #[allow(non_upper_case_globals, dead_code)]
 pub const CompressedPolicyName: &str = "nn-36e94b4fbf6b.network";
 #[allow(non_upper_case_globals, dead_code)]
-pub const DatagenPolicyFileName: &str = "nn-6e49a41bd7c0.network";
+pub const DatagenPolicyFileName: &str = "nn-54c1b0dc9f59.network";
 
 const QA: i16 = 128;
 const QB: i16 = 128;
@@ -22,7 +22,7 @@ const FACTOR: i16 = 32;
 pub const L1: usize = 40960;
 
 #[cfg(feature = "datagen")]
-pub const L1: usize = 40960;
+pub const L1: usize = 16384;
 
 pub const INPUT_SIZE: usize = 3072;
 
