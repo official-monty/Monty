@@ -10,6 +10,7 @@ pub fn perform_one(
     pos: &mut ChessState,
     ptr: NodePtr,
     depth: &mut usize,
+    root_child: &mut Option<NodePtr>,
     thread_id: usize,
 ) -> Option<(f32, f32)> {
     *depth += 1;
@@ -57,6 +58,9 @@ pub fn perform_one(
         let action = pick_action(searcher, ptr, node);
 
         let child_ptr = node.actions() + action;
+        if ptr == searcher.tree.root_node() {
+            *root_child = Some(child_ptr);
+        }
 
         let mov = tree[child_ptr].parent_move();
 
@@ -77,7 +81,7 @@ pub fn perform_one(
         };
 
         // descend further
-        let maybe_u = perform_one(searcher, pos, child_ptr, depth, thread_id);
+        let maybe_u = perform_one(searcher, pos, child_ptr, depth, root_child, thread_id);
 
         drop(lock);
 

@@ -154,12 +154,14 @@ impl<'a> Searcher<'a> {
         loop {
             let mut pos = self.tree.root_position().clone();
             let mut this_depth = 0;
+            let mut root_child = None;
 
             if iteration::perform_one(
                 self,
                 &mut pos,
                 self.tree.root_node(),
                 &mut this_depth,
+                &mut root_child,
                 thread_id,
             )
             .is_none()
@@ -168,6 +170,9 @@ impl<'a> Searcher<'a> {
             }
 
             search_stats.add_iter(thread_id, this_depth, main_thread);
+            if let Some(child_ptr) = root_child {
+                self.tree[child_ptr].add_nodes(this_depth as u64);
+            }
 
             // proven checkmate
             if self.tree[self.tree.root_node()].is_terminal() {
@@ -468,7 +473,7 @@ impl<'a> Searcher<'a> {
         gui_compatibility: bool,
     ) {
         let elapsed = timer.elapsed();
-        let pv_lines = self.multipv_lines(depth, seldepth, nodes, multipv);
+        let pv_lines = self.multipv_lines(depth, seldepth, nodes, iters, multipv);
 
         let elapsed_secs = elapsed.as_secs_f32();
         let ms = elapsed.as_millis();
@@ -487,7 +492,11 @@ impl<'a> Searcher<'a> {
             };
 
             let line_nodes = if use_multipv {
-                pv_line.nodes
+                if REPORT_ITERS.load(Ordering::Relaxed) {
+                    pv_line.iters
+                } else {
+                    pv_line.nodes
+                }
             } else if REPORT_ITERS.load(Ordering::Relaxed) {
                 iters
             } else {
@@ -589,6 +598,7 @@ impl<'a> Searcher<'a> {
         depth: usize,
         seldepth: usize,
         nodes: usize,
+        iters: usize,
         multipv: usize,
     ) -> Vec<PvLine> {
         let children = self.root_children_by_score(multipv.max(1));
@@ -602,6 +612,7 @@ impl<'a> Searcher<'a> {
                 depth,
                 seldepth,
                 nodes,
+                iters,
             }];
         }
 
@@ -615,6 +626,7 @@ impl<'a> Searcher<'a> {
                 line.depth = depth;
                 line.seldepth = seldepth;
                 line.nodes = nodes;
+                line.iters = iters;
             }
         }
 
@@ -704,6 +716,11 @@ impl<'a> Searcher<'a> {
             nodes: if start_ptr.is_null() {
                 0
             } else {
+                self.tree[start_ptr].nodes() as usize
+            },
+            iters: if start_ptr.is_null() {
+                0
+            } else {
                 self.tree[start_ptr].visits() as usize
             },
         }
@@ -770,4 +787,5 @@ struct PvLine {
     depth: usize,
     seldepth: usize,
     nodes: usize,
+    iters: usize,
 }

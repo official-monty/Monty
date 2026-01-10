@@ -100,6 +100,7 @@ pub struct Node {
     mov: AtomicU16,
     policy: AtomicU16,
     visits: AtomicU64,
+    nodes: AtomicU64,
     sum_q: AtomicU64,
     sum_sq_q: AtomicU64,
     draws: AtomicU64,
@@ -116,6 +117,7 @@ impl Node {
             mov: AtomicU16::new(0),
             policy: AtomicU16::new(0),
             visits: AtomicU64::new(0),
+            nodes: AtomicU64::new(0),
             sum_q: AtomicU64::new(0),
             sum_sq_q: AtomicU64::new(0),
             draws: AtomicU64::new(0),
@@ -147,6 +149,14 @@ impl Node {
 
     pub fn visits(&self) -> u64 {
         self.visits.load(Ordering::Relaxed)
+    }
+
+    pub fn nodes(&self) -> u64 {
+        self.nodes.load(Ordering::Relaxed)
+    }
+
+    pub fn add_nodes(&self, nodes: u64) {
+        self.nodes.fetch_add(nodes, Ordering::Relaxed);
     }
 
     fn q64(&self) -> f64 {
@@ -258,6 +268,7 @@ impl Node {
         self.gini_impurity
             .store(other.gini_impurity.load(Relaxed), Relaxed);
         self.visits.store(other.visits.load(Relaxed), Relaxed);
+        self.nodes.store(other.nodes.load(Relaxed), Relaxed);
         self.sum_q.store(other.sum_q.load(Relaxed), Relaxed);
         self.sum_sq_q.store(other.sum_sq_q.load(Relaxed), Relaxed);
         self.draws.store(other.draws.load(Relaxed), Relaxed);
@@ -268,6 +279,7 @@ impl Node {
         self.set_state(GameState::Ongoing);
         self.set_gini_impurity(0.0);
         self.visits.store(0, Ordering::Relaxed);
+        self.nodes.store(0, Ordering::Relaxed);
         self.sum_q.store(0, Ordering::Relaxed);
         self.sum_sq_q.store(0, Ordering::Relaxed);
         self.draws.store(0, Ordering::Relaxed);
