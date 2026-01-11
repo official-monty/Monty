@@ -1,7 +1,7 @@
 use std::{
     convert::TryFrom,
     ops::{Add, AddAssign},
-    sync::atomic::{AtomicU16, AtomicU64, AtomicU8, Ordering},
+    sync::atomic::{AtomicU16, AtomicU32, AtomicU64, AtomicU8, Ordering},
 };
 
 use crate::chess::{GameState, Move};
@@ -9,6 +9,7 @@ use crate::chess::{GameState, Move};
 use super::lock::{CustomLock, WriteGuard};
 
 const QUANT: i32 = 16384 * 4;
+const MAX_U48: u64 = (1u64 << 48) - 1;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct NodePtr(u64);
@@ -94,16 +95,18 @@ impl AddAssign for NodeStatsDelta {
 #[repr(align(64))]
 pub struct Node {
     actions: CustomLock,
-    num_actions: AtomicU8,
+    sum_q: AtomicU64,
+    sum_sq_q: AtomicU64,
+    draws: AtomicU64,
+    visits_lo: AtomicU32,
+    nodes_lo: AtomicU32,
+    visits_hi: AtomicU16,
+    nodes_hi: AtomicU16,
     state: AtomicU16,
     threads: AtomicU16,
     mov: AtomicU16,
     policy: AtomicU16,
-    visits: AtomicU64,
-    nodes: AtomicU64,
-    sum_q: AtomicU64,
-    sum_sq_q: AtomicU64,
-    draws: AtomicU64,
+    num_actions: AtomicU8,
     gini_impurity: AtomicU8,
 }
 
@@ -111,16 +114,18 @@ impl Node {
     pub fn new(state: GameState) -> Self {
         Node {
             actions: CustomLock::new(NodePtr::NULL),
-            num_actions: AtomicU8::new(0),
+            sum_q: AtomicU64::new(0),
+            sum_sq_q: AtomicU64::new(0),
+            draws: AtomicU64::new(0),
+            visits_lo: AtomicU32::new(0),
+            nodes_lo: AtomicU32::new(0),
+            visits_hi: AtomicU16::new(0),
+            nodes_hi: AtomicU16::new(0),
             state: AtomicU16::new(u16::from(state)),
             threads: AtomicU16::new(0),
             mov: AtomicU16::new(0),
             policy: AtomicU16::new(0),
-            visits: AtomicU64::new(0),
-            nodes: AtomicU64::new(0),
-            sum_q: AtomicU64::new(0),
-            sum_sq_q: AtomicU64::new(0),
-            draws: AtomicU64::new(0),
+            num_actions: AtomicU8::new(0),
             gini_impurity: AtomicU8::new(0),
         }
     }
@@ -148,19 +153,19 @@ impl Node {
     }
 
     pub fn visits(&self) -> u64 {
-        self.visits.load(Ordering::Relaxed)
+        load_u48(&self.visits_lo, &self.visits_hi)
     }
 
     pub fn nodes(&self) -> u64 {
-        self.nodes.load(Ordering::Relaxed)
+        load_u48(&self.nodes_lo, &self.nodes_hi)
     }
 
     pub fn add_nodes(&self, nodes: u64) {
-        self.nodes.fetch_add(nodes, Ordering::Relaxed);
+        add_u48(&self.nodes_lo, &self.nodes_hi, nodes);
     }
 
     fn q64(&self) -> f64 {
-        let visits = self.visits.load(Ordering::Relaxed);
+        let visits = self.visits();
 
         if visits == 0 {
             return 0.0;
@@ -176,7 +181,7 @@ impl Node {
     }
 
     pub fn draw(&self) -> f32 {
-        let visits = self.visits.load(Ordering::Relaxed);
+        let visits = self.visits();
 
         if visits == 0 {
             return 0.0;
@@ -189,7 +194,7 @@ impl Node {
 
     pub fn sq_q(&self) -> f64 {
         let sum_sq_q = self.sum_sq_q.load(Ordering::Relaxed);
-        let visits = self.visits.load(Ordering::Relaxed);
+        let visits = self.visits();
         (sum_sq_q / visits) as f64 / f64::from(QUANT).powi(2)
     }
 
@@ -267,8 +272,10 @@ impl Node {
         self.state.store(other.state.load(Relaxed), Relaxed);
         self.gini_impurity
             .store(other.gini_impurity.load(Relaxed), Relaxed);
-        self.visits.store(other.visits.load(Relaxed), Relaxed);
-        self.nodes.store(other.nodes.load(Relaxed), Relaxed);
+        self.visits_lo.store(other.visits_lo.load(Relaxed), Relaxed);
+        self.nodes_lo.store(other.nodes_lo.load(Relaxed), Relaxed);
+        self.visits_hi.store(other.visits_hi.load(Relaxed), Relaxed);
+        self.nodes_hi.store(other.nodes_hi.load(Relaxed), Relaxed);
         self.sum_q.store(other.sum_q.load(Relaxed), Relaxed);
         self.sum_sq_q.store(other.sum_sq_q.load(Relaxed), Relaxed);
         self.draws.store(other.draws.load(Relaxed), Relaxed);
@@ -278,8 +285,10 @@ impl Node {
         self.clear_actions();
         self.set_state(GameState::Ongoing);
         self.set_gini_impurity(0.0);
-        self.visits.store(0, Ordering::Relaxed);
-        self.nodes.store(0, Ordering::Relaxed);
+        self.visits_lo.store(0, Ordering::Relaxed);
+        self.nodes_lo.store(0, Ordering::Relaxed);
+        self.visits_hi.store(0, Ordering::Relaxed);
+        self.nodes_hi.store(0, Ordering::Relaxed);
         self.sum_q.store(0, Ordering::Relaxed);
         self.sum_sq_q.store(0, Ordering::Relaxed);
         self.draws.store(0, Ordering::Relaxed);
@@ -296,7 +305,7 @@ impl Node {
         }
 
         if delta.visits > 0 {
-            self.visits.fetch_add(delta.visits, Ordering::Relaxed);
+            add_u48(&self.visits_lo, &self.visits_hi, delta.visits);
         }
 
         if delta.sum_q > 0 {
@@ -335,5 +344,31 @@ impl Node {
         }
 
         Some(kld_gain / f64::from(new_parent_visits - old_parent_visits))
+    }
+}
+
+fn load_u48(lo: &AtomicU32, hi: &AtomicU16) -> u64 {
+    loop {
+        let hi_first = hi.load(Ordering::Relaxed);
+        let lo_val = lo.load(Ordering::Relaxed);
+        let hi_second = hi.load(Ordering::Relaxed);
+        if hi_first == hi_second {
+            return (u64::from(hi_first) << 32) | u64::from(lo_val);
+        }
+    }
+}
+
+fn add_u48(lo: &AtomicU32, hi: &AtomicU16, delta: u64) {
+    if delta == 0 {
+        return;
+    }
+
+    let delta = delta.min(MAX_U48);
+    let delta_lo = delta as u32;
+    let delta_hi = (delta >> 32) as u16;
+    let prev = lo.fetch_add(delta_lo, Ordering::Relaxed);
+    let carry = u16::from(prev > u32::MAX - delta_lo);
+    if delta_hi != 0 || carry != 0 {
+        hi.fetch_add(delta_hi.wrapping_add(carry), Ordering::Relaxed);
     }
 }
