@@ -25,8 +25,6 @@ pub type SearchRet = (Move, f32, usize);
 #[cfg(not(feature = "datagen"))]
 pub type SearchRet = (Move, f32);
 
-pub static REPORT_ITERS: AtomicBool = AtomicBool::new(false);
-
 fn calibrate_wdl(win: f32, draw: f32, loss: f32) -> [f32; 3] {
     const W: [[f64; 3]; 3] = [
         [3.75992276, 0.23714723, -1.85080033],
@@ -491,17 +489,8 @@ impl<'a> Searcher<'a> {
                 seldepth
             };
 
-            let line_nodes = if use_multipv {
-                if REPORT_ITERS.load(Ordering::Relaxed) {
-                    pv_line.iters
-                } else {
-                    pv_line.nodes
-                }
-            } else if REPORT_ITERS.load(Ordering::Relaxed) {
-                iters
-            } else {
-                nodes
-            };
+            let line_nodes = if use_multipv { pv_line.nodes } else { nodes };
+            let line_iters = if use_multipv { pv_line.iters } else { iters };
 
             let nps = line_nodes as f32 / elapsed_secs;
 
@@ -534,9 +523,11 @@ impl<'a> Searcher<'a> {
                 }
             }
 
-            print!("time {ms} nodes {line_nodes} nps {nps:.0} ");
+            print!("time {ms} nodes {line_nodes} ");
+            print!("nps {nps:.0} ");
 
             if !gui_compatibility {
+                print!("iters {line_iters} ");
                 let policy = (pv_line.policy * 10000.0).round();
                 print!("policy {policy:.0} ");
             }

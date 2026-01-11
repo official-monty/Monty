@@ -1,6 +1,6 @@
 use crate::{
     chess::{ChessState, Move},
-    mcts::{Limits, MctsParams, SearchHelpers, Searcher, REPORT_ITERS},
+    mcts::{Limits, MctsParams, SearchHelpers, Searcher},
     networks::{PolicyNetwork, ValueNetwork},
     tree::Tree,
 };
@@ -265,7 +265,6 @@ fn preamble(tcec_mode: bool) {
     println!("option name MultiPV type spin default 1 min 1 max 10");
     println!("option name GUI_Compatibility type check default true");
     println!("option name report_moves type button");
-    println!("option name report_iters type button");
     if tcec_mode {
         println!("option name UCI_Opponent type string default");
         println!("option name UCI_RatingAdv type spin default 0");
@@ -301,9 +300,6 @@ fn setoption(
     match name.as_str() {
         "report_moves" => {
             *report_moves = !*report_moves;
-        }
-        "report_iters" => {
-            REPORT_ITERS.fetch_xor(true, Ordering::Relaxed);
         }
         "UCI_Chess960" => {}
         "Contempt_Analysis" => {
