@@ -476,7 +476,7 @@ impl<'a> Searcher<'a> {
         let elapsed_secs = elapsed.as_secs_f32();
         let ms = elapsed.as_millis();
 
-        let mut emit_info_line = |pv_line: &PvLine, idx: usize, use_multipv: bool| {
+        let emit_info_line = |pv_line: &PvLine, idx: usize, use_multipv: bool| {
             let line_depth = if use_multipv {
                 pv_line.depth.max(1)
             } else {
