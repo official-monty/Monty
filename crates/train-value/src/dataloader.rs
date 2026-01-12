@@ -16,6 +16,7 @@ use montyformat::{
 pub struct MontyBinpackLoader<T: Fn(&Position, Move, i16, f32) -> bool> {
     file_paths: Vec<String>,
     buffer_size: usize,
+    read_buffer_bytes: usize,
     threads: usize,
     filter: T,
 }
@@ -31,9 +32,13 @@ impl<T: Fn(&Position, Move, i16, f32) -> bool> MontyBinpackLoader<T> {
         threads: usize,
         filter: T,
     ) -> Self {
+        let mut read_buffer_bytes = buffer_size_mb.saturating_mul(1024 * 1024);
+        read_buffer_bytes = read_buffer_bytes.max(8 * 1024 * 1024).min(64 * 1024 * 1024);
+
         Self {
             file_paths: paths.iter().map(|x| x.to_string()).collect(),
             buffer_size: buffer_size_mb * 1024 * 1024 / std::mem::size_of::<ChessBoard>() / 2,
+            read_buffer_bytes,
             threads,
             filter,
         }
@@ -58,13 +63,17 @@ where
 
         let file_paths = self.file_paths.clone();
         let buffer_size = self.buffer_size;
+        let read_buffer_bytes = self.read_buffer_bytes;
 
         let (sender, receiver) = mpsc::sync_channel::<Vec<u8>>(256);
         let (msg_sender, msg_receiver) = mpsc::sync_channel::<bool>(1);
 
         std::thread::spawn(move || 'dataloading: loop {
             for file_path in &file_paths {
-                let mut reader = BufReader::new(File::open(file_path.as_str()).unwrap());
+                let mut reader = BufReader::with_capacity(
+                    read_buffer_bytes,
+                    File::open(file_path.as_str()).unwrap(),
+                );
 
                 let mut buffer = Vec::new();
                 while let Ok(()) =

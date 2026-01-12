@@ -24,14 +24,19 @@ pub struct DecompressedData {
 pub struct DataReader {
     file_path: String,
     buffer_size: usize,
+    read_buffer_bytes: usize,
     threads: usize,
 }
 
 impl DataReader {
     pub fn new(path: &str, buffer_size_mb: usize, threads: usize) -> Self {
+        let mut read_buffer_bytes = buffer_size_mb.saturating_mul(1024 * 1024);
+        read_buffer_bytes = read_buffer_bytes.max(8 * 1024 * 1024).min(64 * 1024 * 1024);
+
         Self {
             file_path: path.to_string(),
             buffer_size: buffer_size_mb * 1024 * 1024 / std::mem::size_of::<DecompressedData>() / 2,
+            read_buffer_bytes,
             threads,
         }
     }
@@ -41,6 +46,7 @@ impl DataReader {
     pub fn map_batches<F: FnMut(&[DecompressedData]) -> bool>(&self, batch_size: usize, mut f: F) {
         let file_path = self.file_path.clone();
         let buffer_size = self.buffer_size;
+        let read_buffer_bytes = self.read_buffer_bytes;
         let threads = self.threads;
         let games_per_thread = 2048;
 
@@ -50,12 +56,15 @@ impl DataReader {
             let mut buffer = Vec::new();
 
             'dataloading: loop {
-                let mut reader = BufReader::new(File::open(file_path.as_str()).unwrap());
+                let mut reader = BufReader::with_capacity(
+                    read_buffer_bytes,
+                    File::open(file_path.as_str()).unwrap(),
+                );
 
                 while let Ok(()) =
                     MontyFormat::deserialise_fast_into_buffer(&mut reader, &mut buffer)
                 {
-                    if game_sender.send(buffer.clone()).is_err() {
+                    if game_sender.send(std::mem::take(&mut buffer)).is_err() {
                         break 'dataloading;
                     }
                 }
