@@ -33,17 +33,17 @@ impl Param<i32> {
 
 impl Param<f32> {
     fn set(&mut self, val: i32) {
-        let actual = val as f32 / 1000.0;
+        let actual = val as f32 / 10000.0;
         self.val = actual.clamp(self.min, self.max);
     }
 
     fn info(&self, name: &str) {
         println!(
-            "option name {} type spin default {:.0} min {:.0} max {:.0}",
-            name,
-            self.val * 1000.0,
-            self.min * 1000.0,
-            self.max * 1000.0,
+        "option name {} type spin default {} min {} max {}",
+        name,
+        (self.val * 10000.0).round() as i32,
+        (self.min * 10000.0).round() as i32,
+        (self.max * 10000.0).round() as i32,
         );
     }
 
@@ -51,10 +51,10 @@ impl Param<f32> {
         println!(
             "{}, {}, {}, {}, {}, {}",
             name,
-            self.val * 1000.0,
-            self.min * 1000.0,
-            self.max * 1000.0,
-            step * 1000.0,
+            (self.val * 10000.0).round() as i32,
+            (self.min * 10000.0).round() as i32,
+            (self.max * 10000.0).round() as i32,
+            (step * 10000.0).round() as i32,
             r,
         );
     }
@@ -62,17 +62,17 @@ impl Param<f32> {
 
 impl Param<f64> {
     fn set(&mut self, val: i32) {
-        let actual = val as f64 / 1000.0;
+        let actual = val as f64 / 10000.0;
         self.val = actual.clamp(self.min, self.max);
     }
 
     fn info(&self, name: &str) {
         println!(
-            "option name {} type spin default {:.0} min {:.0} max {:.0}",
+            "option name {} type spin default {} min {} max {}",
             name,
-            self.val * 1000.0,
-            self.min * 1000.0,
-            self.max * 1000.0,
+            (self.val * 10000.0).round() as i64,
+            (self.min * 10000.0).round() as i64,
+            (self.max * 10000.0).round() as i64,
         );
     }
 
@@ -80,10 +80,10 @@ impl Param<f64> {
         println!(
             "{}, {}, {}, {}, {}, {}",
             name,
-            self.val * 1000.0,
-            self.min * 1000.0,
-            self.max * 1000.0,
-            step * 1000.0,
+            (self.val * 10000.0).round() as i64,
+            (self.min * 10000.0).round() as i64,
+            (self.max * 10000.0).round() as i64,
+            (step * 10000.0).round() as i64,
             r,
         );
     }
