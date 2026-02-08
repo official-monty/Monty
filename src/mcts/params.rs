@@ -39,11 +39,11 @@ impl Param<f32> {
 
     fn info(&self, name: &str) {
         println!(
-        "option name {} type spin default {} min {} max {}",
-        name,
-        (self.val * 10000.0).round() as i32,
-        (self.min * 10000.0).round() as i32,
-        (self.max * 10000.0).round() as i32,
+            "option name {} type spin default {} min {} max {}",
+            name,
+            (self.val * 10000.0).round() as i32,
+            (self.min * 10000.0).round() as i32,
+            (self.max * 10000.0).round() as i32,
         );
     }
 
