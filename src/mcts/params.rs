@@ -131,7 +131,7 @@ macro_rules! make_mcts_params {
 
 make_mcts_params! {
     root_pst_adjustment: f32 = 0.3349, 0.01, 1.0, 0.0170, 0.0005;
-    depth_pst_adjustment: f32 = 1.5777, 0.1, 10.0, 0.0894, 0.0005;
+    depth_pst_adjustment: f32 = 1.4, 0.1, 10.0, 0.0894, 0.0005;
     winning_pst_threshold: f32 = 0.5655, 0.0, 1.0, 0.03, 0.0005;
     winning_pst_max: f32 = 1.6260, 0.1, 10.0, 0.0811, 0.0005;
     base_pst_adjustment: f32 = 0.0960, 0.01, 1.0, 0.00528, 0.0005;
