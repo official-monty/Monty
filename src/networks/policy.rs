@@ -8,7 +8,7 @@ use super::common::{Accumulator, Layer, TransposedLayer};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals, dead_code)]
-pub const PolicyFileDefaultName: &str = "nn-6e49a41bd7c0.network";
+pub const PolicyFileDefaultName: &str = "nn-54c1b0dc9f59.network";
 #[allow(non_upper_case_globals, dead_code)]
 pub const CompressedPolicyName: &str = "nn-36e94b4fbf6b.network";
 #[allow(non_upper_case_globals, dead_code)]
@@ -19,7 +19,7 @@ const QB: i16 = 128;
 const FACTOR: i16 = 32;
 
 #[cfg(not(feature = "datagen"))]
-pub const L1: usize = 40960;
+pub const L1: usize = 16384;
 
 #[cfg(feature = "datagen")]
 pub const L1: usize = 16384;
