@@ -7,7 +7,7 @@ use super::common::{Accumulator, Layer, SCReLU, TransposedLayer};
 
 // DO NOT MOVE
 #[allow(non_upper_case_globals, dead_code)]
-pub const ValueFileDefaultName: &str = "nn-5601bb8c241d.network";
+pub const ValueFileDefaultName: &str = "nn-8677fe006486.network";
 #[allow(non_upper_case_globals, dead_code)]
 pub const CompressedValueName: &str = "nn-c1dd869bed55.network";
 #[allow(non_upper_case_globals, dead_code)]
@@ -18,7 +18,7 @@ const QB: i16 = 1024;
 
 const L1: usize = 3072;
 
-#[repr(C, align(64))]
+#[repr(C)]
 pub struct ValueNetwork {
     pst: [Accumulator<f32, 3>; threats::TOTAL],
     l1: Layer<i8, { threats::TOTAL }, L1>,
