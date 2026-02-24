@@ -8,6 +8,66 @@ use crate::{
 pub struct SearchHelpers;
 
 impl SearchHelpers {
+    pub fn rmcts_posterior_policy(q: &[f32], pi0: &[f32], cpuct: f32, t: u64) -> Vec<f32> {
+        let n = q.len();
+        if n == 0 || pi0.len() != n {
+            return Vec::new();
+        }
+
+        let sum_pi0: f32 = pi0.iter().sum();
+        if sum_pi0 <= f32::EPSILON {
+            return vec![1.0 / n as f32; n];
+        }
+
+        let t = t.max(1) as f64;
+        let c0 = f64::from(cpuct) / t.sqrt();
+        if c0 <= f64::EPSILON {
+            return vec![1.0 / n as f32; n];
+        }
+
+        let q_max = q.iter().copied().fold(f32::NEG_INFINITY, f32::max) as f64;
+        let a_max = q.iter().position(|&v| (v as f64) == q_max).unwrap_or(0);
+
+        let pi0_norm: Vec<f64> = pi0.iter().map(|&p| f64::from(p / sum_pi0)).collect();
+        let mut delta = (c0 * pi0_norm[a_max]).max(1e-12);
+
+        for _ in 0..16 {
+            let mut f = -1.0f64;
+            let mut fprime = 0.0f64;
+            for (&qa, &p0) in q.iter().zip(&pi0_norm) {
+                let denom = (q_max - f64::from(qa)) + delta;
+                let x = c0 * p0 / denom;
+                f += x;
+                fprime -= x / denom;
+            }
+            if f <= 1e-12 {
+                break;
+            }
+            let new_delta = delta - f / fprime;
+            if !new_delta.is_finite() || new_delta <= delta {
+                break;
+            }
+            delta = new_delta;
+        }
+
+        let mut pi1 = vec![0.0f32; n];
+        let mut sum = 0.0f64;
+        for (i, (&qa, &p0)) in q.iter().zip(&pi0_norm).enumerate() {
+            let denom = (q_max - f64::from(qa)) + delta;
+            let v = (c0 * p0 / denom).max(0.0);
+            pi1[i] = v as f32;
+            sum += v;
+        }
+
+        if sum <= f64::EPSILON {
+            return vec![1.0 / n as f32; n];
+        }
+
+        let inv = (1.0 / sum) as f32;
+        pi1.iter_mut().for_each(|p| *p *= inv);
+        pi1
+    }
+
     /// CPUCT
     ///
     /// Larger value implies more exploration.

@@ -181,5 +181,6 @@ make_mcts_params! {
     min_policy_actions: i32 = 6, 1, 32, 1, 0.0005;
     visit_threshold_power: i32 = 2, 0, 8, 1, 0.0005;
     virtual_loss_weight: f64 = 2.4747, 1.0, 5.0, 0.125, 0.0005;
+    rmcts_enabled: i32 = 1, 0, 1, 1, 0.0;
     contempt: i32 = 0, -1000, 1000, 0, 0.0005; //Do not tune this value!
 }

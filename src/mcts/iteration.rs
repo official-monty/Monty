@@ -152,6 +152,44 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
     }
     limit = limit.min(node.num_actions());
 
+    if searcher.params.rmcts_enabled() != 0 {
+        let mut q = Vec::with_capacity(limit);
+        let mut pi0 = Vec::with_capacity(limit);
+        for k in 0..limit {
+            let child = &searcher.tree[actions_ptr + k];
+
+            let mut qa = SearchHelpers::get_action_value(child, fpu);
+            let threads = f64::from(child.threads());
+            if threads > 0.0 {
+                let visits = child.visits() as f64;
+                let q2 = f64::from(qa) * visits
+                    / (visits + 1.0 + searcher.params.virtual_loss_weight() * (threads - 1.0));
+                qa = q2 as f32;
+            }
+
+            q.push(qa);
+            pi0.push(child.policy().max(1e-7));
+        }
+
+        let posterior = SearchHelpers::rmcts_posterior_policy(&q, &pi0, cpuct, node.visits());
+        let target_total = node.visits().max(1) as f32;
+
+        let mut best_idx = 0usize;
+        let mut best_key = f32::NEG_INFINITY;
+        for k in 0..limit {
+            let child = &searcher.tree[actions_ptr + k];
+            let residual = posterior[k] * target_total - child.visits() as f32;
+            let tie_break = expl * child.policy() / (1 + child.visits()) as f32;
+            let key = residual + 0.01 * tie_break;
+            if key > best_key {
+                best_key = key;
+                best_idx = k;
+            }
+        }
+
+        return best_idx;
+    }
+
     searcher
         .tree
         .get_best_child_by_key_lim(ptr, limit, |child| {
