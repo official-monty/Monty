@@ -152,133 +152,22 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
     }
     limit = limit.min(node.num_actions());
 
-    let posterior_weight = searcher.params.rmcts_posterior_weight();
-    let posterior = if posterior_weight > 0.0 {
-        Some(compute_rmcts_posterior(
-            searcher,
-            actions_ptr,
-            limit,
-            cpuct,
-            fpu,
-            node.visits(),
-        ))
-    } else {
-        None
-    };
+    searcher
+        .tree
+        .get_best_child_by_key_lim(ptr, limit, |child| {
+            let mut q = SearchHelpers::get_action_value(child, fpu);
 
-    let mut best_idx = 0;
-    let mut best_score = f32::NEG_INFINITY;
+            // virtual loss
+            let threads = f64::from(child.threads());
+            if threads > 0.0 {
+                let visits = child.visits() as f64;
+                let q2 = f64::from(q) * visits
+                    / (visits + 1.0 + searcher.params.virtual_loss_weight() * (threads - 1.0));
+                q = q2 as f32;
+            }
 
-    for action in 0..limit {
-        let child = &searcher.tree[actions_ptr + action];
-        let mut q = SearchHelpers::get_action_value(child, fpu);
+            let u = expl * child.policy() / (1 + child.visits()) as f32;
 
-        // virtual loss
-        let threads = f64::from(child.threads());
-        if threads > 0.0 {
-            let visits = child.visits() as f64;
-            let q2 = f64::from(q) * visits
-                / (visits + 1.0 + searcher.params.virtual_loss_weight() * (threads - 1.0));
-            q = q2 as f32;
-        }
-
-        let u = expl * child.policy() / (1 + child.visits()) as f32;
-        let mut score = q + u;
-
-        if let Some(ref posterior) = posterior {
-            let total = (node.visits() + 1) as f32;
-            let empirical = child.visits() as f32 / total;
-            let rmcts_pull = posterior[action] - empirical;
-            score += posterior_weight * rmcts_pull;
-        }
-
-        if score > best_score {
-            best_score = score;
-            best_idx = action;
-        }
-    }
-
-    best_idx
-}
-
-fn compute_rmcts_posterior(
-    searcher: &Searcher,
-    actions_ptr: NodePtr,
-    limit: usize,
-    cpuct: f32,
-    fpu: f32,
-    visits: u64,
-) -> Vec<f32> {
-    let lambda = (cpuct / ((visits.max(1) as f32).sqrt())).max(1e-4);
-
-    let mut priors = vec![0.0f32; limit];
-    let mut q_vals = vec![0.0f32; limit];
-    let mut prior_sum = 0.0f32;
-
-    for action in 0..limit {
-        let child = &searcher.tree[actions_ptr + action];
-        let p = child.policy().max(1e-8);
-        priors[action] = p;
-        prior_sum += p;
-        q_vals[action] = SearchHelpers::get_action_value(child, fpu);
-    }
-
-    if prior_sum <= 0.0 {
-        return vec![1.0 / limit as f32; limit];
-    }
-
-    for p in &mut priors {
-        *p /= prior_sum;
-    }
-
-    let q_max = q_vals
-        .iter()
-        .fold(f32::NEG_INFINITY, |acc, &q| if q > acc { q } else { acc });
-
-    let target = 1.0 / lambda;
-    let mut lo = q_max + 1e-4;
-    let mut hi = lo + 1.0;
-
-    while priors
-        .iter()
-        .zip(q_vals.iter())
-        .map(|(&p, &q)| p / (hi - q).max(1e-6))
-        .sum::<f32>()
-        > target
-    {
-        hi *= 2.0;
-    }
-
-    for _ in 0..28 {
-        let mid = 0.5 * (lo + hi);
-        let denom_sum = priors
-            .iter()
-            .zip(q_vals.iter())
-            .map(|(&p, &q)| p / (mid - q).max(1e-6))
-            .sum::<f32>();
-
-        if denom_sum > target {
-            lo = mid;
-        } else {
-            hi = mid;
-        }
-    }
-
-    let alpha = hi;
-    let mut posterior: Vec<f32> = priors
-        .iter()
-        .zip(q_vals.iter())
-        .map(|(&p, &q)| lambda * p / (alpha - q).max(1e-6))
-        .collect();
-    let z: f32 = posterior.iter().sum();
-
-    if z > 0.0 {
-        for prob in &mut posterior {
-            *prob /= z;
-        }
-    } else {
-        return vec![1.0 / limit as f32; limit];
-    }
-
-    posterior
+            q + u
+        })
 }
