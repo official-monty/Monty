@@ -152,6 +152,12 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
     }
     limit = limit.min(node.num_actions());
 
+    let rmcts_posterior = if searcher.params.rmcts_enabled() != 0 {
+        Some(compute_rmcts_posterior(searcher, node, limit))
+    } else {
+        None
+    };
+
     searcher
         .tree
         .get_best_child_by_key_lim(ptr, limit, |child| {
@@ -166,8 +172,83 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
                 q = q2 as f32;
             }
 
-            let u = expl * child.policy() / (1 + child.visits()) as f32;
+            let prior = if let Some(posterior) = &rmcts_posterior {
+                let blend = searcher.params.rmcts_blend();
+                let rmcts_prior = posterior
+                    .iter()
+                    .find_map(|(mov, p)| (*mov == child.parent_move()).then_some(*p))
+                    .unwrap_or_else(|| child.policy());
+                (1.0 - blend) * child.policy() + blend * rmcts_prior
+            } else {
+                child.policy()
+            };
+
+            let u = expl * prior / (1 + child.visits()) as f32;
 
             q + u
         })
+}
+
+fn compute_rmcts_posterior(
+    searcher: &Searcher,
+    node: &Node,
+    limit: usize,
+) -> Vec<(crate::chess::Move, f32)> {
+    let actions_ptr = node.actions();
+    let mut entries = Vec::with_capacity(limit);
+
+    for action in 0..limit {
+        let child = &searcher.tree[actions_ptr + action];
+        let q = if child.visits() == 0 { 0.0 } else { child.q() };
+        entries.push((child.parent_move(), child.policy().max(1e-9), q));
+    }
+
+    let q_max = entries
+        .iter()
+        .map(|(_, _, q)| *q)
+        .fold(f32::NEG_INFINITY, f32::max);
+
+    let c0 = searcher.params.rmcts_c() / (node.visits().max(1) as f32).sqrt();
+    let mut delta = c0.max(1e-9);
+
+    for _ in 0..8 {
+        let mut f = -1.0f32;
+        let mut fprime = 0.0f32;
+
+        for (_, prior, q) in &entries {
+            let denom = (q_max - *q + delta).max(1e-9);
+            let x = c0 * *prior / denom;
+            f += x;
+            fprime -= x / denom;
+        }
+
+        if f.abs() <= 1e-6 || fprime == 0.0 {
+            break;
+        }
+
+        let new_delta = delta - f / fprime;
+        if !new_delta.is_finite() || new_delta <= 1e-9 {
+            break;
+        }
+
+        delta = new_delta;
+    }
+
+    let mut posterior = Vec::with_capacity(limit);
+    let mut sum = 0.0f32;
+
+    for (mov, prior, q) in entries {
+        let denom = (q_max - q + delta).max(1e-9);
+        let p = c0 * prior / denom;
+        posterior.push((mov, p));
+        sum += p;
+    }
+
+    if sum > 0.0 {
+        for (_, p) in &mut posterior {
+            *p /= sum;
+        }
+    }
+
+    posterior
 }
