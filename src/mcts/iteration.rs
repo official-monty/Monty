@@ -152,22 +152,106 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
     }
     limit = limit.min(node.num_actions());
 
-    searcher
-        .tree
-        .get_best_child_by_key_lim(ptr, limit, |child| {
-            let mut q = SearchHelpers::get_action_value(child, fpu);
+    let posterior_policy = (searcher.params.rmcts_enable() != 0)
+        .then(|| compute_rmcts_policy(searcher, node, actions_ptr, limit, fpu));
 
-            // virtual loss
-            let threads = f64::from(child.threads());
-            if threads > 0.0 {
-                let visits = child.visits() as f64;
-                let q2 = f64::from(q) * visits
-                    / (visits + 1.0 + searcher.params.virtual_loss_weight() * (threads - 1.0));
-                q = q2 as f32;
-            }
+    let mut best_action = 0;
+    let mut best_score = f32::NEG_INFINITY;
 
-            let u = expl * child.policy() / (1 + child.visits()) as f32;
+    for action in 0..limit {
+        let child = &searcher.tree[actions_ptr + action];
+        let mut q = SearchHelpers::get_action_value(child, fpu);
 
-            q + u
-        })
+        let threads = f64::from(child.threads());
+        if threads > 0.0 {
+            let visits = child.visits() as f64;
+            let q2 = f64::from(q) * visits
+                / (visits + 1.0 + searcher.params.virtual_loss_weight() * (threads - 1.0));
+            q = q2 as f32;
+        }
+
+        let policy = posterior_policy
+            .as_ref()
+            .map_or_else(|| child.policy(), |pi| pi[action]);
+        let u = expl * policy / (1 + child.visits()) as f32;
+
+        let score = q + u;
+        if score > best_score {
+            best_score = score;
+            best_action = action;
+        }
+    }
+
+    best_action
+}
+
+fn compute_rmcts_policy(
+    searcher: &Searcher,
+    node: &Node,
+    actions_ptr: NodePtr,
+    limit: usize,
+    fpu: f32,
+) -> Vec<f32> {
+    let mut q_max = f32::NEG_INFINITY;
+    let mut priors = Vec::with_capacity(limit);
+    let mut values = Vec::with_capacity(limit);
+
+    for action in 0..limit {
+        let child = &searcher.tree[actions_ptr + action];
+        priors.push(child.policy().max(1e-8));
+        let q = SearchHelpers::get_action_value(child, fpu);
+        values.push(q);
+        q_max = q_max.max(q);
+    }
+
+    let sum_prior: f32 = priors.iter().sum();
+    if sum_prior <= 0.0 || !sum_prior.is_finite() {
+        return vec![1.0 / limit as f32; limit];
+    }
+    for p in &mut priors {
+        *p /= sum_prior;
+    }
+
+    let t = node.visits().max(1) as f32;
+    let c0 = searcher.params.rmcts_c() / t.sqrt();
+    let mut delta = (c0 * priors.iter().copied().fold(0.0, f32::max)).max(1e-8);
+
+    for _ in 0..16 {
+        let mut f = -1.0f32;
+        let mut fprime = 0.0f32;
+        for (&pi0, &q) in priors.iter().zip(values.iter()) {
+            let denom = (q_max - q + delta).max(1e-8);
+            let x = c0 * pi0 / denom;
+            f += x;
+            fprime -= x / denom;
+        }
+
+        if f <= 1e-6 {
+            break;
+        }
+
+        let new_delta = delta - f / fprime.min(-1e-8);
+        if !new_delta.is_finite() || new_delta <= 0.0 {
+            break;
+        }
+        delta = new_delta;
+    }
+
+    let mut posterior = Vec::with_capacity(limit);
+    let mut sum = 0.0;
+    for (&pi0, &q) in priors.iter().zip(values.iter()) {
+        let p = c0 * pi0 / (q_max - q + delta).max(1e-8);
+        posterior.push(p);
+        sum += p;
+    }
+
+    if sum > 0.0 && sum.is_finite() {
+        for p in &mut posterior {
+            *p /= sum;
+        }
+    } else {
+        posterior.fill(1.0 / limit as f32);
+    }
+
+    posterior
 }
