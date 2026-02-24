@@ -171,8 +171,8 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
             pi0.push(child.policy().max(1e-7));
         }
 
-        let posterior = SearchHelpers::rmcts_posterior_policy(&q, &pi0, cpuct, node.visits());
-        let target_total = node.visits().max(1) as f32;
+        let target_total = (node.visits() + 1).max(1) as f32;
+        let posterior = SearchHelpers::rmcts_posterior_policy(&q, &pi0, expl, target_total as u64);
 
         let mut best_idx = 0usize;
         let mut best_key = f32::NEG_INFINITY;

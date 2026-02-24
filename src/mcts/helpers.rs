@@ -8,7 +8,7 @@ use crate::{
 pub struct SearchHelpers;
 
 impl SearchHelpers {
-    pub fn rmcts_posterior_policy(q: &[f32], pi0: &[f32], cpuct: f32, t: u64) -> Vec<f32> {
+    pub fn rmcts_posterior_policy(q: &[f32], pi0: &[f32], explore: f32, t: u64) -> Vec<f32> {
         let n = q.len();
         if n == 0 || pi0.len() != n {
             return Vec::new();
@@ -20,7 +20,9 @@ impl SearchHelpers {
         }
 
         let t = t.max(1) as f64;
-        let c0 = f64::from(cpuct) / t.sqrt();
+        // In Monty's UCB rule, exploration is `explore * p / (1 + n)`.
+        // The corresponding RMCTS posterior fixed point is driven by c/t.
+        let c0 = f64::from(explore) / t;
         if c0 <= f64::EPSILON {
             return vec![1.0 / n as f32; n];
         }
