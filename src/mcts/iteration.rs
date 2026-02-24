@@ -158,7 +158,7 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
             searcher,
             actions_ptr,
             limit,
-            cpuct,
+            expl,
             fpu,
             node.visits(),
         ))
@@ -182,15 +182,14 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
             q = q2 as f32;
         }
 
-        let u = expl * child.policy() / (1 + child.visits()) as f32;
-        let mut score = q + u;
+        let prior = if let Some(ref posterior) = posterior {
+            (1.0 - posterior_weight) * child.policy() + posterior_weight * posterior[action]
+        } else {
+            child.policy()
+        };
 
-        if let Some(ref posterior) = posterior {
-            let total = (node.visits() + 1) as f32;
-            let empirical = child.visits() as f32 / total;
-            let rmcts_pull = posterior[action] - empirical;
-            score += posterior_weight * rmcts_pull;
-        }
+        let u = expl * prior / (1 + child.visits()) as f32;
+        let score = q + u;
 
         if score > best_score {
             best_score = score;
