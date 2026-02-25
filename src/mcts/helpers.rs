@@ -33,7 +33,7 @@ impl SearchHelpers {
         let pi0_norm: Vec<f64> = pi0.iter().map(|&p| f64::from(p / sum_pi0)).collect();
         let mut delta = (c0 * pi0_norm[a_max]).max(1e-12);
 
-        for _ in 0..4 {
+        for _ in 0..8 {
             let mut f = -1.0f64;
             let mut fprime = 0.0f64;
             for (&qa, &p0) in q.iter().zip(&pi0_norm) {
