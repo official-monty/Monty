@@ -178,8 +178,10 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
         let mut best_key = f32::NEG_INFINITY;
         for k in 0..limit {
             let child = &searcher.tree[actions_ptr + k];
-            let residual = posterior[k] * target_total - child.visits() as f32;
-            let tie_break = expl * child.policy() / (1 + child.visits()) as f32;
+            let effective_visits = child.visits() as f32
+                + (searcher.params.virtual_loss_weight() as f32) * child.threads() as f32;
+            let residual = posterior[k] * target_total - effective_visits;
+            let tie_break = expl * child.policy() / (1.0 + effective_visits);
             let key = residual + 0.01 * tie_break;
             if key > best_key {
                 best_key = key;
