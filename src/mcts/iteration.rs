@@ -152,7 +152,7 @@ fn pick_action(searcher: &Searcher, ptr: NodePtr, node: &Node) -> usize {
     }
     limit = limit.min(node.num_actions());
 
-    if searcher.params.rmcts_enabled() != 0 && node.visits() < 64 {
+    if searcher.params.rmcts_enabled() != 0 && node.visits() < 1024 {
         let mut q = Vec::with_capacity(limit);
         let mut pi0 = Vec::with_capacity(limit);
         for k in 0..limit {
