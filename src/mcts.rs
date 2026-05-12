@@ -628,25 +628,32 @@ impl<'a> Searcher<'a> {
         let root = self.tree.root_node();
         let first_child_ptr = self.tree[root].actions();
 
-        let mut children: Vec<(NodePtr, Move)> = (0..self.tree[root].num_actions())
+        let mut children: Vec<(NodePtr, Move, f32)> = (0..self.tree[root].num_actions())
             .map(|action| {
                 let ptr = first_child_ptr + action;
-                (ptr, self.tree[ptr].parent_move())
+                (
+                    ptr,
+                    self.tree[ptr].parent_move(),
+                    Self::node_order_score(&self.tree[ptr]),
+                )
             })
             .collect();
 
-        children.sort_by(|(a_ptr, _), (b_ptr, _)| {
-            let a_score = Self::node_order_score(&self.tree[*a_ptr]);
-            let b_score = Self::node_order_score(&self.tree[*b_ptr]);
-
+        children.sort_by(|(a_ptr, _, a_score), (b_ptr, _, b_score)| {
+            // Keep comparisons deterministic by sorting on snapshot values only.
+            // Node statistics are updated concurrently during search and reading live
+            // values inside this comparator can violate sort's total-order contract.
             b_score
-                .partial_cmp(&a_score)
-                .unwrap_or(std::cmp::Ordering::Equal)
+                .total_cmp(a_score)
+                .then_with(|| a_ptr.idx().cmp(&b_ptr.idx()))
         });
 
         children.truncate(limit.min(children.len()));
 
         children
+            .into_iter()
+            .map(|(ptr, mov, _)| (ptr, mov))
+            .collect()
     }
 
     fn node_order_score(node: &Node) -> f32 {
